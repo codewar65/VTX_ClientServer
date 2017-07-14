@@ -1,0 +1,660 @@
+<html>
+    <head>
+        <script>
+            var
+                hex =   '0123456789ABCDEF',
+                C_ENQ = 5,
+                C_BEL = 7,
+                C_BS = 8,
+                C_HT = 9,
+                C_LF = 10,
+                C_VT = 11,
+                C_FF = 12,
+                C_CR = 13,
+                C_DC1 = 17,
+                C_DC3 = 19,
+                C_ESC = 27,
+                cp437 = new Uint16Array([   // CP437
+                    0x0000, 0x263A, 0x263B, 0x2665, 0x2666, C_ENQ,  0x2660, C_BEL,
+                    C_BS,   C_HT,   C_LF,   C_VT,   C_FF,   C_CR,   0x266B, 0x263C,
+                    0x25BA, C_DC1,  0x2195, C_DC3,  0x00B6, 0x00A7, 0x25AC, 0x21A8,
+                    0x2191, 0x2193, 0x2192, C_ESC,  0x221F, 0x2194, 0x25B2, 0x25BC,
+                    0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027,
+                    0x0028, 0x0029, 0x002A, 0x002B, 0x002C, 0x002D, 0x002E, 0x002F,
+                    0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037,
+                    0x0038, 0x0039, 0x003A, 0x003B, 0x003C, 0x003D, 0x003E, 0x003F,
+                    0x0040, 0x0041, 0x0042, 0x0043, 0x0044, 0x0045, 0x0046, 0x0047,
+                    0x0048, 0x0049, 0x004A, 0x004B, 0x004C, 0x004D, 0x004E, 0x004F,
+                    0x0050, 0x0051, 0x0052, 0x0053, 0x0054, 0x0055, 0x0056, 0x0057,
+                    0x0058, 0x0059, 0x005A, 0x005B, 0x005C, 0x005D, 0x005E, 0x005F,
+                    0x0060, 0x0061, 0x0062, 0x0063, 0x0064, 0x0065, 0x0066, 0x0067,
+                    0x0068, 0x0069, 0x006A, 0x006B, 0x006C, 0x006D, 0x006E, 0x006F,
+                    0x0070, 0x0071, 0x0072, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077,
+                    0x0078, 0x0079, 0x007A, 0x007B, 0x007C, 0x007D, 0x007E, 0x2302,
+                    0x00C7, 0x00FC, 0x00E9, 0x00E2, 0x00E4, 0x00E0, 0x00E5, 0x00E7,
+                    0x00EA, 0x00EB, 0x00E8, 0x00EF, 0x00EE, 0x00EC, 0x00C4, 0x00C5,
+                    0x00C9, 0x00E6, 0x00C6, 0x00F4, 0x00F6, 0x00F2, 0x00FB, 0x00F9,
+                    0x00FF, 0x00D6, 0x00DC, 0x00A2, 0x00A3, 0x00A5, 0x20A7, 0x0192,
+                    0x00E1, 0x00ED, 0x00F3, 0x00FA, 0x00F1, 0x00D1, 0x00AA, 0x00BA,
+                    0x00BF, 0x2310, 0x00AC, 0x00BD, 0x00BC, 0x00A1, 0x00AB, 0x00BB,
+                    0x2591, 0x2592, 0x2593, 0x2502, 0x2524, 0x2561, 0x2562, 0x2556,
+                    0x2555, 0x2563, 0x2551, 0x2557, 0x255D, 0x255C, 0x255B, 0x2510,
+                    0x2514, 0x2534, 0x252C, 0x251C, 0x2500, 0x253C, 0x255E, 0x255F,
+                    0x255A, 0x2554, 0x2569, 0x2566, 0x2560, 0x2550, 0x256C, 0x2567,
+                    0x2568, 0x2564, 0x2565, 0x2559, 0x2558, 0x2552, 0x2553, 0x256B,
+                    0x256A, 0x2518, 0x250C, 0x2588, 0x2584, 0x258C, 0x2590, 0x2580,
+                    0x03B1, 0x00DF, 0x0393, 0x03C0, 0x03A3, 0x03C3, 0x00B5, 0x03C4,
+                    0x03A6, 0x0398, 0x03A9, 0x03B4, 0x221E, 0x03C6, 0x03B5, 0x2229,
+                    0x2261, 0x00B1, 0x2265, 0x2264, 0x2320, 0x2321, 0x00F7, 0x2248,
+                    0x00B0, 0x2219, 0x00B7, 0x221A, 0x207F, 0x00B2, 0x25A0, 0x00A0 ]);
+
+            function convertSVG(el) {
+                var
+                    f = el.files[0],
+                    r = new FileReader();
+                r.onloadend = function() {
+                    document.getElementById('svg').innerText = r.result;
+                }
+                r.readAsDataURL(f);
+            }
+
+            function convert437(el) {
+                var reader = new FileReader();
+                reader.onloadend = function(e) {
+                    var
+                        i, s = '',
+                        b,
+                        chars = e.target.result;
+
+                    for (i = 0; i < chars.length; i++) {
+                        b = chars[i]
+                        s += String.fromCharCode( cp437[ chars.charCodeAt(i) ] );
+                    }
+                    document.getElementById('437').innerText = s;
+                }
+                reader.readAsBinaryString(el.files[0]);
+            }
+
+            function sendStr(k) {
+                opener.postMessage(k, '*');
+            }
+
+            function addListener(obj, eventName, listener) {
+                if(obj.addEventListener)
+                    obj.addEventListener(eventName, listener, false)
+                else
+                    obj.attachEvent("on" + eventName, listener);
+            }
+
+            function echo() {
+                sendStr('STR:' + event.target.innerText);
+            }
+
+            function sendCrsr(val) {
+                // cursor attribute : bits 0-7 are color (0-255)
+                // bits 8-9 are size
+                // bit 10 is orientation
+                sendStr('CRS:' + val);
+            }
+
+            function sendColor() {
+                var
+                    v = '',
+                    c = event.target.style['background-color'];
+                if (c.substring(0,4)=='rgb(') {
+                    var es = c.substring(4).split(',');
+                    var r = parseInt(es[0]);
+                    var g = parseInt(es[1]);
+                    var b = parseInt(es[2]);
+                    v = '#' + itoh((r<<16)+(g<<8)+b,6);
+                } else
+                    v = c;
+                if (event.button == 0) {
+                    if (event.shiftKey)
+                        sendStr('CBG:' + v)
+                    else if (event.ctrlKey)
+                        sendStr('RC1:' + v)
+                    else if (event.altKey)
+                        sendStr('RC2:' + v)
+                    else
+                        sendStr('CFG:' + v);
+                }
+            }
+
+            function sendAttr() {
+                var a = event.target.innerText;
+                sendStr('ATR:' + a);
+            }
+
+            function sendSize() {
+                var s = parseInt(event.target.innerText)
+                sendStr('SIZ:' + s);
+            }
+
+            function sendWidth() {
+                var s = parseInt(event.target.innerText)
+                sendStr('WID:' + s);
+            }
+            function sendRowType(t) {
+                sendStr('ROW:' + t);
+            }
+
+            // concert integer to hex string.
+            function itoh(i, digits = 0) {
+                var
+                    str;
+
+                for (str = ''; i; str = hex.charAt(i & 0x0F) + str, i >>= 4);
+                if (digits > 0)
+                    while (str.length < digits) str = '0' + str;
+                return str;
+            }
+
+            // convert hex string to integer
+            function htoi(h) {
+                var
+                    i, l,
+                    v;
+
+                for (h = h.toUpperCase(), v = 0, i = 0, l = h.length; i < l; i++) {
+                    v <<= 4;
+                    v += hex.indexOf(h.charAt(i));
+                }
+                return v;
+            }
+            addEventListener('message', function (e) {
+                var str = e.data;
+                el = document.getElementById('vtx');
+                el.innerText = str;
+            });
+
+        </script>
+        <style>
+            td {
+                background-color: #012;
+                cursor: pointer;
+                margin : 2px;
+                color: #FFF;
+                text-align: center;
+                height: 24px;
+                border: 1px solid black;
+            }
+        </style>
+    </head>
+    <body>
+        <h2>Info on current VTX screen</h2>
+        Cursor :
+        <table>
+        <tr>
+        <td onclick='sendCrsr(0x0007);'>Horz:None</td>
+        <td onclick='sendCrsr(0x0107);'>Horz:Thin</td>
+        <td onclick='sendCrsr(0x0207);'>Horz:Thick</td>
+        <td onclick='sendCrsr(0x0307);'>Horz:Full</td>
+        </tr>
+        <tr>
+        <td onclick='sendCrsr(0x0407);'>Vert:None</td>
+        <td onclick='sendCrsr(0x0507);'>Vert:Thin</td>
+        <td onclick='sendCrsr(0x0607);'>Vert:Thick</td>
+        <td onclick='sendCrsr(0x0707);'>Vert:Full</td>
+        </tr>
+        </table>
+        <br>
+        Char Attrs :
+        <table><tr>
+        <td onclick='sendAttr();'>Bold</td>
+        <td onclick='sendAttr();'>Italics</td>
+        <td onclick='sendAttr();'>Underline</td>
+        <td onclick='sendAttr();'>Blink</td>
+        <td onclick='sendAttr();'>Shadow</td>
+        <td onclick='sendAttr();'>Strikethrough</td>
+        <td onclick='sendAttr();'>Outline</td>
+        <td onclick='sendAttr();'>Glow</td>
+        <td onclick='sendAttr();'>Reverse</td>
+        <td onclick='sendAttr();'>Conceal</td>
+        </tr></table>
+        <br>
+        Row Attrs :
+        <table><tr>
+        <td onclick='sendSize();'>25% Size</td>
+        <td onclick='sendSize();'>50% Size</td>
+        <td onclick='sendSize();'>75% Size</td>
+        <td onclick='sendSize();'>100% Size</td>
+        <td onclick='sendSize();'>125% Size</td>
+        <td onclick='sendSize();'>150% Size</td>
+        <td onclick='sendSize();'>175% Size</td>
+        <td onclick='sendSize();'>200% Size</td>
+        </tr><tr>
+        <td onclick='sendWidth();'>50% Width</td>
+        <td onclick='sendWidth();'>100% Width</td>
+        <td onclick='sendWidth();'>150% Width</td>
+        <td onclick='sendWidth();'>200% Width</td>
+        <td onclick='sendRowType(0);'>Transparent</td>
+        <td onclick='sendRowType(1);'>Solid Color</td>
+        <td onclick='sendRowType(2);'>Horz Grad</td>
+        <td onclick='sendRowType(3);'>Vert Grad</td>
+        </tr><tr>
+        <td onclick='sendAttr();'>Marquee</td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        <td></td>
+        </tr>
+        </table>
+		<br>
+		Special Chars :
+        <table>
+            <col width='100px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+        <tr>
+            <td>CP437</td>
+            <td></td><td onclick='echo();'>&#x263A;</td>
+            <td onclick='echo();'>&#x263B;</td><td onclick='echo();'>&#x2665;</td><td onclick='echo();'>&#x2666;</td><td onclick='echo();'>&#x2663;</td>
+            <td onclick='echo();'>&#x2660;</td><td onclick='echo();'>&#x2022;</td><td onclick='echo();'>&#x25D8;</td><td onclick='echo();'>&#x25CB;</td>
+            <td onclick='echo();'>&#x25D9;</td><td onclick='echo();'>&#x2642;</td><td onclick='echo();'>&#x2640;</td><td onclick='echo();'>&#x266A;</td>
+            <td onclick='echo();'>&#x266B;</td><td onclick='echo();'>&#x263C;</td><td onclick='echo();'>&#x25BA;</td><td onclick='echo();'>&#x25C4;</td>
+            <td onclick='echo();'>&#x2195;</td><td onclick='echo();'>&#x203C;</td><td onclick='echo();'>&#x00B6;</td><td onclick='echo();'>&#x00A7;</td>
+            <td onclick='echo();'>&#x25AC;</td><td onclick='echo();'>&#x21A8;</td><td onclick='echo();'>&#x2191;</td><td onclick='echo();'>&#x2193;</td>
+            <td onclick='echo();'>&#x2192;</td><td onclick='echo();'>&#x2190;</td><td onclick='echo();'>&#x221F;</td><td onclick='echo();'>&#x2194;</td>
+            <td onclick='echo();'>&#x25B2;</td><td onclick='echo();'>&#x25BC;</td></tr><tr>
+            <td>CP437</td>
+            <td></td><td></td><td></td><td></td>
+            <td></td><td></td><td></td><td></td>
+            <td></td><td></td><td></td><td></td>
+            <td></td><td></td><td></td><td></td>
+            <td onclick='echo();'>&#x2591;</td><td onclick='echo();'>&#x2592;</td><td onclick='echo();'>&#x2593;</td><td onclick='echo();'>&#x2502;</td>
+            <td onclick='echo();'>&#x2524;</td><td onclick='echo();'>&#x2561;</td><td onclick='echo();'>&#x2562;</td><td onclick='echo();'>&#x2556;</td>
+            <td onclick='echo();'>&#x2555;</td><td onclick='echo();'>&#x2563;</td><td onclick='echo();'>&#x2551;</td><td onclick='echo();'>&#x2557;</td>
+            <td onclick='echo();'>&#x255D;</td><td onclick='echo();'>&#x255C;</td><td onclick='echo();'>&#x255B;</td><td onclick='echo();'>&#x2510;</td>
+        </tr><tr>
+            <td>CP437</td>
+            <td onclick='echo();'>&#x2514;</td><td onclick='echo();'>&#x2534;</td><td onclick='echo();'>&#x252C;</td><td onclick='echo();'>&#x251C;</td>
+            <td onclick='echo();'>&#x2500;</td><td onclick='echo();'>&#x253C;</td><td onclick='echo();'>&#x255E;</td><td onclick='echo();'>&#x255F;</td>
+            <td onclick='echo();'>&#x255A;</td><td onclick='echo();'>&#x2554;</td><td onclick='echo();'>&#x2569;</td><td onclick='echo();'>&#x2566;</td>
+            <td onclick='echo();'>&#x2560;</td><td onclick='echo();'>&#x2550;</td><td onclick='echo();'>&#x256C;</td><td onclick='echo();'>&#x2567;</td>
+            <td onclick='echo();'>&#x2568;</td><td onclick='echo();'>&#x2564;</td><td onclick='echo();'>&#x2565;</td><td onclick='echo();'>&#x2559;</td>
+            <td onclick='echo();'>&#x2558;</td><td onclick='echo();'>&#x2552;</td><td onclick='echo();'>&#x2553;</td><td onclick='echo();'>&#x256B;</td>
+            <td onclick='echo();'>&#x256A;</td><td onclick='echo();'>&#x2518;</td><td onclick='echo();'>&#x250C;</td><td onclick='echo();'>&#x2588;</td>
+            <td onclick='echo();'>&#x2584;</td><td onclick='echo();'>&#x258C;</td><td onclick='echo();'>&#x2590;</td><td onclick='echo();'>&#x2580;</td>
+        </tr><tr>
+            <td>CP437</td>
+            <td onclick='echo();'>&#x03B1;</td><td onclick='echo();'>&#x00DF;</td><td onclick='echo();'>&#x0393;</td><td onclick='echo();'>&#x03C0;</td>
+            <td onclick='echo();'>&#x03A3;</td><td onclick='echo();'>&#x03C3;</td><td onclick='echo();'>&#x00B5;</td><td onclick='echo();'>&#x03C4;</td>
+            <td onclick='echo();'>&#x03A6;</td><td onclick='echo();'>&#x0398;</td><td onclick='echo();'>&#x03A9;</td><td onclick='echo();'>&#x03B4;</td>
+            <td onclick='echo();'>&#x221E;</td><td onclick='echo();'>&#x03C6;</td><td onclick='echo();'>&#x03B5;</td><td onclick='echo();'>&#x2229;</td>
+            <td onclick='echo();'>&#x2261;</td><td onclick='echo();'>&#x00B1;</td><td onclick='echo();'>&#x2265;</td><td onclick='echo();'>&#x2264;</td>
+            <td onclick='echo();'>&#x2320;</td><td onclick='echo();'>&#x2321;</td><td onclick='echo();'>&#x00F7;</td><td onclick='echo();'>&#x2248;</td>
+            <td onclick='echo();'>&#x00B0;</td><td onclick='echo();'>&#x2219;</td><td onclick='echo();'>&#x00B7;</td><td onclick='echo();'>&#x221A;</td>
+            <td onclick='echo();'>&#x207F;</td><td onclick='echo();'>&#x00B2;</td><td onclick='echo();'>&#x25A0;</td><td></td>
+        </tr>
+        <tr>
+            <td>00A0-00BF</td>
+            <td onclick='echo();'>&#x00a0;</td><td onclick='echo();'>&#x00a1;</td><td onclick='echo();'>&#x00a2;</td><td onclick='echo();'>&#x00a3;</td>
+            <td onclick='echo();'>&#x00a4;</td><td onclick='echo();'>&#x00a5;</td><td onclick='echo();'>&#x00a6;</td><td onclick='echo();'>&#x00a7;</td>
+            <td onclick='echo();'>&#x00a8;</td><td onclick='echo();'>&#x00a9;</td><td onclick='echo();'>&#x00aa;</td><td onclick='echo();'>&#x00ab;</td>
+            <td onclick='echo();'>&#x00ac;</td><td onclick='echo();'>&#x00ad;</td><td onclick='echo();'>&#x00ae;</td><td onclick='echo();'>&#x00af;</td>
+            <td onclick='echo();'>&#x00b0;</td><td onclick='echo();'>&#x00b1;</td><td onclick='echo();'>&#x00b2;</td><td onclick='echo();'>&#x00b3;</td>
+            <td onclick='echo();'>&#x00b4;</td><td onclick='echo();'>&#x00b5;</td><td onclick='echo();'>&#x00b6;</td><td onclick='echo();'>&#x00b7;</td>
+            <td onclick='echo();'>&#x00b8;</td><td onclick='echo();'>&#x00b9;</td><td onclick='echo();'>&#x00ba;</td><td onclick='echo();'>&#x00bb;</td>
+            <td onclick='echo();'>&#x00bc;</td><td onclick='echo();'>&#x00bd;</td><td onclick='echo();'>&#x00be;</td><td onclick='echo();'>&#x00bf;</td>
+        </tr>
+        <tr>
+            <td>00C0-00DF</td>
+            <td onclick='echo();'>&#x00c0;</td><td onclick='echo();'>&#x00c1;</td><td onclick='echo();'>&#x00c2;</td><td onclick='echo();'>&#x00c3;</td>
+            <td onclick='echo();'>&#x00c4;</td><td onclick='echo();'>&#x00c5;</td><td onclick='echo();'>&#x00c6;</td><td onclick='echo();'>&#x00c7;</td>
+            <td onclick='echo();'>&#x00c8;</td><td onclick='echo();'>&#x00c9;</td><td onclick='echo();'>&#x00ca;</td><td onclick='echo();'>&#x00cb;</td>
+            <td onclick='echo();'>&#x00cc;</td><td onclick='echo();'>&#x00cd;</td><td onclick='echo();'>&#x00ce;</td><td onclick='echo();'>&#x00cf;</td>
+            <td onclick='echo();'>&#x00d0;</td><td onclick='echo();'>&#x00d1;</td><td onclick='echo();'>&#x00d2;</td><td onclick='echo();'>&#x00d3;</td>
+            <td onclick='echo();'>&#x00d4;</td><td onclick='echo();'>&#x00d5;</td><td onclick='echo();'>&#x00d6;</td><td onclick='echo();'>&#x00d7;</td>
+            <td onclick='echo();'>&#x00d8;</td><td onclick='echo();'>&#x00d9;</td><td onclick='echo();'>&#x00da;</td><td onclick='echo();'>&#x00db;</td>
+            <td onclick='echo();'>&#x00dc;</td><td onclick='echo();'>&#x00dd;</td><td onclick='echo();'>&#x00de;</td><td onclick='echo();'>&#x00df;</td>
+        </tr>
+        <tr>
+            <td>00E0-00FF</td>
+            <td onclick='echo();'>&#x00e0;</td><td onclick='echo();'>&#x00e1;</td><td onclick='echo();'>&#x00e2;</td><td onclick='echo();'>&#x00e3;</td>
+            <td onclick='echo();'>&#x00e4;</td><td onclick='echo();'>&#x00e5;</td><td onclick='echo();'>&#x00e6;</td><td onclick='echo();'>&#x00e7;</td>
+            <td onclick='echo();'>&#x00e8;</td><td onclick='echo();'>&#x00e9;</td><td onclick='echo();'>&#x00ea;</td><td onclick='echo();'>&#x00eb;</td>
+            <td onclick='echo();'>&#x00ec;</td><td onclick='echo();'>&#x00ed;</td><td onclick='echo();'>&#x00ee;</td><td onclick='echo();'>&#x00ef;</td>
+            <td onclick='echo();'>&#x00f0;</td><td onclick='echo();'>&#x00f1;</td><td onclick='echo();'>&#x00f2;</td><td onclick='echo();'>&#x00f3;</td>
+            <td onclick='echo();'>&#x00f4;</td><td onclick='echo();'>&#x00f5;</td><td onclick='echo();'>&#x00f6;</td><td onclick='echo();'>&#x00f7;</td>
+            <td onclick='echo();'>&#x00f8;</td><td onclick='echo();'>&#x00f9;</td><td onclick='echo();'>&#x00fa;</td><td onclick='echo();'>&#x00fb;</td>
+            <td onclick='echo();'>&#x00fc;</td><td onclick='echo();'>&#x00fd;</td><td onclick='echo();'>&#x00fe;</td><td onclick='echo();'>&#x00ff;</td>
+        </tr>
+        <tr>
+            <td>0100-011F</td>
+            <td onclick='echo();'>&#x0100;</td><td onclick='echo();'>&#x0101;</td><td onclick='echo();'>&#x0102;</td><td onclick='echo();'>&#x0103;</td>
+            <td onclick='echo();'>&#x0104;</td><td onclick='echo();'>&#x0105;</td><td onclick='echo();'>&#x0106;</td><td onclick='echo();'>&#x0107;</td>
+            <td onclick='echo();'>&#x0108;</td><td onclick='echo();'>&#x0109;</td><td onclick='echo();'>&#x010a;</td><td onclick='echo();'>&#x010b;</td>
+            <td onclick='echo();'>&#x010c;</td><td onclick='echo();'>&#x010d;</td><td onclick='echo();'>&#x010e;</td><td onclick='echo();'>&#x010f;</td>
+            <td onclick='echo();'>&#x0110;</td><td onclick='echo();'>&#x0111;</td><td onclick='echo();'>&#x0112;</td><td onclick='echo();'>&#x0113;</td>
+            <td onclick='echo();'>&#x0114;</td><td onclick='echo();'>&#x0115;</td><td onclick='echo();'>&#x0116;</td><td onclick='echo();'>&#x0117;</td>
+            <td onclick='echo();'>&#x0118;</td><td onclick='echo();'>&#x0119;</td><td onclick='echo();'>&#x011a;</td><td onclick='echo();'>&#x011b;</td>
+            <td onclick='echo();'>&#x011c;</td><td onclick='echo();'>&#x011d;</td><td onclick='echo();'>&#x011e;</td><td onclick='echo();'>&#x011f;</td>
+        </tr>
+        <tr>
+            <td>0120-013F</td>
+            <td onclick='echo();'>&#x0120;</td><td onclick='echo();'>&#x0121;</td><td onclick='echo();'>&#x0122;</td><td onclick='echo();'>&#x0123;</td>
+            <td onclick='echo();'>&#x0124;</td><td onclick='echo();'>&#x0125;</td><td onclick='echo();'>&#x0126;</td><td onclick='echo();'>&#x0127;</td>
+            <td onclick='echo();'>&#x0128;</td><td onclick='echo();'>&#x0129;</td><td onclick='echo();'>&#x012a;</td><td onclick='echo();'>&#x012b;</td>
+            <td onclick='echo();'>&#x012c;</td><td onclick='echo();'>&#x012d;</td><td onclick='echo();'>&#x012e;</td><td onclick='echo();'>&#x012f;</td>
+            <td onclick='echo();'>&#x0130;</td><td onclick='echo();'>&#x0131;</td><td onclick='echo();'>&#x0132;</td><td onclick='echo();'>&#x0133;</td>
+            <td onclick='echo();'>&#x0134;</td><td onclick='echo();'>&#x0135;</td><td onclick='echo();'>&#x0136;</td><td onclick='echo();'>&#x0137;</td>
+            <td onclick='echo();'>&#x0138;</td><td onclick='echo();'>&#x0139;</td><td onclick='echo();'>&#x013a;</td><td onclick='echo();'>&#x013b;</td>
+            <td onclick='echo();'>&#x013c;</td><td onclick='echo();'>&#x013d;</td><td onclick='echo();'>&#x013e;</td><td onclick='echo();'>&#x013f;</td>
+        </tr>
+        <tr>
+            <td>0140-015F</td>
+            <td onclick='echo();'>&#x0140;</td><td onclick='echo();'>&#x0141;</td><td onclick='echo();'>&#x0142;</td><td onclick='echo();'>&#x0143;</td>
+            <td onclick='echo();'>&#x0144;</td><td onclick='echo();'>&#x0145;</td><td onclick='echo();'>&#x0146;</td><td onclick='echo();'>&#x0147;</td>
+            <td onclick='echo();'>&#x0148;</td><td onclick='echo();'>&#x0149;</td><td onclick='echo();'>&#x014a;</td><td onclick='echo();'>&#x014b;</td>
+            <td onclick='echo();'>&#x014c;</td><td onclick='echo();'>&#x014d;</td><td onclick='echo();'>&#x014e;</td><td onclick='echo();'>&#x014f;</td>
+            <td onclick='echo();'>&#x0150;</td><td onclick='echo();'>&#x0151;</td><td onclick='echo();'>&#x0152;</td><td onclick='echo();'>&#x0153;</td>
+            <td onclick='echo();'>&#x0154;</td><td onclick='echo();'>&#x0155;</td><td onclick='echo();'>&#x0156;</td><td onclick='echo();'>&#x0157;</td>
+            <td onclick='echo();'>&#x0158;</td><td onclick='echo();'>&#x0159;</td><td onclick='echo();'>&#x015a;</td><td onclick='echo();'>&#x015b;</td>
+            <td onclick='echo();'>&#x015c;</td><td onclick='echo();'>&#x015d;</td><td onclick='echo();'>&#x015e;</td><td onclick='echo();'>&#x015f;</td>
+        </tr>
+        <tr>
+            <td>0160-017F</td>
+            <td onclick='echo();'>&#x0160;</td><td onclick='echo();'>&#x0161;</td><td onclick='echo();'>&#x0162;</td><td onclick='echo();'>&#x0163;</td>
+            <td onclick='echo();'>&#x0164;</td><td onclick='echo();'>&#x0165;</td><td onclick='echo();'>&#x0166;</td><td onclick='echo();'>&#x0167;</td>
+            <td onclick='echo();'>&#x0168;</td><td onclick='echo();'>&#x0169;</td><td onclick='echo();'>&#x016a;</td><td onclick='echo();'>&#x016b;</td>
+            <td onclick='echo();'>&#x016c;</td><td onclick='echo();'>&#x016d;</td><td onclick='echo();'>&#x016e;</td><td onclick='echo();'>&#x016f;</td>
+            <td onclick='echo();'>&#x0170;</td><td onclick='echo();'>&#x0171;</td><td onclick='echo();'>&#x0172;</td><td onclick='echo();'>&#x0173;</td>
+            <td onclick='echo();'>&#x0174;</td><td onclick='echo();'>&#x0175;</td><td onclick='echo();'>&#x0176;</td><td onclick='echo();'>&#x0177;</td>
+            <td onclick='echo();'>&#x0178;</td><td onclick='echo();'>&#x0179;</td><td onclick='echo();'>&#x017a;</td><td onclick='echo();'>&#x017b;</td>
+            <td onclick='echo();'>&#x017c;</td><td onclick='echo();'>&#x017d;</td><td onclick='echo();'>&#x017e;</td><td onclick='echo();'>&#x017f;</td>
+        </tr>
+        <tr>
+            <td>0180-019F</td>
+            <td onclick='echo();'>&#x0180;</td><td onclick='echo();'>&#x0181;</td><td onclick='echo();'>&#x0182;</td><td onclick='echo();'>&#x0183;</td>
+            <td onclick='echo();'>&#x0184;</td><td onclick='echo();'>&#x0185;</td><td onclick='echo();'>&#x0186;</td><td onclick='echo();'>&#x0187;</td>
+            <td onclick='echo();'>&#x0188;</td><td onclick='echo();'>&#x0189;</td><td onclick='echo();'>&#x018a;</td><td onclick='echo();'>&#x018b;</td>
+            <td onclick='echo();'>&#x018c;</td><td onclick='echo();'>&#x018d;</td><td onclick='echo();'>&#x018e;</td><td onclick='echo();'>&#x018f;</td>
+            <td onclick='echo();'>&#x0190;</td><td onclick='echo();'>&#x0191;</td><td onclick='echo();'>&#x0192;</td><td onclick='echo();'>&#x0193;</td>
+            <td onclick='echo();'>&#x0194;</td><td onclick='echo();'>&#x0195;</td><td onclick='echo();'>&#x0196;</td><td onclick='echo();'>&#x0197;</td>
+            <td onclick='echo();'>&#x0198;</td><td onclick='echo();'>&#x0199;</td><td onclick='echo();'>&#x019a;</td><td onclick='echo();'>&#x019b;</td>
+            <td onclick='echo();'>&#x019c;</td><td onclick='echo();'>&#x019d;</td><td onclick='echo();'>&#x019e;</td><td onclick='echo();'>&#x019f;</td>
+        </tr>
+        <tr>
+            <td>01A0-01BF</td>
+            <td onclick='echo();'>&#x01a0;</td><td onclick='echo();'>&#x01a1;</td><td onclick='echo();'>&#x01a2;</td><td onclick='echo();'>&#x01a3;</td>
+            <td onclick='echo();'>&#x01a4;</td><td onclick='echo();'>&#x01a5;</td><td onclick='echo();'>&#x01a6;</td><td onclick='echo();'>&#x01a7;</td>
+            <td onclick='echo();'>&#x01a8;</td><td onclick='echo();'>&#x01a9;</td><td onclick='echo();'>&#x01aa;</td><td onclick='echo();'>&#x01ab;</td>
+            <td onclick='echo();'>&#x01ac;</td><td onclick='echo();'>&#x01ad;</td><td onclick='echo();'>&#x01ae;</td><td onclick='echo();'>&#x01af;</td>
+            <td onclick='echo();'>&#x01b0;</td><td onclick='echo();'>&#x01b1;</td><td onclick='echo();'>&#x01b2;</td><td onclick='echo();'>&#x01b3;</td>
+            <td onclick='echo();'>&#x01b4;</td><td onclick='echo();'>&#x01b5;</td><td onclick='echo();'>&#x01b6;</td><td onclick='echo();'>&#x01b7;</td>
+            <td onclick='echo();'>&#x01b8;</td><td onclick='echo();'>&#x01b9;</td><td onclick='echo();'>&#x01ba;</td><td onclick='echo();'>&#x01bb;</td>
+            <td onclick='echo();'>&#x01bc;</td><td onclick='echo();'>&#x01bd;</td><td onclick='echo();'>&#x01be;</td><td onclick='echo();'>&#x01bf;</td>
+        </tr>
+        <tr>
+            <td>01C0-01DF</td>
+            <td onclick='echo();'>&#x01c0;</td><td onclick='echo();'>&#x01c1;</td><td onclick='echo();'>&#x01c2;</td><td onclick='echo();'>&#x01c3;</td>
+            <td onclick='echo();'>&#x01c4;</td><td onclick='echo();'>&#x01c5;</td><td onclick='echo();'>&#x01c6;</td><td onclick='echo();'>&#x01c7;</td>
+            <td onclick='echo();'>&#x01c8;</td><td onclick='echo();'>&#x01c9;</td><td onclick='echo();'>&#x01ca;</td><td onclick='echo();'>&#x01cb;</td>
+            <td onclick='echo();'>&#x01cc;</td><td onclick='echo();'>&#x01cd;</td><td onclick='echo();'>&#x01ce;</td><td onclick='echo();'>&#x01cf;</td>
+            <td onclick='echo();'>&#x01d0;</td><td onclick='echo();'>&#x01d1;</td><td onclick='echo();'>&#x01d2;</td><td onclick='echo();'>&#x01d3;</td>
+            <td onclick='echo();'>&#x01d4;</td><td onclick='echo();'>&#x01d5;</td><td onclick='echo();'>&#x01d6;</td><td onclick='echo();'>&#x01d7;</td>
+            <td onclick='echo();'>&#x01d8;</td><td onclick='echo();'>&#x01d9;</td><td onclick='echo();'>&#x01da;</td><td onclick='echo();'>&#x01db;</td>
+            <td onclick='echo();'>&#x01dc;</td><td onclick='echo();'>&#x01dd;</td><td onclick='echo();'>&#x01de;</td><td onclick='echo();'>&#x01df;</td>
+        </tr>
+        <tr>
+            <td>01E0-01FF</td>
+            <td onclick='echo();'>&#x01e0;</td><td onclick='echo();'>&#x01e1;</td><td onclick='echo();'>&#x01e2;</td><td onclick='echo();'>&#x01e3;</td>
+            <td onclick='echo();'>&#x01e4;</td><td onclick='echo();'>&#x01e5;</td><td onclick='echo();'>&#x01e6;</td><td onclick='echo();'>&#x01e7;</td>
+            <td onclick='echo();'>&#x01e8;</td><td onclick='echo();'>&#x01e9;</td><td onclick='echo();'>&#x01ea;</td><td onclick='echo();'>&#x01eb;</td>
+            <td onclick='echo();'>&#x01ec;</td><td onclick='echo();'>&#x01ed;</td><td onclick='echo();'>&#x01ee;</td><td onclick='echo();'>&#x01ef;</td>
+            <td onclick='echo();'>&#x01f0;</td><td onclick='echo();'>&#x01f1;</td><td onclick='echo();'>&#x01f2;</td><td onclick='echo();'>&#x01f3;</td>
+            <td onclick='echo();'>&#x01f4;</td><td onclick='echo();'>&#x01f5;</td><td onclick='echo();'>&#x01f6;</td><td onclick='echo();'>&#x01f7;</td>
+            <td onclick='echo();'>&#x01f8;</td><td onclick='echo();'>&#x01f9;</td><td onclick='echo();'>&#x01fa;</td><td onclick='echo();'>&#x01fb;</td>
+            <td onclick='echo();'>&#x01fc;</td><td onclick='echo();'>&#x01fd;</td><td onclick='echo();'>&#x01fe;</td><td onclick='echo();'>&#x01ff;</td>
+        </tr>
+        <tr>
+            <td>0200-021F</td>
+            <td onclick='echo();'>&#x0200;</td><td onclick='echo();'>&#x0201;</td><td onclick='echo();'>&#x0202;</td><td onclick='echo();'>&#x0203;</td>
+            <td onclick='echo();'>&#x0204;</td><td onclick='echo();'>&#x0205;</td><td onclick='echo();'>&#x0206;</td><td onclick='echo();'>&#x0207;</td>
+            <td onclick='echo();'>&#x0208;</td><td onclick='echo();'>&#x0209;</td><td onclick='echo();'>&#x020a;</td><td onclick='echo();'>&#x020b;</td>
+            <td onclick='echo();'>&#x020c;</td><td onclick='echo();'>&#x020d;</td><td onclick='echo();'>&#x020e;</td><td onclick='echo();'>&#x020f;</td>
+            <td onclick='echo();'>&#x0210;</td><td onclick='echo();'>&#x0211;</td><td onclick='echo();'>&#x0212;</td><td onclick='echo();'>&#x0213;</td>
+            <td onclick='echo();'>&#x0214;</td><td onclick='echo();'>&#x0215;</td><td onclick='echo();'>&#x0216;</td><td onclick='echo();'>&#x0217;</td>
+            <td onclick='echo();'>&#x0218;</td><td onclick='echo();'>&#x0219;</td><td onclick='echo();'>&#x021a;</td><td onclick='echo();'>&#x021b;</td>
+            <td onclick='echo();'>&#x021c;</td><td onclick='echo();'>&#x021d;</td><td onclick='echo();'>&#x021e;</td><td onclick='echo();'>&#x021f;</td>
+        </tr>
+        <tr>
+            <td>0220-023F</td>
+            <td onclick='echo();'>&#x0220;</td><td onclick='echo();'>&#x0221;</td><td onclick='echo();'>&#x0222;</td><td onclick='echo();'>&#x0223;</td>
+            <td onclick='echo();'>&#x0224;</td><td onclick='echo();'>&#x0225;</td><td onclick='echo();'>&#x0226;</td><td onclick='echo();'>&#x0227;</td>
+            <td onclick='echo();'>&#x0228;</td><td onclick='echo();'>&#x0229;</td><td onclick='echo();'>&#x022a;</td><td onclick='echo();'>&#x022b;</td>
+            <td onclick='echo();'>&#x022c;</td><td onclick='echo();'>&#x022d;</td><td onclick='echo();'>&#x022e;</td><td onclick='echo();'>&#x022f;</td>
+            <td onclick='echo();'>&#x0230;</td><td onclick='echo();'>&#x0231;</td><td onclick='echo();'>&#x0232;</td><td onclick='echo();'>&#x0233;</td>
+            <td onclick='echo();'>&#x0234;</td><td onclick='echo();'>&#x0235;</td><td onclick='echo();'>&#x0236;</td><td onclick='echo();'>&#x0237;</td>
+            <td onclick='echo();'>&#x0238;</td><td onclick='echo();'>&#x0239;</td><td onclick='echo();'>&#x023a;</td><td onclick='echo();'>&#x023b;</td>
+            <td onclick='echo();'>&#x023c;</td><td onclick='echo();'>&#x023d;</td><td onclick='echo();'>&#x023e;</td><td onclick='echo();'>&#x023f;</td>
+        </tr>
+        <tr>
+            <td>0240-025F</td>
+            <td onclick='echo();'>&#x0240;</td><td onclick='echo();'>&#x0241;</td><td onclick='echo();'>&#x0242;</td><td onclick='echo();'>&#x0243;</td>
+            <td onclick='echo();'>&#x0244;</td><td onclick='echo();'>&#x0245;</td><td onclick='echo();'>&#x0246;</td><td onclick='echo();'>&#x0247;</td>
+            <td onclick='echo();'>&#x0248;</td><td onclick='echo();'>&#x0249;</td><td onclick='echo();'>&#x024a;</td><td onclick='echo();'>&#x024b;</td>
+            <td onclick='echo();'>&#x024c;</td><td onclick='echo();'>&#x024d;</td><td onclick='echo();'>&#x024e;</td><td onclick='echo();'>&#x024f;</td>
+            <td onclick='echo();'>&#x0250;</td><td onclick='echo();'>&#x0251;</td><td onclick='echo();'>&#x0252;</td><td onclick='echo();'>&#x0253;</td>
+            <td onclick='echo();'>&#x0254;</td><td onclick='echo();'>&#x0255;</td><td onclick='echo();'>&#x0256;</td><td onclick='echo();'>&#x0257;</td>
+            <td onclick='echo();'>&#x0258;</td><td onclick='echo();'>&#x0259;</td><td onclick='echo();'>&#x025a;</td><td onclick='echo();'>&#x025b;</td>
+            <td onclick='echo();'>&#x025c;</td><td onclick='echo();'>&#x025d;</td><td onclick='echo();'>&#x025e;</td><td onclick='echo();'>&#x025f;</td>
+        </tr>
+
+        <tr>
+            <td>0260-027F</td>
+            <td onclick='echo();'>&#x0260;</td><td onclick='echo();'>&#x0261;</td><td onclick='echo();'>&#x0262;</td><td onclick='echo();'>&#x0263;</td>
+            <td onclick='echo();'>&#x0264;</td><td onclick='echo();'>&#x0265;</td><td onclick='echo();'>&#x0266;</td><td onclick='echo();'>&#x0267;</td>
+            <td onclick='echo();'>&#x0268;</td><td onclick='echo();'>&#x0269;</td><td onclick='echo();'>&#x026a;</td><td onclick='echo();'>&#x026b;</td>
+            <td onclick='echo();'>&#x026c;</td><td onclick='echo();'>&#x026d;</td><td onclick='echo();'>&#x026e;</td><td onclick='echo();'>&#x026f;</td>
+            <td onclick='echo();'>&#x0270;</td><td onclick='echo();'>&#x0271;</td><td onclick='echo();'>&#x0272;</td><td onclick='echo();'>&#x0273;</td>
+            <td onclick='echo();'>&#x0274;</td><td onclick='echo();'>&#x0275;</td><td onclick='echo();'>&#x0276;</td><td onclick='echo();'>&#x0277;</td>
+            <td onclick='echo();'>&#x0278;</td><td onclick='echo();'>&#x0279;</td><td onclick='echo();'>&#x027a;</td><td onclick='echo();'>&#x027b;</td>
+            <td onclick='echo();'>&#x027c;</td><td onclick='echo();'>&#x027d;</td><td onclick='echo();'>&#x027e;</td><td onclick='echo();'>&#x027f;</td>
+        </tr>
+        <tr>
+            <td>0280-029F</td>
+            <td onclick='echo();'>&#x0280;</td><td onclick='echo();'>&#x0281;</td><td onclick='echo();'>&#x0282;</td><td onclick='echo();'>&#x0283;</td>
+            <td onclick='echo();'>&#x0284;</td><td onclick='echo();'>&#x0285;</td><td onclick='echo();'>&#x0286;</td><td onclick='echo();'>&#x0287;</td>
+            <td onclick='echo();'>&#x0288;</td><td onclick='echo();'>&#x0289;</td><td onclick='echo();'>&#x028a;</td><td onclick='echo();'>&#x028b;</td>
+            <td onclick='echo();'>&#x028c;</td><td onclick='echo();'>&#x028d;</td><td onclick='echo();'>&#x028e;</td><td onclick='echo();'>&#x028f;</td>
+            <td onclick='echo();'>&#x0290;</td><td onclick='echo();'>&#x0291;</td><td onclick='echo();'>&#x0292;</td><td onclick='echo();'>&#x0293;</td>
+            <td onclick='echo();'>&#x0294;</td><td onclick='echo();'>&#x0295;</td><td onclick='echo();'>&#x0296;</td><td onclick='echo();'>&#x0297;</td>
+            <td onclick='echo();'>&#x0298;</td><td onclick='echo();'>&#x0299;</td><td onclick='echo();'>&#x029a;</td><td onclick='echo();'>&#x029b;</td>
+            <td onclick='echo();'>&#x029c;</td><td onclick='echo();'>&#x029d;</td><td onclick='echo();'>&#x029e;</td><td onclick='echo();'>&#x029f;</td>
+        </tr>
+        <tr>
+            <td>02A0-02AF</td>
+            <td onclick='echo();'>&#x02a0;</td><td onclick='echo();'>&#x02a1;</td><td onclick='echo();'>&#x02a2;</td><td onclick='echo();'>&#x02a3;</td>
+            <td onclick='echo();'>&#x02a4;</td><td onclick='echo();'>&#x02a5;</td><td onclick='echo();'>&#x02a6;</td><td onclick='echo();'>&#x02a7;</td>
+            <td onclick='echo();'>&#x02a8;</td><td onclick='echo();'>&#x02a9;</td><td onclick='echo();'>&#x02aa;</td><td onclick='echo();'>&#x02ab;</td>
+            <td onclick='echo();'>&#x02ac;</td><td onclick='echo();'>&#x02ad;</td><td onclick='echo();'>&#x02ae;</td><td onclick='echo();'>&#x02af;</td>
+            <td></td><td></td><td></td><td></td>
+            <td></td><td></td><td></td><td></td>
+            <td></td><td></td><td></td><td></td>
+            <td></td><td></td><td></td><td></td>
+        </tr>
+        </table>
+        <br>
+        click = char foreground, shift click = char background,
+        ctrl click = row color1, alt click = row color2
+        <table>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <col width='18px'><col width='18px'><col width='18px'><col width='18px'>
+            <tr>
+<td onclick='sendColor();' style='height:8px;border:6px solid black;background-color:transparent'></td><td onclick='sendColor();' style='height:8px;background-color:#aa0000'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#00aa00'></td><td onclick='sendColor();' style='height:8px;background-color:#aa5500'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#0000aa'></td><td onclick='sendColor();' style='height:8px;background-color:#aa00aa'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#00aaaa'></td><td onclick='sendColor();' style='height:8px;background-color:#aaaaaa'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#555555'></td><td onclick='sendColor();' style='height:8px;background-color:#ff5555'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#55ff55'></td><td onclick='sendColor();' style='height:8px;background-color:#ffff55'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5555ff'></td><td onclick='sendColor();' style='height:8px;background-color:#ff55ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#55ffff'></td><td onclick='sendColor();' style='height:8px;background-color:#ffffff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#000000'></td><td onclick='sendColor();' style='height:8px;background-color:#00005f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#000087'></td><td onclick='sendColor();' style='height:8px;background-color:#0000af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#0000d7'></td><td onclick='sendColor();' style='height:8px;background-color:#0000ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#005f00'></td><td onclick='sendColor();' style='height:8px;background-color:#005f5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#005f87'></td><td onclick='sendColor();' style='height:8px;background-color:#005faf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#005fd7'></td><td onclick='sendColor();' style='height:8px;background-color:#005fff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#008700'></td><td onclick='sendColor();' style='height:8px;background-color:#00875f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#008787'></td><td onclick='sendColor();' style='height:8px;background-color:#0087af'></td>
+            </tr>
+            <tr>
+<td onclick='sendColor();' style='height:8px;background-color:#0087d7'></td><td onclick='sendColor();' style='height:8px;background-color:#0087ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#00af00'></td><td onclick='sendColor();' style='height:8px;background-color:#00af5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#00af87'></td><td onclick='sendColor();' style='height:8px;background-color:#00afaf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#00afd7'></td><td onclick='sendColor();' style='height:8px;background-color:#00afff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#00d700'></td><td onclick='sendColor();' style='height:8px;background-color:#00d75f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#00d787'></td><td onclick='sendColor();' style='height:8px;background-color:#00d7af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#00d7d7'></td><td onclick='sendColor();' style='height:8px;background-color:#00d7ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#00ff00'></td><td onclick='sendColor();' style='height:8px;background-color:#00ff5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#00ff87'></td><td onclick='sendColor();' style='height:8px;background-color:#00ffaf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#00ffd7'></td><td onclick='sendColor();' style='height:8px;background-color:#00ffff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5f0000'></td><td onclick='sendColor();' style='height:8px;background-color:#5f005f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5f0087'></td><td onclick='sendColor();' style='height:8px;background-color:#5f00af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5f00d7'></td><td onclick='sendColor();' style='height:8px;background-color:#5f00ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5f5f00'></td><td onclick='sendColor();' style='height:8px;background-color:#5f5f5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5f5f87'></td><td onclick='sendColor();' style='height:8px;background-color:#5f5faf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5f5fd7'></td><td onclick='sendColor();' style='height:8px;background-color:#5f5fff'></td>
+            </tr>
+            <tr>
+<td onclick='sendColor();' style='height:8px;background-color:#5f8700'></td><td onclick='sendColor();' style='height:8px;background-color:#5f875f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5f8787'></td><td onclick='sendColor();' style='height:8px;background-color:#5f87af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5f87d7'></td><td onclick='sendColor();' style='height:8px;background-color:#5f87ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5faf00'></td><td onclick='sendColor();' style='height:8px;background-color:#5faf5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5faf87'></td><td onclick='sendColor();' style='height:8px;background-color:#5fafaf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5fafd7'></td><td onclick='sendColor();' style='height:8px;background-color:#5fafff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5fd700'></td><td onclick='sendColor();' style='height:8px;background-color:#5fd75f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5fd787'></td><td onclick='sendColor();' style='height:8px;background-color:#5fd7af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5fd7d7'></td><td onclick='sendColor();' style='height:8px;background-color:#5fd7ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5fff00'></td><td onclick='sendColor();' style='height:8px;background-color:#5fff5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5fff87'></td><td onclick='sendColor();' style='height:8px;background-color:#5fffaf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#5fffd7'></td><td onclick='sendColor();' style='height:8px;background-color:#5fffff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#870000'></td><td onclick='sendColor();' style='height:8px;background-color:#87005f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#870087'></td><td onclick='sendColor();' style='height:8px;background-color:#8700af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#8700d7'></td><td onclick='sendColor();' style='height:8px;background-color:#8700ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#875f00'></td><td onclick='sendColor();' style='height:8px;background-color:#875f5f'></td>
+            </tr>
+            <tr>
+<td onclick='sendColor();' style='height:8px;background-color:#875f87'></td><td onclick='sendColor();' style='height:8px;background-color:#875faf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#875fd7'></td><td onclick='sendColor();' style='height:8px;background-color:#875fff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#878700'></td><td onclick='sendColor();' style='height:8px;background-color:#87875f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#878787'></td><td onclick='sendColor();' style='height:8px;background-color:#8787af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#8787d7'></td><td onclick='sendColor();' style='height:8px;background-color:#8787ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#87af00'></td><td onclick='sendColor();' style='height:8px;background-color:#87af5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#87af87'></td><td onclick='sendColor();' style='height:8px;background-color:#87afaf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#87afd7'></td><td onclick='sendColor();' style='height:8px;background-color:#87afff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#87d700'></td><td onclick='sendColor();' style='height:8px;background-color:#87d75f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#87d787'></td><td onclick='sendColor();' style='height:8px;background-color:#87d7af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#87d7d7'></td><td onclick='sendColor();' style='height:8px;background-color:#87d7ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#87ff00'></td><td onclick='sendColor();' style='height:8px;background-color:#87ff5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#87ff87'></td><td onclick='sendColor();' style='height:8px;background-color:#87ffaf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#87ffd7'></td><td onclick='sendColor();' style='height:8px;background-color:#87ffff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#af0000'></td><td onclick='sendColor();' style='height:8px;background-color:#af005f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#af0087'></td><td onclick='sendColor();' style='height:8px;background-color:#af00af'></td>
+            </tr>
+            <tr>
+<td onclick='sendColor();' style='height:8px;background-color:#af00d7'></td><td onclick='sendColor();' style='height:8px;background-color:#af00ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#af5f00'></td><td onclick='sendColor();' style='height:8px;background-color:#af5f5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#af5f87'></td><td onclick='sendColor();' style='height:8px;background-color:#af5faf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#af5fd7'></td><td onclick='sendColor();' style='height:8px;background-color:#af5fff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#af8700'></td><td onclick='sendColor();' style='height:8px;background-color:#af875f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#af8787'></td><td onclick='sendColor();' style='height:8px;background-color:#af87af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#af87d7'></td><td onclick='sendColor();' style='height:8px;background-color:#af87ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#afaf00'></td><td onclick='sendColor();' style='height:8px;background-color:#afaf5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#afaf87'></td><td onclick='sendColor();' style='height:8px;background-color:#afafaf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#afafd7'></td><td onclick='sendColor();' style='height:8px;background-color:#afafff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#afd700'></td><td onclick='sendColor();' style='height:8px;background-color:#afd75f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#afd787'></td><td onclick='sendColor();' style='height:8px;background-color:#afd7af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#afd7d7'></td><td onclick='sendColor();' style='height:8px;background-color:#afd7ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#afff00'></td><td onclick='sendColor();' style='height:8px;background-color:#afff5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#afff87'></td><td onclick='sendColor();' style='height:8px;background-color:#afffaf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#afffd7'></td><td onclick='sendColor();' style='height:8px;background-color:#afffff'></td>
+            </tr>
+            <tr>
+<td onclick='sendColor();' style='height:8px;background-color:#d70000'></td><td onclick='sendColor();' style='height:8px;background-color:#d7005f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d70087'></td><td onclick='sendColor();' style='height:8px;background-color:#d700af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d700d7'></td><td onclick='sendColor();' style='height:8px;background-color:#d700ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d75f00'></td><td onclick='sendColor();' style='height:8px;background-color:#d75f5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d75f87'></td><td onclick='sendColor();' style='height:8px;background-color:#d75faf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d75fd7'></td><td onclick='sendColor();' style='height:8px;background-color:#d75fff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d78700'></td><td onclick='sendColor();' style='height:8px;background-color:#d7875f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d78787'></td><td onclick='sendColor();' style='height:8px;background-color:#d787af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d787d7'></td><td onclick='sendColor();' style='height:8px;background-color:#d787ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d7af00'></td><td onclick='sendColor();' style='height:8px;background-color:#d7af5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d7af87'></td><td onclick='sendColor();' style='height:8px;background-color:#d7afaf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d7afd7'></td><td onclick='sendColor();' style='height:8px;background-color:#d7afff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d7d700'></td><td onclick='sendColor();' style='height:8px;background-color:#d7d75f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d7d787'></td><td onclick='sendColor();' style='height:8px;background-color:#d7d7af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d7d7d7'></td><td onclick='sendColor();' style='height:8px;background-color:#d7d7ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d7ff00'></td><td onclick='sendColor();' style='height:8px;background-color:#d7ff5f'></td>
+            </tr>
+            <tr>
+<td onclick='sendColor();' style='height:8px;background-color:#d7ff87'></td><td onclick='sendColor();' style='height:8px;background-color:#d7ffaf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d7ffd7'></td><td onclick='sendColor();' style='height:8px;background-color:#d7ffff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ff0000'></td><td onclick='sendColor();' style='height:8px;background-color:#ff005f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ff0087'></td><td onclick='sendColor();' style='height:8px;background-color:#ff00af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ff00d7'></td><td onclick='sendColor();' style='height:8px;background-color:#ff00ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ff5f00'></td><td onclick='sendColor();' style='height:8px;background-color:#ff5f5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ff5f87'></td><td onclick='sendColor();' style='height:8px;background-color:#ff5faf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ff5fd7'></td><td onclick='sendColor();' style='height:8px;background-color:#ff5fff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ff8700'></td><td onclick='sendColor();' style='height:8px;background-color:#ff875f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ff8787'></td><td onclick='sendColor();' style='height:8px;background-color:#ff87af'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ff87d7'></td><td onclick='sendColor();' style='height:8px;background-color:#ff87ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ffaf00'></td><td onclick='sendColor();' style='height:8px;background-color:#ffaf5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ffaf87'></td><td onclick='sendColor();' style='height:8px;background-color:#ffafaf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ffafd7'></td><td onclick='sendColor();' style='height:8px;background-color:#ffafff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ffd700'></td><td onclick='sendColor();' style='height:8px;background-color:#ffd75f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ffd787'></td><td onclick='sendColor();' style='height:8px;background-color:#ffd7af'></td>
+            </tr>
+            <tr>
+<td onclick='sendColor();' style='height:8px;background-color:#ffd7d7'></td><td onclick='sendColor();' style='height:8px;background-color:#ffd7ff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ffff00'></td><td onclick='sendColor();' style='height:8px;background-color:#ffff5f'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ffff87'></td><td onclick='sendColor();' style='height:8px;background-color:#ffffaf'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#ffffd7'></td><td onclick='sendColor();' style='height:8px;background-color:#ffffff'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#080808'></td><td onclick='sendColor();' style='height:8px;background-color:#121212'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#1c1c1c'></td><td onclick='sendColor();' style='height:8px;background-color:#262626'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#303030'></td><td onclick='sendColor();' style='height:8px;background-color:#3a3a3a'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#444444'></td><td onclick='sendColor();' style='height:8px;background-color:#4e4e4e'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#585858'></td><td onclick='sendColor();' style='height:8px;background-color:#626262'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#6c6c6c'></td><td onclick='sendColor();' style='height:8px;background-color:#767676'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#808080'></td><td onclick='sendColor();' style='height:8px;background-color:#8a8a8a'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#949494'></td><td onclick='sendColor();' style='height:8px;background-color:#9e9e9e'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#a8a8a8'></td><td onclick='sendColor();' style='height:8px;background-color:#b2b2b2'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#bcbcbc'></td><td onclick='sendColor();' style='height:8px;background-color:#c6c6c6'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#d0d0d0'></td><td onclick='sendColor();' style='height:8px;background-color:#dadada'></td>
+<td onclick='sendColor();' style='height:8px;background-color:#e4e4e4'></td><td onclick='sendColor();' style='height:8px;background-color:#eeeeee'></td>
+            </tr>
+        </table>
+        <br>
+
+        <h2>ANSI file</h2>
+        <br><textarea id='vtx' cols='128' rows='5'></textarea>
+
+        <h2>Tools</h2>
+        Convert SVG file to Base64: <input type='file' onchange='convertSVG(this)' />
+        <br><textarea id='svg' cols='128' rows='5'></textarea>
+        <br>
+
+        <h2>Tools</h2>
+        Convert ANSI CP437 to UTF-8: <input type='file' onchange='convert437(this)' />
+        <br><textarea id='437' cols='128' rows='5'></textarea>
+        <br>
+    </body>
+</html>

@@ -1,0 +1,269 @@
+VTX
+July 8, 2017
+
+Layout
+======
+
+    * Page contains zero or more rows of text. Top most 1.
+    * Row contains zero or more columns of characters. Left most 1.
+    * Characters have individual attributes selected using Set Graphics Rendition (CSI m)
+    * Rows have individual attributes selected using CSI [, CSI ], and ESC #.
+    * Rows with default size are 80 characters wide.
+    * Rows can contain more characters than the width of the row. Characters past the right column are not displayed.
+    * Rows with other sizes are smaller or larger but can not guantee true size.
+    * If the cursor is at the width of a row, after the next printed character, the cursor will move to the start of tne next row.
+
+
+Code Definitions
+================
+
+    ESC = '\x1B' : Escape.
+    CR = '\x0D' : Carriage Return.
+    LF = '\x0A' : Line Feed.
+    CSI = '\x1B[' : Control Sequence Introducer.
+    APC = '\x1B_' : Application Program Command
+    ST = '\x1B\' : String Terminator.
+
+
+Sequences
+=========
+
+    CSI n '@' : Insert Character (ICH). Moves text from current posion right n characters. {1}
+
+    CSI n 'A' : Cursor Up (CUU). Move cursor up n rows. Stops at top of page. {1}
+
+    CSI n 'B' : Cursor Down (CUD). Move cursor down n rows. {1}
+
+    CSI n 'C' : Cursor Forward (CUF). Move cursor n columns right. Stops at right of page. {1}
+
+    CSI n 'D' : Cursor Backwards (CUB). Move cursor n columns left. Stops at left of page. {1}
+
+    CSI n 'E' : Cursor Next Line (CNL). Move cursor n rows down, column 1. {1}
+
+    CSI n 'F' : Cursor Previous Line (CPL). Move cursor n rows up, column 1. Stops at top of page. {1}
+
+    CSI n 'G' : Cursor Horizontal position Absolute (CHA). Move cursor to column n of current row. {1}
+
+    CSI r ; c 'H' : Cursor Position (CP). Move cursor to row r, column c. {1,1}
+
+    CSI n 'I' : Cursor Horizontal Tabulation (CHT). Move cursor forward n tab stops. Stops at last tab stop. {1}
+
+    CSI n 'J' : Erase in Display (ED). {0}
+        n = 0 : Erase from cursor position to end-of-page.
+        n = 1 : Erase from start-of-page to cursor position.
+        n = 2 : Erase entire page. (BBS/ANSI.SYS modes also move position to 1,1).
+
+    CSI n 'K' : Erase in Line (EL). {0}
+        n = 0 : Erase from cursor position to end-of-row.
+        n = 1 : Erase from start-of-row to cursor position.
+        n = 2 : Erase entire row.
+
+    CSI n 'L' : Insert Lines (IL). Insert n rows at current row. {1}
+
+    CSI n 'M' : Delete Lines (DL). Delete n rows at current row. {1}
+
+    CSI n 'P' : Delete Character (DCH). Delete n characters at cursor position. {1}
+
+    CSI n 'X' : Erase Character (ECH). Erase next n characters {1}
+
+    CSI n 'Z' : Cursor Back Tab (CBT). Move cursor backwards n tab stops. Stops at left of page {1}
+
+    CSI s ; n ; w ; h ; z '_' : Display sprite. Sprites are defined using APC codes (see below).
+        s : Sprite number to assign to this sprite. {0}
+        n : Sprite definition number. {0}
+        w : Width of sprite (in character cell widths). {1}
+        h : Height of sprite (in character cell heights). {1}
+        z : Z-plane. 0 = below text plane, 1 : above text plane. {0}
+    CSI s '_' : Remove sprite number s {0}
+    CSI '_' : Remove all sprites.
+
+    CSI '0' ; c '^' : Set cursor color. c = (0-255) {7}
+    CSI '1' ; s '^' : Set cursor size. s = (0:none, 1:thin, 2:thick, 3:block) {2}
+    CSI '2' ; o '^' : Set cursor orientation. o = (0:horizontal, 1:vertical) {0}
+    CSI '3' ; c '^' : Set page border color.  c = (0-255) {0}
+    CSI '4' ; c '^' : Set page background color. c = (0-255) {0}
+
+    CSI s ; w '[' : Set Row Size. Alter the geometry of the current row. Overall scale is
+            applied first then width scale.
+        s : overall scale. 0=25%, 1=50%, 2=75%, 3=100%, 4=125%, 5=150%, 6=175%, 7=200%. {3}
+        w : width scale. 0=50%, 1=100%, 2=150%, 3=200%. {1}
+
+    CSI c1 ; c2 ; s ']' : Set Row Background. (in BBS/ANSI.SYS mode, color 0 is true black, so
+        text on a colored background appears as text on black, not the row background.)
+        c1 : Color 1 (0-255) {0}
+        c2 : Color 2 (0-255) {0}
+        s : Style. 0=none, 1=solid color 1, 2=horizontal gradient, 3=vertical gradient. {0}
+
+    CSI n 'b' : Repeat last printed character n times. {1}
+
+    CSI n 'c' : Device Attributes. If n = 0, VTX client will respond CSI '?50;86;84;88c'. {0}
+
+    CSI r ; c 'f' : Horizontal and Vertical Position. Same as CUP. {1,1}
+
+    CSI n 'h' : Set Mode (SM).
+        n = '?50' : turns on 'real' ANSI mode.
+
+    CSI n 'l' : Reset Mode (RM).
+        n = '?50' : turns off 'real' ANSI mode.
+
+    CSI n [ ; ... ] 'm' : Set Graphics Rendition (SGR). zero or more of: {0}
+        0 : Reset all to default.
+        1 : Bold on in 'real' ANSI mode, high intensity foreground color in BBS/ANSI.SYS mode.
+        3 : Italics on.
+        4 : Underline on.
+        5 : Blink on.
+        7 : Reverse foreground and background colors.
+        8 : Concealed on.
+        9 : Strikethrough on.
+        21 : Bold off in 'real' ANSI mode, regular intensity foreground color in BBS/ANSI.SYS mode.
+        23 : Italics off.
+        24 : Underline off.
+        25 : Blink off.
+        27 : Normal foreground and background colors.
+        28 : Concealed off.
+        29 : Strikethrough off.
+        30 : Black foreground color.
+        31 : Red foreground color.
+        32 : Green foreground color.
+        33 : Yellow (brown) foreground color.
+        34 : Blue foreground color.
+        35 : Magenta foreground color.
+        36 : Cyan foreground color.
+        37 : White (gray) foreground color.
+        38;5;n : Set foreground color from palette (0-255). {0}
+        39 : Reset foreground color to default.
+        40 : Black background color.
+        41 : Red background color.
+        42 : Green background color.
+        43 : Yellow (brown) background color.
+        44 : Blue background color.
+        45 : Magenta background color.
+        46 : Cyan background color.
+        47 : White (gray) background color.
+        48;5;n : Set background color from palette (0-255). {0}
+        49 : Reset background color to default.
+        50 : Glow on.
+        56 : Outline on.
+        57 : Shadow on.
+        70 : Glow off.
+        76 : Outline off.
+        77 : Glow off.
+        90 : High intensity black foreground color.
+        91 : High intensity red foreground color.
+        92 : High intensity green foreground color.
+        93 : High intensity yellow foreground color.
+        94 : High intensity blue foreground color.
+        95 : High intensity magenta foreground color.
+        96 : High intensity cyan foreground color.
+        97 : High intensity white foreground color.
+        100 : High intensity black background color.
+        101 : High intensity red background color.
+        102 : High intensity green background color.
+        103 : High intensity yellow background color.
+        104 : High intensity blue background color.
+        105 : High intensity magenta background color.
+        106 : High intensity cyan background color.
+        107 : High intensity white background color.
+
+    CSI n 'n' : Device Status Report. {0}
+        n = 6 : Request cursor position. Reply is CSI r ';' c 'R'.
+
+    CSI s : Save cursor position.
+    CSI u : Restore cursor position.
+
+    ESC '#' n : Set Row Attributes.
+        n = 0 : Row Marquee off
+        n = 1 : Row Marquee on
+        n = 9 : Reset all row attributes (size and background.)
+
+    ACP '0;' n ';' g ST : Define sprite n as Base64 SVG g.
+    ACP '0;' n ST : Clear definitions for sprite n.
+    ACP '0' ST : Clear all sprite definitions.
+
+
+Keyboard Mapping
+================
+
+    These are the codes sent to the server from a VTX client terminal. *
+    * Keys not listed are normally reserved by operating systems and web browsers for special
+    function.
+
+    Normal keys send single ASCII value.
+
+    Special Key     Sent Code
+    --------------- --------------------
+    Backspace       '\x08'
+    Tab             '\x09'
+    Enter           '\x0D'
+    Escape          '\x1B'
+    Space           ' '
+    Shift Space     '\xA0'
+    PageUp          CSI 'V'
+    PageDn          CSI 'U'
+    End             CSI 'K'
+    Home            CSI 'H'
+    Left            CSI 'D'
+    Up              CSI 'A'
+    Right           CSI 'C'
+    Down            CSI 'B'
+    Insert          CSI '@'
+    Delete          '\x7F'
+    Control A       '\x01'
+    Control B       '\x02'
+    Control D       '\x04'
+    Control E       '\x05'
+    Control F       '\x06'
+    Control G       '\x07'
+    Control H       '\x08'
+    Control I       '\x09'
+    Control J       '\x0A'
+    Control K       '\x0B'
+    Control L       '\x0C'
+    Control M       '\x0D'
+    Control O       '\x0F'
+    Control P       '\x10'
+    Control Q       '\x11'
+    Control R       '\x12'
+    Control S       '\x13'
+    Control U       '\x15'
+    Control X       '\x18'
+    Control Y       '\x19'
+    Control Z       '\x1A'
+    F1              ESC 'OP'
+    F2              ESC 'OQ'
+    F3              ESC 'OR'
+    F4              ESC 'OS'
+    F5              ESC 'Ot'
+    F6              CSI '17~'
+    F7              CSI '18~'
+    F8              CSI '19~'
+    F9              CSI '20~'
+    F10             CSI '21~'
+    F11             CSI '23~'
+    F12             CSI '24~'
+
+    
+Colors
+======
+
+    See https://en.wikipedia.org/wiki/ANSI_escape_code for reference.
+    
+      0             Black
+      1             Red
+      2             Green
+      3             Brown
+      4             Blue
+      5             Magenta
+      6             Cyan
+      7             Lt Gray
+      8             Dk Gray
+      9             Lt Red
+     10             Lt Green
+     11             Yellow
+     12             Lt Blue
+     13             Lt Magenta
+     14             Lt Cyan
+     15             White
+
+     16 - 231       6 x 6 x 6 colors.
+    232 - 255       Grays.
