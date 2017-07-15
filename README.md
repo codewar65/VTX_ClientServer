@@ -40,6 +40,10 @@ file and build.
 I have ported the current project to console more so it will be easier to port
 to other platforms.
 
+Larazus : http://www.lazarus-ide.org/
+
+Free Pascal : https://www.freepascal.org/
+
 ## Setup
 
 The vtxserv.ini file contains settings for configuring the server.
