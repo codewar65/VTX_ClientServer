@@ -358,7 +358,7 @@ begin
     for j := 0 to 23 do
     begin
       c := 16 + (i * 24) + j;
-      Print(#27'[38;5;' + inttostr(c) + 'm ' + UNICODE($2586) + UNICODE($2586));
+      Print(#27'[38;5;' + inttostr(c) + 'm ' + UNICODE($2586) + '' + UNICODE($2586));
     end;
     PrintLn;
   end;

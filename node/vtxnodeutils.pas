@@ -287,7 +287,11 @@ end;
 procedure Print(str : string);
 var
   i : integer;
+  b : byte;
   barray : TBytes;
+  hex : string;
+  utf : string;
+  val : integer;
 begin
   {$ifdef LOCAL}
     write(str);
@@ -297,7 +301,21 @@ begin
     i := 0;
     while i < length(barray) do
     begin
-      pout.WriteByte(barray[i]);
+      // look out for #0 - convert to unicode
+      b := barray[i];
+      if b = 0 then
+      begin
+        hex := char(barray[i + 1])
+          + char(barray[i + 2])
+          + char(barray[i + 3])
+          + char(barray[i + 4]);
+        val := Hex2Dec(hex);
+        utf := UnicodeToUTF8(val);
+        pout.WriteAnsiString(utf);
+        inc(i, 4);
+      end
+      else
+        pout.WriteByte(b);
       inc(i);
     end;
     setlength(barray, 0);
@@ -456,7 +474,8 @@ end;
 
 function UNICODE(n : integer) : string;
 begin
-  result := UnicodeToUTF8(n);
+  //result := UnicodeToUTF8(n);
+  result := #0 + IntToHex(n, 4);
 end;
 
 function VTXCtrlBreak(CtrlBreak : boolean) : boolean;
