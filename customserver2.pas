@@ -31,7 +31,7 @@ uses
 //  Sockets,
   ssl_openssl,
   BClasses,
-	syncobjs;
+  syncobjs;
 
 type
   TCustomServer = class;
@@ -41,24 +41,24 @@ type
   TTCPCustomConnectionSocket = class(TTCPBlockSocket)
 
   protected
-    fConnection : 					TCustomConnection;
-    fCurrentStatusReason : 	THookSocketReason;
-    fCurrentStatusValue : 	string;
-    fOnSyncStatus : 				THookSocketStatus;
+    fConnection :           TCustomConnection;
+    fCurrentStatusReason :  THookSocketReason;
+    fCurrentStatusValue :   string;
+    fOnSyncStatus :         THookSocketStatus;
 
-    procedure 	DoOnStatus(Sender: TObject; Reason: THookSocketReason; const Value: String);
-    procedure 	SyncOnStatus;
+    procedure   DoOnStatus(Sender: TObject; Reason: THookSocketReason; const Value: String);
+    procedure   SyncOnStatus;
 
   public
-    constructor 	Create;
+    constructor   Create;
 
-    destructor 		Destroy; override;
+    destructor    Destroy; override;
 
     {:Owner (@link(TCustomConnection))}
-    property 			Connection: TCustomConnection read fConnection;
+    property      Connection: TCustomConnection read fConnection;
 
     {:Socket status event (synchronized to main thread)}
-    property 			OnSyncStatus: THookSocketStatus read fOnSyncStatus write fOnSyncStatus;
+    property      OnSyncStatus: THookSocketStatus read fOnSyncStatus write fOnSyncStatus;
   end;
 
 
@@ -75,50 +75,50 @@ type
   private
 
   protected
-    fIndex : 			integer;
-    fParent : 		TCustomServer;
-    fSocket : 		TTCPCustomConnectionSocket;
-    fSSL : 				boolean;
-    procedure 		AfterConnectionExecute; virtual;
-    function 			BeforeExecuteConnection: boolean; virtual;
-    procedure 		ExecuteConnection; virtual;
-    function 			GetIsTerminated: boolean;
+    fIndex :      integer;
+    fParent :     TCustomServer;
+    fSocket :     TTCPCustomConnectionSocket;
+    fSSL :        boolean;
+    procedure     AfterConnectionExecute; virtual;
+    function      BeforeExecuteConnection: boolean; virtual;
+    procedure     ExecuteConnection; virtual;
+    function      GetIsTerminated: boolean;
 
   public
-    constructor 	Create(aSocket: TTCPCustomConnectionSocket); virtual;
-    destructor 		Destroy; override;
+    constructor   Create(aSocket: TTCPCustomConnectionSocket); virtual;
+    destructor    Destroy; override;
 
     {:Thread execute method}
-    procedure 		Execute; override;
+    procedure     Execute; override;
 
     {:Thread resume method}
-    procedure 		Start;
+    procedure     Start;
     {:Thread suspend method}
-    procedure 		Stop;
+    procedure     Stop;
 
     {:Temination procedure
       One should call this procedure to terminate thread,
       it internally calls Terminate, but can be overloaded,
       and can be used for clean um }
-    procedure 		TerminateThread; virtual;
+    procedure     TerminateThread; virtual;
 
     {:@Connection index.
       Automatically generated. }
-    property 			Index: integer read fIndex;
+    property      Index: integer read fIndex;
 
     {:@True if thread is not terminated and @link(Socket) exists}
-    property 			IsTerminated: boolean read GetIsTerminated;
+    property      IsTerminated: boolean read GetIsTerminated;
 
     {:@Connection parent
       If client connection, this property is always nil, if server
       connection, this property is @link(TCustomServer) that created this connection }
-    property 			Parent: TCustomServer read fParent;
+    property      Parent: TCustomServer read fParent;
 
     {:@Connection socket}
-    property 			Socket: TTCPCustomConnectionSocket read fSocket;
+    property      Socket: TTCPCustomConnectionSocket read fSocket;
 
     {:Whether SSL is used}
-    property 			SSL: boolean read fSSL write fSSL;
+    property      SSL: boolean read fSSL write fSSL;
   end;
 
 
@@ -243,7 +243,7 @@ type
       This method should be called instead of Terminate to terminate thread,
       it internally calls Terminate, but can be overloaded,
       and can be used for data clean up
-    }   
+    }
     procedure TerminateThread; virtual;
 
 
@@ -704,7 +704,7 @@ begin
     fCurrentStatusReason := Reason;
     fCurrentStatusValue := value;
     fConnection.Synchronize(SyncOnStatus);
-    
+
     {
     if (fCurrentStatusReason = HR_Error) and (LastError = WSAECONNRESET) then
       fConnection.Terminate;
@@ -744,7 +744,7 @@ begin
     fSocket.OnStatus := nil;
     fSocket.Free;
   end;
-    
+
   inherited Destroy;
 end;
 
@@ -774,7 +774,7 @@ end;
 procedure TCustomConnection.TerminateThread;
 begin
   if (terminated) then exit;
-  
+
   Socket.OnSyncStatus := nil;
   Socket.OnStatus := nil;
   Terminate;

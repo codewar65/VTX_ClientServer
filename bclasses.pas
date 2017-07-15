@@ -38,7 +38,7 @@ Type
     fSyncLock: TCriticalSection;
     procedure Synchronize(AMethod: TThreadMethod);
   public
-    constructor Create(CreateSuspended: Boolean); 
+    constructor Create(CreateSuspended: Boolean);
     destructor Destroy; override;
   end;
 

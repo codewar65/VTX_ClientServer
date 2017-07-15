@@ -128,13 +128,13 @@ type
   {:Event procedural type to hook OnRead on OnWrite event on connection
   }
   TWebSocketConnectionData = procedure (aSender: TWebSocketCustomConnection; aFinal, aRes1, aRes2, aRes3: boolean; aCode: integer; aData: TMemoryStream) of object;
-  
+
   {:Event procedural type to hook OnReadFull
   }
   TWebSocketConnectionDataFull = procedure (aSender: TWebSocketCustomConnection; aCode: integer; aData: TMemoryStream) of object;
 
   {:abstract(WebSocket connection)
-    class is parent class for server and client connection 
+    class is parent class for server and client connection
   }
   TWebSocketCustomConnection = class(TCustomConnection)
   private
@@ -380,7 +380,7 @@ type
 
 
     {:
-      Whether WebSocket handshake was succecfull (and connection is afer WS handshake) 
+      Whether WebSocket handshake was succecfull (and connection is afer WS handshake)
     }
     property Handshake: boolean read fHandshake;
 
@@ -410,7 +410,7 @@ type
 
     {: Connection port }
     property Port: string read fPort;
-    
+
     {: Connection resource
       e.g. /path1/path2/path3/file.ext
     }
@@ -503,7 +503,7 @@ type
     HttpResult represents the HTTP result to be send in response, if connection is about to be
     accepted, the value MUST BE 101, any other value meand that the client will be informed about the
     result (using the HTTP code meaning) and connection will be closed, if event is not implemented
-    101 is used as a default value 
+    101 is used as a default value
   }
   TWebSocketServerReceiveConnection = procedure (
     Server: TWebSocketServer; Socket: TTCPCustomConnectionSocket;
@@ -605,43 +605,43 @@ uses Math, synautil, synacode, synsock {$IFDEF Win32}, Windows{$ENDIF Win32},
 function httpCode(code: integer): string;
 begin
   case (code) of
-     100: result := 'Continue'; 
-     101: result := 'Switching Protocols'; 
-     200: result := 'OK'; 
-     201: result := 'Created'; 
-     202: result := 'Accepted'; 
-     203: result := 'Non-Authoritative Information'; 
-     204: result := 'No Content'; 
+     100: result := 'Continue';
+     101: result := 'Switching Protocols';
+     200: result := 'OK';
+     201: result := 'Created';
+     202: result := 'Accepted';
+     203: result := 'Non-Authoritative Information';
+     204: result := 'No Content';
      205: result := 'Reset Content';
-     206: result := 'Partial Content'; 
-     300: result := 'Multiple Choices'; 
-     301: result := 'Moved Permanently'; 
-     302: result := 'Found'; 
-     303: result := 'See Other'; 
-     304: result := 'Not Modified'; 
-     305: result := 'Use Proxy'; 
-     307: result := 'Temporary Redirect'; 
-     400: result := 'Bad Request'; 
-     401: result := 'Unauthorized'; 
-     402: result := 'Payment Required'; 
-     403: result := 'Forbidden'; 
-     404: result := 'Not Found'; 
-     405: result := 'Method Not Allowed'; 
-     406: result := 'Not Acceptable'; 
-     407: result := 'Proxy Authentication Required'; 
-     408: result := 'Request Time-out'; 
-     409: result := 'Conflict'; 
-     410: result := 'Gone'; 
-     411: result := 'Length Required'; 
-     412: result := 'Precondition Failed'; 
+     206: result := 'Partial Content';
+     300: result := 'Multiple Choices';
+     301: result := 'Moved Permanently';
+     302: result := 'Found';
+     303: result := 'See Other';
+     304: result := 'Not Modified';
+     305: result := 'Use Proxy';
+     307: result := 'Temporary Redirect';
+     400: result := 'Bad Request';
+     401: result := 'Unauthorized';
+     402: result := 'Payment Required';
+     403: result := 'Forbidden';
+     404: result := 'Not Found';
+     405: result := 'Method Not Allowed';
+     406: result := 'Not Acceptable';
+     407: result := 'Proxy Authentication Required';
+     408: result := 'Request Time-out';
+     409: result := 'Conflict';
+     410: result := 'Gone';
+     411: result := 'Length Required';
+     412: result := 'Precondition Failed';
      413: result := 'Request Entity Too Large';
-     414: result := 'Request-URI Too Large'; 
-     415: result := 'Unsupported Media Type'; 
-     416: result := 'Requested range not satisfiable'; 
-     417: result := 'Expectation Failed'; 
-     500: result := 'Internal Server Error'; 
-     501: result := 'Not Implemented'; 
-     502: result := 'Bad Gateway'; 
+     414: result := 'Request-URI Too Large';
+     415: result := 'Unsupported Media Type';
+     416: result := 'Requested range not satisfiable';
+     417: result := 'Expectation Failed';
+     500: result := 'Internal Server Error';
+     501: result := 'Not Implemented';
+     502: result := 'Bad Gateway';
      503: result := 'Service Unavailable';
      504: result := 'Gateway Time-out';
      else result := 'unknown code: $code';
@@ -776,7 +776,7 @@ begin
         {
         if  (self.host <> '0.0.0.0') and (self.Host <> '127.0.0.1') and
             (self.host <> 'localhost') and (fncHost <> self.host) then exit;
-        }    
+        }
 
         //WEBSOCKET KEY
         s := headers.Values['sec-websocket-key'];
@@ -942,7 +942,7 @@ end;
 procedure TWebSocketServer.TerminateThread;
 begin
   if (terminated) then exit;
-  fOnReceiveConnection := nil;  
+  fOnReceiveConnection := nil;
   inherited;
 end;
 
@@ -1461,7 +1461,7 @@ begin
         if (fSocket.LastError <> WSAETIMEDOUT) and (fSocket.LastError <> 0) then
         begin
           //if (fSocket.LastError = WS then
-          
+
           result := -1;
         end;
       end;
@@ -1839,7 +1839,7 @@ begin
 
   end;
   if (result) then fHandshake := true;
-  
+
 end;
 
 procedure TWebSocketClientConnection.Close(aCode: integer; aCloseReason: string);

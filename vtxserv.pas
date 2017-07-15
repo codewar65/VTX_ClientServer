@@ -859,8 +859,10 @@ var
 begin
   write(#13);
   if ip = '' then
+  begin
+		HighVideo;
 	  Write(
-			format(#13'%4.2d/%2.2d/%2.2d.%2.2d:%2.2d:%2.2d|               |',
+			format(#13'%4.2d/%2.2d/%2.2d %2.2d:%2.2d:%2.2d ',
       [
 				YearOf(now),		// year
 	    	MonthOf(now),		// month
@@ -869,11 +871,13 @@ begin
 	    	MinuteOf(now),	// min
   	    SecondOf(Now)	// sec
       ]))
+  end
   else
   begin
     ips := ip.split('.');
+		LowVideo;
 	  Write(
-  		format(#13'%4.2d/%2.2d/%2.2d.%2.2d:%2.2d:%2.2d|%3.3d.%3.3d.%3.3d.%3.3d|',
+  		format(#13'%4.2d/%2.2d/%2.2d %2.2d:%2.2d:%2.2d (%3.3d.%3.3d.%3.3d.%3.3d) ',
       [
   			YearOf(now),		// year
 	    	MonthOf(now),		// month
@@ -887,6 +891,7 @@ begin
         strtoint(ips[3])
     	]));
   end;
+  NormVideo;
   writeln(msg);
 end;
 

@@ -73,7 +73,8 @@ the same time.
 
 ## Running VTXServ
 
-Type vtxserv from the command line.
+Type vtxserv from the command line. Once the server is running you can enter
+commands like:
 
 START ALL : start up the web server, websocket server, and the bridge process.
 The bridge process redirects StdIn/StdOut back and forth between the 'node'
@@ -103,3 +104,20 @@ Sample node software is in the node directory. Actual BBS software is not in the
 scope of this project, but feel free to tinker, or retrofit existing packages
 to work with VTX.
 
+## Roadmap
+
+Stablize server software - fully crashproof and able to always terminate phantom
+nodes.
+
+Add additional tool to server console for convert SVG files to Base64 for use
+in node software. Possibly remove these tools to separate command line utilities.
+
+Clean up demo node software. Develop ncurses compatible functions and procedures.
+
+Add new escape sequences to define clickable hotspots for sending a key or string
+to the server. Additionally, define hotspot for external URLs links that open in 
+an new page.
+
+Investigate ability for websocket server to accept non-'user' connections from
+other VTX servers for passing private network information like mail or echo-style
+messages.
