@@ -1,43 +1,5 @@
 program vtxserv;
 
-{
-  compile for linux
-
-  run as service for win / daemon for linux?
-
-  render as thread?
-
-  test svg
-  	fix scaling on page zoom
-
-  250 lines max - remove lines 1 on overflow
-
-  test / demo live pages
-  	pages:
-    	intro
-	    server info
-    	ansi
-	    	char attrs codes
-  	    color codes
-    	  line attrs codes
-      	other codes
-      client scripting
-      contact info
-
-  --------------
-
-  http://wiki.freepascal.org/UTF-8
-
-}
-
-// @ Codes
-//		@SystemName@
-//		@UserIP@
-//		@SystemIP@
-//		@InternetIP@
-//		@HTTPPort@
-//		@WSPort@
-
 {$codepage utf8}
 {$mode objfpc}{$H+}
 {$apptype console}
