@@ -1231,14 +1231,14 @@ function conCharOut(chr) {
                         case 3:// page border color
                             i = (parm[1] & 0xFF);
                             pageAttr = setPageAttrBorder(pageAttr, i);
-                            p = textDiv.parentNode;
+                            p = pageDiv.parentNode;
                             p.style['background-color'] = clut[(pageAttr >> 8) & 0xFF];
                             break;
                             
                         case 4:// page background color
                             i = (parm[1] & 0xFF);
                             pageAttr = setPageAttrBackground(pageAttr, i);
-                            textDiv.style['background-color'] = clut[pageAttr & 0xFF];
+                            pageDiv.style['background-color'] = clut[pageAttr & 0xFF];
                             break;
                     }
                 }
@@ -1671,7 +1671,10 @@ function doCheckResize() {
 
 // blink cursor (533ms is cursor blink speed based on DOS VGA).
 function doTick() {
-    crsr.style.display = (crsrBlink = !crsrBlink) ? 'none' : 'block';
+    crsr.firstChild.style['background-color'] = 
+        (crsrBlink = !crsrBlink) ? 'transparent' : clut[getCrsrAttrColor(crsrAttr)];
+
+    //crsr.style.display = (crsrBlink = !crsrBlink) ? 'none' : 'block';
 }
 
 // compute font size (width) for row - figure in scale (row is dom element)
@@ -2439,12 +2442,11 @@ function newCrsr() {
 
     if (crsr == null) {
         crsr = document.createElement('div');
-        crsr.id = 'crsr';
         crsr.style.cssText = 'position:absolute;display:block;z-index:999';
         o = document.createElement('div');
+        o.id = 'crsr';
         o.style.cssText = 'position:absolute;display:block;bottom:0px;left:0px;';
         crsr.appendChild(o);
-        //document.body.appendChild(crsr);
         textDiv.appendChild(crsr);
     } else 
         o = crsr.firstChild;

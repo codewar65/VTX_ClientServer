@@ -26,8 +26,10 @@ begin
     + ']' + SGR(ANSI_LTBLUE) + ' Cursor / Edit Controls');
   PrintLn(SGR(ANSI_BROWN) + ' [' + SGR(ANSI_YELLOW) + '7' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Sprites');
+  PrintLn(SGR(ANSI_BROWN) + ' [' + SGR(ANSI_YELLOW) + '8' + SGR(ANSI_BROWN)
+    + ']' + SGR(ANSI_LTBLUE) + ' Sample ANSI art.');
 
-  Print(UP(8) + SGR(ANSI_LTGREEN));
+  Print(UP(9) + SGR(ANSI_LTGREEN));
   PrintLn(RIGHT(30) + 'This is a demonstration of the VTX web and');
   PrintLn(RIGHT(30) + 'websocket server, VTX web browser client, and');
   PrintLn(RIGHT(30) + 'user node processes.');
@@ -38,14 +40,15 @@ begin
   PrintLn;
   PrintLn(RIGHT(30) + 'This demo will display the ANSI code sequences');
   PrintLn(RIGHT(30) + 'supported by the VTX client.');
-  Print(UP(1) + SGR(ANSI_GREEN) + ' Select Screen or ' + SGR(ANSI_BROWN) + '['
+
+  Print(SGR(ANSI_GREEN) + ' Select Screen or ' + SGR(ANSI_BROWN) + '['
     + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_BROWN) + ']' + SGR(ANSI_GREEN)
     + 'uit : ');
 
   result := '';
   repeat
     key := upCase(GetKey);
-    if Pos(key, 'Q1234567') <> 0 then
+    if Pos(key, 'Q12345678') <> 0 then
       result := key;
   until result <> '';
 end;
@@ -487,6 +490,23 @@ begin
   until key = 'Q';
 end;
 
+procedure Page8;
+var
+  key : string;
+begin
+  Print(BBSMODE + CLS);
+
+  PrintANSI('k1-1967.utf8');
+
+  Print(#27'[0m' + SGR(ANSI_GREEN) + 'Press ['
+    + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
+  repeat
+    key := upCase(GetKey);
+  until key = 'Q';
+
+  Print(VTXMODE);
+end;
+
 var
   selection : string;
   loop : boolean;
@@ -509,6 +529,7 @@ begin
       '5':  Page5;
       '6':  Page6;
       '7':  Page7;
+      '8':  Page8;
 
       'Q':
         begin
