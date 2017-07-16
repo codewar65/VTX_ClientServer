@@ -849,6 +849,7 @@ function conCharOut(chr) {
                         ansiState = 1
                     else {
                         conPrintChar(chr);
+                        render = true;
                         crsrrender = true;
                     }
                     break;
@@ -1529,10 +1530,11 @@ function conCharOut(chr) {
 // write string using current attributes at cursor position
 function conStrOut(str) {
     var
-        l, i;
+        l = str.length,
+        i;
 
     setTimers(false);
-    for (i = 0, l = str.length; i < l; i++)
+    for (i = 0; i < l; i++)
         conCharOut(str.charCodeAt(i));
     setTimers(true);
 }
@@ -2171,6 +2173,9 @@ function renderRow(rownum) {
                     txtout += '>';
                 }
             }
+            if ((i==0) && (j == conText[i].length-1)) {
+                j=j;
+            }
             txtout += htmlEncode(conText[i].charAt(j));
             cattr = cellattr;
         }
@@ -2253,7 +2258,7 @@ function expandToCol(rownum, colnum) {
         conText[rownum] += ' ';
     while (conCellAttr[rownum].length < colnum)
         conCellAttr[rownum][conCellAttr[rownum].length] = defCellAttr;
-    renderRow(rownum);
+    //renderRow(rownum);
 }
 
 // grow total rows to rownum. needs to add html dom elements as well.
@@ -2488,17 +2493,3 @@ function newCrsr() {
     c = getCrsrAttrColor(crsrAttr);
     o.style['background-color'] = clut[c];
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
