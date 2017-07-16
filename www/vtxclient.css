@@ -1,54 +1,51 @@
 @font-face{
-    font-family: 'VgaUnicode';
-    src: url('VgaUnicode.woff') format('woff');
-    font-weight:normal;
-    font-style:normal;       
+    font-family:    'VgaUnicode';
+    src:            url('VgaUnicode.woff') format('woff');
+    font-weight:    normal;
+    font-style:     normal;       
 }
 html {
 }
 body {
-    font-family: 'VgaUnicode'; 
-    font-size: 16px;
-    background-color:#000;
-    padding-top: 16px;
+    font-family:    'VgaUnicode'; 
+    font-size:      16px;
+    padding-top:    16px;
     padding-bottom: 16px;
-    left:0;
-    right:0;    
+    left:           0;
+    right:          0;    
 }
 div.vtx {
-    position:relative;
-    left:0px;
-    width:100%;
-    white-space:pre;
-    line-height:1em;
-    height:1em;
-    vertical-align:top;
-    overflow:hidden;
-    text-overflow:clip;
+    position:       relative;
+    left:           0px;
+    line-height:    1em;
+    height:         1em;
+    white-space:    pre;
+    vertical-align: top;
+    overflow:       hidden;
+    text-overflow:  clip;
 }
 #vtxpage {
-    min-height:100vh;
-	width:100%;
-    margin:0px auto;
-    padding:0px;
-    border:0px;
-    overflow:hidden;
-    text-overflow:clip;
-    z-index: 0;
+    min-height:     100vh;
+    margin:         0px auto;
+    padding:        0px;
+    border:         0px;
+    overflow:       hidden;
+    text-overflow:  clip;
+    z-index:        0;
 }
 #vtxtext {
-    width:100%;
-    margin:0px;
-    padding:0px;
-    border:0px;
-    overflow:hidden;
-    text-overflow:clip;
-    z-index: 10;
+    width:          100%;
+    margin:         0px;
+    padding:        0px;
+    border:         0px;
+    overflow:       hidden;
+    text-overflow:  clip;
+    z-index:        10;
 }
-#vtx {
-    z-index: 20;
+#zvtx {
+    z-index:        20;
 }
-span {
-    line-height:1em;
-    height:1em;
+zspan {
+    line-height:    1em;
+    height:         1em;
 }

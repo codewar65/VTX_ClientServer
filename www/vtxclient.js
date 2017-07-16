@@ -279,6 +279,9 @@ var
     ],
 
     ws = null,              // websocket connection.
+
+    irqResize,
+    irqCursor,
     
     hex =   '0123456789ABCDEF',
     b64 =   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
@@ -287,7 +290,6 @@ var
     crtWidth,               // crt width in pixels
     crtCols = 80,           // columns side of row on crt.
     pageWidth,              // with of html in pixels
-    popup = null,           // test editor window
     elPage = document.getElementsByTagName('html')[0],
     crsr,                   // cursor element
     crsrRow,                // cursor position
@@ -299,6 +301,7 @@ var
     pageAttr,               // current page attributes
     crsrAttr,               // color of cursor (only fg used)
     crsrBlink,              // cursor blink state
+    crsrSkipTime,           // skip cursor draws on heavy character output
     cellAttr,               // current active attributes
     defCellAttr,            // default cell attributes.
     lastChar,               // last printable character outputed.
@@ -505,6 +508,29 @@ var
     },
     shiftState, ctrlState, altState,
     numState, capState, scrState;
+
+function isMicrosoft() {
+    var 
+        uA = window.navigator.userAgent,
+        onlyIEorEdge = /msie\s|trident\/|edge\//i.test(uA) 
+            && !!( document.uniqueID || window.MSInputMethodContext),
+        checkVersion = (onlyIEorEdge 
+            && +(/(edge\/|rv:|msie\s)([\d.]+)/i.exec(uA)[2])) || NaN;
+
+    return !isNaN(checkVersion);
+            
+//        !isNaN(checkVersion) 
+//        ? 'You\'re using ' + 
+//            (checkVersion >= 12 ? 'Microsoft Edge ' : 'Windows Internet Explorer ') 
+//            + checkVersion 
+//        : 'You\'re not using Microsoft\'s Browser.';    
+}
+
+if (isMicrosoft()) {
+    document.write('VTX is not compatible with Microsoft browsers.<br>');
+    document.write('Please use a Mozilla or Chromium browser.');
+    exit;
+}
 
 // add event listener
 function addListener(obj, eventName, listener) {
@@ -725,9 +751,9 @@ function colsOnRow(rownum) {
 // output character using current attribute at cursor position.
 function conPrintChar(chr) {
     if (isprint(chr)) {
-        // depends on this row width
+        crsrSkipTime = new Date().getTime();
         conPutChar(crsrRow, crsrCol, chr, cellAttr);
-        renderRow(crsrRow);
+        //renderRow(crsrRow);
         crsrCol++;
         if (crsrCol == colsOnRow(crsrRow)) {
             crsrCol = 0;
@@ -1494,7 +1520,6 @@ function conCharOut(chr) {
             }
         }
     }
-
     if (render)
         renderRow(crsrRow);
     if (crsrrender)
@@ -1534,6 +1559,9 @@ function crsrDraw() {
         csize,
         dt, wh;
 
+    if (new Date().getTime() > crsrSkipTime + 25)
+        return;
+    
     expandToRow(crsrRow);
     row = getRowElement(crsrRow);
     if (row == null) return;
@@ -1673,8 +1701,6 @@ function doCheckResize() {
 function doTick() {
     crsr.firstChild.style['background-color'] = 
         (crsrBlink = !crsrBlink) ? 'transparent' : clut[getCrsrAttrColor(crsrAttr)];
-
-    //crsr.style.display = (crsrBlink = !crsrBlink) ? 'none' : 'block';
 }
 
 // compute font size (width) for row - figure in scale (row is dom element)
@@ -1974,72 +2000,67 @@ function renderRow(rownum) {
     if (rownum >= 0)
         from = rownum, to = rownum + 1;
 
-    // set body width (moved to initDisplay)
-//    if (rownum < 0)
-//        pageDiv.style['width'] = crtWidth + 'px';
-        //document.body.style['width'] = crtWidth + 'px';
-
     cattr = -1;
     for (i = from; i < to; i++) {
 
-        //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // build line attributes - only change if different
-        stxt = '';
         txtout = '';
         rowattr = conRowAttr[i];
+        size = getRowAttrSize(rowattr);
+        width = getRowAttrWidth(rowattr);
         if (htoi(els[i].getAttribute('attr')) != rowattr) {
 
             els[i].setAttribute('attr', itoh(rowattr, 8));
-
+            
             c1 = clut[getRowAttrColor1(rowattr)];
             c2 = clut[getRowAttrColor2(rowattr)];
             switch (getRowAttrPattern(rowattr)) {
                 case A_ROW_SOLID:
-                    stxt += 'background-color:' + c1 +';';
+                    els[i].style['background-color'] = c1;
                     break;
 
                 case A_ROW_HORZ:
-                    stxt += 'background:linear-gradient(to bottom,' + c1 + ',' + c2 + ');';
+                    els[i].style['background'] = 'linear-gradient(to bottom,' + c1 + ',' + c2 + ')';
                     break;
 
                 case A_ROW_VERT:
-                    stxt += 'background:linear-gradient(to right,' + c1 + ',' + c2 + ');';
+                    els[i].style['background'] = 'linear-gradient(to right,' + c1 + ',' + c2 + ')';
                     break;
             }
 
-            size = getRowAttrSize(rowattr);
             if (size != 100)
-                stxt += 'font-size:' + size + '%;';
+                els[i].style['font-size'] = size + '%';
 
-            width = getRowAttrWidth(rowattr);
             if (width != 100) {
-                stxt += 'position:relative;transform-origin:left;transform:scaleX('
-                    + (width / 100) + ');';
+                els[i].style['position'] = 'relative';
+                els[i].style['transform-origin'] = 'left';
+                els[i].style['transform'] = 'scaleX(' + (width / 100) + ')';
             }
 
             if (getRowAttrMarquee(rowattr)) {
                 sp = 100; //(100 * (1 / (width / 100)));
                 ep = ((colSize * conText[i].length) * (size / 100));
                 speed = 15 + (conText[i].length / 10);
+
                 // marquees need to be inside big span to clump into one element
-                txtout += '<style type=\'text/css\'>@keyframes marquee' + i + ' {'
+                txtout += '<style type=\'text/css\'>@keyframes marquee' + i 
+                    + ' {'
                     + ' 0% { text-indent:' + sp + '% }' // good!
                     + ' 100% { text-indent:-' + ep + 'px }'
                     + '}</style>';
 
-                stxt += 'overflow:hidden;white-space:nowrap;box-sizeing:border-box;'
-                    + 'animation:marquee' + i + ' ' + speed + 's linear infinite;';
+                els[i].style['overflow'] = 'hidden';
+                els[i].style['white-space'] = 'nowrap';
+                els[i].style['box-sizing'] = 'border-box';
+                els[i].style['animation'] = 'marquee' + i + ' ' 
+                    + speed + 's linear infinite';
             }
-
-            // force new width in style of div (charWidth * 80)
-            stxt += 'width:' + (crtWidth / (width / 100)) + 'px;';
-
-            els[i].style.cssText = stxt;
         }
+        // force new width in style of div (charWidth * 80)
+        els[i].style['width'] = (crtWidth / (width / 100)) + 'px';
+        els[i].style['height'] = (rowSize * (size / 100)) + 'px';
         
-        //++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
         // build text with attributes.
-        
         // initial attribute state
         txtout += '<div>';
         for (j = 0; j < conText[i].length; j++) {
@@ -2119,12 +2140,16 @@ function renderRow(rownum) {
                 if (tu)
                     ss += 'text-decoration:underline;text-underline-position:below;';
 
-                // shadow
-                if (ts)
-                    ss += 'text-shadow:2px 2px #000;';
+                // strikethrough
+                if (tss)
+                    ss += 'text-decoration:line-through;';
 
-                // glow
-                if (tg) {
+                // shadow or glow.
+                if (ts) {
+                    // shadow
+                    ss += 'text-shadow:2px 2px #000;'
+                } else if (tg) {
+                    // glow
                     // compute darker colors of FG
                     c1 = brightenRGB(clut[tfg], -0.25);
                     ss += 'text-shadow:0 0 2px #' + c1
@@ -2133,10 +2158,6 @@ function renderRow(rownum) {
                         + ',0 0 8px #' + c1
                         + ';';
                 }
-
-                // strikethrough
-                if (tss)
-                    ss += 'text-decoration:line-through;';
 
                 // blink
                 cl += (tx ? 'blink' : '');
@@ -2153,15 +2174,15 @@ function renderRow(rownum) {
             txtout += htmlEncode(conText[i].charAt(j));
             cattr = cellattr;
         }
-        if (conText[i].length > 0)
+        if (conText[i].length == 0)
+            txtout += '<span></span>'
+        else 
             txtout += '</span>';
-
         txtout += '</div>';
 
         // set new html for text
         els[i].innerHTML = txtout;
     }
-    if (popup != null) allToAnsi();
 }
 
 // get codepoint from string
@@ -2339,6 +2360,7 @@ function initDisplay() {
     
     // create cursor 
     newCrsr();
+    crsrSkipTime = 0;
 
     // load bell sound
     soundBell = new Audio();
@@ -2466,3 +2488,17 @@ function newCrsr() {
     c = getCrsrAttrColor(crsrAttr);
     o.style['background-color'] = clut[c];
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

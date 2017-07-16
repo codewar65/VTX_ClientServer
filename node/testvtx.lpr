@@ -504,7 +504,7 @@ begin
     key := upCase(GetKey);
   until key = 'Q';
 
-  Print(VTXMODE);
+  Print(CLS + VTXMODE);
 end;
 
 var
