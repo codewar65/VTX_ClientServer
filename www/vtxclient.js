@@ -556,7 +556,7 @@ function keyUp(e) {
 
     e = e || window.event;
     kc = e.keyCode || e.which;
-    crsr.style.display = 'block';
+    crsr.style['display'] = 'block';
 
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
@@ -572,7 +572,7 @@ function keyDown(e) {
 
     e = e || window.event;
     kc = e.keyCode || e.which;
-    crsr.style.display = 'block';
+    crsr.style['display'] = 'block';
 
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
@@ -1211,17 +1211,24 @@ function conCharOut(chr) {
                         img = document.createElement('img');
                         div.className = 'sprite';
                         div.id = 'sprite' + parm[1];    // sprite number
-                        //div.style.cssText = 'position:absolute;'
-                        div.style.cssText = 'position:absolute;'
-                            + 'left:' + crsr.style['left'] + ';'
-                            + 'top:' + crsr.style['top'] + ';' 
-                            + 'width:' + (colSize * parm[3]) + 'px;' 
-                            + 'height:' + (rowSize * parm[4]) + 'px;'
-                            + 'overflow:hidden;';
+
+                        var rpos = getElementPosition(getRowElement(crsrRow));
+                        var csize = getRowFontSize(crsrRow);
+                        var spriteTop = rpos.top;
+                        var spriteLeft = rpos.left + (crsrCol * csize.width)
+
+                        div.style['position'] = 'absolute';
+                        div.style['left'] = spriteLeft + 'px';
+                        div.style['top'] = spriteTop + 'px';
+                        div.style['width'] = (colSize * parm[3]) + 'px';
+                        div.style['height'] = (rowSize * parm[4]) * 'px';
+                        div.style['overflow'] = 'hidden';
+
                         img.onload = fitSVGToDiv;
-                        img.style.cssText = 'visibility:hidden;';
-                            + 'width:' + (colSize * parm[3]) + 'px;' 
-                            + 'height:' + (rowSize * parm[4]) + 'px;';
+                        img.style['visibility'] = 'hidden';
+                        img.style['width'] = (colSize * parm[3]) + 'px';
+                        img.style['height'] = (rowSize * parm[4]) * 'px';
+
                         img['src'] = spriteDefs[parm[2]];
                         div.appendChild(img);
                         if (parm[5] == 0)
@@ -2338,22 +2345,30 @@ function initDisplay() {
     o = document.createElement('img');
     o.src = 'off.png';   o.id = 'osbulb';
     o.width = 16;       o.height = 28;
-    o.style.cssText = 'position:absolute;top:'+(2+(pos++*30))+'px;right:2px;';
+    o.style['position'] = 'absolute';
+    o.style['top'] = (2 + (pos++ * 30))+'px';
+    o.style['right'] = '2px';
     document.body.appendChild(o);
     o = document.createElement('img');
     o.src = 'off.png';  o.id = 'clbulb';
     o.width = 16;       o.height = 28;
-    o.style.cssText = 'position:absolute;top:'+(2+(pos++*30))+'px;right:2px;';
+    o.style['position'] = 'absolute';
+    o.style['top'] = (2 + (pos++ * 30))+'px';
+    o.style['right'] = '2px';
     document.body.appendChild(o);
     o = document.createElement('img');
     o.src = 'off.png';  o.id = 'nlbulb';
     o.width = 16;       o.height = 28;
-    o.style.cssText = 'position:absolute;top:'+(2+(pos++*30))+'px;right:2px;';
+    o.style['position'] = 'absolute';
+    o.style['top'] = (2 + (pos++ * 30))+'px';
+    o.style['right'] = '2px';
     document.body.appendChild(o);
     o = document.createElement('img');
     o.src = 'off.png';  o.id = 'slbulb';
     o.width = 16;       o.height = 28;
-    o.style.cssText = 'position:absolute;top:'+(2+(pos++*30))+'px;right:2px;';
+    o.style['position'] = 'absolute';
+    o.style['top'] = (2 + (pos++ * 30))+'px';
+    o.style['right'] = '2px';
     document.body.appendChild(o);
 
     // get default attributes for page from <div id='vtxpage'...> 
@@ -2469,10 +2484,15 @@ function newCrsr() {
 
     if (crsr == null) {
         crsr = document.createElement('div');
-        crsr.style.cssText = 'position:absolute;display:block;z-index:999';
+        crsr.style['position'] = 'absolute';
+        crsr.style['display'] = 'block';
+        crsr.style['z-index'] = '999';
         o = document.createElement('div');
         o.id = 'crsr';
-        o.style.cssText = 'position:absolute;display:block;bottom:0px;left:0px;';
+        o.style['position'] = 'absolute';
+        o.style['display'] = 'block';
+        o.style['bottom'] = '0px';
+        o.style['left'] = '0px';
         crsr.appendChild(o);
         textDiv.appendChild(crsr);
     } else 
