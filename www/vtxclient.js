@@ -285,6 +285,7 @@ var
     
     hex =   '0123456789ABCDEF',
     b64 =   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
+    fontName,               // font used
     rowSize,                // character size
     colSize,                // cell width in pixels
     crtWidth,               // crt width in pixels
@@ -518,12 +519,6 @@ function isMicrosoft() {
             && +(/(edge\/|rv:|msie\s)([\d.]+)/i.exec(uA)[2])) || NaN;
 
     return !isNaN(checkVersion);
-            
-//        !isNaN(checkVersion) 
-//        ? 'You\'re using ' + 
-//            (checkVersion >= 12 ? 'Microsoft Edge ' : 'Windows Internet Explorer ') 
-//            + checkVersion 
-//        : 'You\'re not using Microsoft\'s Browser.';    
 }
 
 if (isMicrosoft()) {
@@ -708,7 +703,6 @@ function insChar(rownum, colnum, chr) {
     expandToCol(rownum, colnum);
     conText[rownum] = conText[rownum].splice(colnum, 0, String.fromCharCode(chr));
     conCellAttr[rownum].splice(colnum, 0, defCellAttr);
-    renderRow(rownum);
 }
 
 // create blank HTML row
@@ -717,15 +711,6 @@ function createNewRow() {
         row = document.createElement('div');
     row.setAttribute('class', 'vtx');
     return row;
-}
-
-// poke a character
-function conPutChar(rownum, colnum, chr, attr) {
-    // expand if needed
-    expandToRow(rownum);
-    expandToCol(rownum, colnum);
-    conText[rownum] = conText[rownum].splice(colnum, 1, String.fromCharCode(chr));
-    conCellAttr[rownum][colnum] = attr;
 }
 
 // is this character a printable? (add )
@@ -748,21 +733,7 @@ function colsOnRow(rownum) {
     return cols;
 }
 
-// output character using current attribute at cursor position.
-function conPrintChar(chr) {
-    if (isprint(chr)) {
-        crsrSkipTime = new Date().getTime();
-        conPutChar(crsrRow, crsrCol, chr, cellAttr);
-        //renderRow(crsrRow);
-        crsrCol++;
-        if (crsrCol == colsOnRow(crsrRow)) {
-            crsrCol = 0;
-            crsrRow++
-        }
-        lastChar = chr;
-    }
-}
-
+// clamp value to range. with optional fallback if out of bounds.
 function minMax(v, min, max, fallback) {
     if (fallback == null) {
         if (v < min) v = min;
@@ -784,12 +755,36 @@ function fixParams(parm, defs) {
     return parm.slice(0, defs.length);
 }
 
+// poke a character
+function conPutChar(rownum, colnum, chr, attr) {
+    // expand if needed
+    expandToRow(rownum);
+    expandToCol(rownum, colnum);
+    conText[rownum] = conText[rownum].splice(colnum, 1, String.fromCharCode(chr));
+    conCellAttr[rownum][colnum] = attr;
+
+renderCell(rownum, colnum);
+}
+
+// output character using current attribute at cursor position.
+function conPrintChar(chr) {
+    if (isprint(chr)) {
+        crsrSkipTime = new Date().getTime();
+        conPutChar(crsrRow, crsrCol, chr, cellAttr);
+        crsrCol++;
+        if (crsrCol == colsOnRow(crsrRow)) {
+            crsrCol = 0;
+            crsrRow++
+        }
+        lastChar = chr;
+    }
+}
+
 // the big function - ansi sequence state machine.
 function conCharOut(chr) {
     var
         i, l,               // generic idx, length
         r, c,               // row, col idx
-        render = false,     // render row at end?
         crsrrender = false, // redraw cursor?
         doCSI = false,      // execute compiled CSI at end?
         doAPC = false,      // execute compiled APC at end?
@@ -809,7 +804,6 @@ function conCharOut(chr) {
                 expandToCol(crsrRow, crsrCol);
                 crsrCol--;
                 delChar(crsrRow, crsrCol);
-                render = true;
                 crsrrender = true;
             }
             break;
@@ -837,7 +831,6 @@ function conCharOut(chr) {
             expandToRow(crsrRow);
             expandToCol(crsrRow, crsrCol);
             delChar(crsrRow, crsrCol);
-            render = true;
             crsrrender = true;
             break;
 
@@ -849,7 +842,6 @@ function conCharOut(chr) {
                         ansiState = 1
                     else {
                         conPrintChar(chr);
-                        render = true;
                         crsrrender = true;
                     }
                     break;
@@ -899,11 +891,9 @@ function conCharOut(chr) {
                     if (chr == 0x30 || chr == 0x31) {
                         // marquee off/on
                         conRowAttr[crsrRow] = setRowAttrMarquee(conRowAttr[crsrRow], (chr - 0x30));
-                        render = true;
                     } else if (chr == 0x39) {
                         // reset row.
                         conRowAttr[crsrRow] = defRowAttr;
-                        render = true;
                     } // else unrecognized
                     ansiState = 0;
                     break;
@@ -1056,7 +1046,6 @@ function conCharOut(chr) {
                         // clear EOL first
                         conCellAttr[crsrRow].length = crsrCol;
                         conText[crsrRow] = conText[crsrRow].substring(0, crsrCol);
-                        renderRow(crsrRow);
                         // clear EOS
                         for (r = getMaxRow(); r > crsrRow; r--) {
                             row = getRowElement(r);
@@ -1071,13 +1060,11 @@ function conCharOut(chr) {
                         // clear SOL first
                         for (c = 0; c <= crsrCol; c++)
                             conPutChar(crsrRow, c, 32, defCellAttr);
-                        renderRow(crsrRow);
                         // clear SOS
                         for (r = 0; r < crsrRow; r++) {
                             conRowAttr[r] = defRowAttr;
                             conCellAttr[r] = [];
                             conText[r] = '';
-                            renderRow(r);
                         }
                         break;
 
@@ -1104,7 +1091,6 @@ function conCharOut(chr) {
                             expandToCol(crsrRow, crsrCol);
                         }
                         cellAttr = defCellAttr;
-                        renderRow(-1);
                         break;
                 }
                 break;
@@ -1133,7 +1119,6 @@ function conCharOut(chr) {
                         conCellAttr[crsrRow] = [];
                         break;
                 }
-                render = true;
                 break;
 
             case 0x4C:  // L - EL - insert lines
@@ -1287,7 +1272,7 @@ function conCharOut(chr) {
                     (parm[0] + 1) * 25);
                 conRowAttr[crsrRow] = setRowAttrWidth(conRowAttr[crsrRow],
                     (parm[1] + 1) * 50);
-                render = true;
+                adjustRow(crsrRow);
                 crsrrender = true;
                 break;
 
@@ -1299,7 +1284,24 @@ function conCharOut(chr) {
                 conRowAttr[crsrRow] = setRowAttrColor1(conRowAttr[crsrRow], parm[0]);
                 conRowAttr[crsrRow] = setRowAttrColor2(conRowAttr[crsrRow], parm[1]);
                 conRowAttr[crsrRow] = setRowAttrPattern(conRowAttr[crsrRow], parm[2] << 16);
-                render = true;
+
+                // set row attrs here
+                var row = getRowElement(crsrRow);
+                var c1 = clut[parm[0]];
+                var c2 = clut[parm[1]];
+                switch (parm[2] << 16) {
+                    case A_ROW_SOLID:
+                        row.style['background-color'] = c1;
+                        break;
+
+                    case A_ROW_HORZ:
+                        row.style['background'] = 'linear-gradient(to bottom,' + c1 + ',' + c2 + ')';
+                        break;
+
+                    case A_ROW_VERT:
+                        row.style['background'] = 'linear-gradient(to right,' + c1 + ',' + c2 + ')';
+                        break;
+                }
                 break;
 
             case 0x62:  // b - repeat last char
@@ -1528,8 +1530,6 @@ function conCharOut(chr) {
             }
         }
     }
-    if (render)
-        renderRow(crsrRow);
     if (crsrrender)
         crsrDraw();
 }
@@ -1562,15 +1562,17 @@ function getElementPosition(obj) {
 }
 
 // redraw the cursor. - attempt to scroll
-function crsrDraw() {
+function crsrDraw(force) {
     var
         row, rpos,
         csize,
         dt, wh;
 
-    if (new Date().getTime() > crsrSkipTime + 25)
-        return;
+    force = force || false;        
     
+    if ((new Date().getTime() > crsrSkipTime + 25) && !force)
+        return;
+
     expandToRow(crsrRow);
     row = getRowElement(crsrRow);
     if (row == null) return;
@@ -1606,10 +1608,13 @@ function crsrDraw() {
 // get default font size for page
 function getDefaultFontSize() {
     // look for font-width: in body
-    var w;
-    var cs = document.defaultView.getComputedStyle(document.body, null);
-    var fsz = parseInt(cs['font-size']);
-    var f = '1000px ' + cs['font-family'];
+    var 
+        w, cs, fsz, f;
+    
+    cs = document.defaultView.getComputedStyle(document.body, null);
+    fsz = parseInt(cs['font-size']);
+    fontName = cs['font-family'];
+    f = '1000px ' + fontName;
     fw = pageDiv.getAttribute('fontwidth');
     if (fw != null) {
         w = parseFloat(fw);
@@ -1617,7 +1622,8 @@ function getDefaultFontSize() {
         w  = (getTextWidth(b64, f) / b64.length);
         w = (w / 1000) * fsz;
     }
-    return [w, fsz];
+    colSize = w;
+    rowSize = fsz;
 }
 
 // compute size of text based on text and font.
@@ -1702,7 +1708,7 @@ function doCheckResize() {
     // page resize?
     if (elPage.clientWidth != pageWidth) {
         pageWidth = elPage.clientWidth;
-        crsrDraw();
+        crsrDraw(true);
     }
 }
 
@@ -1970,230 +1976,137 @@ function getCrsrAttrColor(attr) { return attr & 0xFF; }
 function getCrsrAttrSize(attr) { return (attr & A_CRSR_STYLE_MASK) >> 8; }
 function getCrsrAttrOrientation(attr) { return (attr & A_CRSR_ORIENTATION) >> 10; }
 
-// render row(s). if row = -1, then render all
-// this can be optimized for better span building
-// only set values that change to reduce force-reflow
-function renderRow(rownum) {
+// if row size has changed, resize canvas, redraw row.
+function adjustRow(rownum) {
     var
-        cattr,      // current attribute on row
-        tfg,        // fg for this char
-        tbg,        // bg       -''-
-        tb,         // bold     -''-
-        ti,         // italics  -''-
-        tu,         // undline  -''-
-        tx,         // blink    -''-
-        ts,         // shadow
-        tss,        // strikethrough
-        tol,
-        tg,
-        tr,
-        tc,
-        rowattr,    // attr for current row
-        cellattr,   // attr for current col
-        txtout,     // new html for row
-        ss,         // span style for block
-        cl,         // classname for span block
-        i,          // idx for rows
-        j,          // idx for cols
-        size, width,
-        c1, c2,
-        els = document.getElementsByClassName('vtx'),
-        from = 0,
-        to,
-        sp, ep, speed,
-        txtout, stxt,
-        tmp;
-
-    // only do ones specified
-    to = els.length;
-    if (rownum >= 0)
-        from = rownum, to = rownum + 1;
-
-    cattr = -1;
-    for (i = from; i < to; i++) {
-
-        // build line attributes - only change if different
-        txtout = '';
-        rowattr = conRowAttr[i];
-        size = getRowAttrSize(rowattr);
-        width = getRowAttrWidth(rowattr);
-        if (htoi(els[i].getAttribute('attr')) != rowattr) {
-
-            els[i].setAttribute('attr', itoh(rowattr, 8));
-            
-            c1 = clut[getRowAttrColor1(rowattr)];
-            c2 = clut[getRowAttrColor2(rowattr)];
-            switch (getRowAttrPattern(rowattr)) {
-                case A_ROW_SOLID:
-                    els[i].style['background-color'] = c1;
-                    break;
-
-                case A_ROW_HORZ:
-                    els[i].style['background'] = 'linear-gradient(to bottom,' + c1 + ',' + c2 + ')';
-                    break;
-
-                case A_ROW_VERT:
-                    els[i].style['background'] = 'linear-gradient(to right,' + c1 + ',' + c2 + ')';
-                    break;
-            }
-
-            if (size != 100)
-                els[i].style['font-size'] = size + '%';
-
-            if (width != 100) {
-                els[i].style['position'] = 'relative';
-                els[i].style['transform-origin'] = 'left';
-                els[i].style['transform'] = 'scaleX(' + (width / 100) + ')';
-            }
-
-            if (getRowAttrMarquee(rowattr)) {
-                sp = 100; //(100 * (1 / (width / 100)));
-                ep = ((colSize * conText[i].length) * (size / 100));
-                speed = 15 + (conText[i].length / 10);
-
-                // marquees need to be inside big span to clump into one element
-                txtout += '<style type=\'text/css\'>@keyframes marquee' + i 
-                    + ' {'
-                    + ' 0% { text-indent:' + sp + '% }' // good!
-                    + ' 100% { text-indent:-' + ep + 'px }'
-                    + '}</style>';
-
-                els[i].style['overflow'] = 'hidden';
-                els[i].style['white-space'] = 'nowrap';
-                els[i].style['box-sizing'] = 'border-box';
-                els[i].style['animation'] = 'marquee' + i + ' ' 
-                    + speed + 's linear infinite';
-            }
-        }
-        // force new width in style of div (charWidth * 80)
-        els[i].style['width'] = (crtWidth / (width / 100)) + 'px';
-        els[i].style['height'] = (rowSize * (size / 100)) + 'px';
+        row, size, width, h, w, x, cnv, i;
         
-        // build text with attributes.
-        // initial attribute state
-        txtout += '<div>';
-        for (j = 0; j < conText[i].length; j++) {
-            cellattr = conCellAttr[i][j];
-            if (cattr != cellattr) {
-                // change in attributes - full reset
-                if (j > 1)
-                    txtout += '</span>';
+    row = getRowElement(rownum);
+    size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
+    width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
+    h = rowSize * size;             // height of char
+    w = colSize * size * width;     // width of char
 
-                // get individual attributes for this cell
-                tfg =  cellattr & 0xFF; 
-                tbg = (cellattr >> 8 ) & 0xFF;
-                tb  =  cellattr & A_CELL_BOLD;
-                ti  =  cellattr & A_CELL_ITALICS;
-                tu  =  cellattr & A_CELL_UNDERLINE;
-                tx  =  cellattr & A_CELL_BLINK;
-                ts  =  cellattr & A_CELL_SHADOW;
-                tss =  cellattr & A_CELL_STRIKETHROUGH;
-                tol =  cellattr & A_CELL_OUTLINE;
-                tg  =  cellattr & A_CELL_GLOW;
-                tr  =  cellattr & A_CELL_REVERSE;
-                tc  =  cellattr & A_CELL_CONCEAL;
+    // get current size
+    cnv = row.firstChild;
+    if (!cnv){
+        // create it.
+        cnv = document.createElement('canvas');
+        row.appendChild(cnv);
+    }
+    
+    if (cnv.height != h + 8) {
+        // adjust for new height.
+        row.style['height'] = h + 'px';
+        cnv.width = 80 * colSize;
+        cnv.height = h + 8;
+        // redraw this entire row
+        for (i = 0; i < conText[rownum].length; i++)
+            renderCell(rownum, i);
+    }
+}
 
-                // adjust colors
-                if (!modeRealANSI) {
-                    // adjust bold for BBS/ANSI.SYS
-                    if (tb && (tfg < 8))
-                        tfg += 8;
-                    // no bold in BBS/ANSI.SYS
-                    tb = false;
-                }
+// render an individual row, col
+function renderCell(rownum, colnum) {
+    var
+        row, cnv;
+        
+    row = getRowElement(rownum);
+    size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
+    width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
+    h = rowSize * size;             // height of char
+    w = colSize * size * width;     // width of char
+    x = w * colnum;                 // left pos of char on canv
 
-                c1 = clut[tfg];
-                c2 = clut[tbg];
+    cnv = row.firstChild;           // get canvas
+    if (!cnv) {
+        // create new canvas if nonexistant
+        cnv = document.createElement('canvas');
+        cnv.style['z-index'] = '50';
+        row.appendChild(cnv);
+        cnv.width = 80 * w;
+        cnv.height = h + 8;
+    }
+    var ctx = cnv.getContext('2d');
+    
+    var attr = conCellAttr[rownum][colnum];
+    var ch = conText[rownum].charAt(colnum);
+    var tfg = (attr & 0xFF);
+    var tbg = (attr >> 8) & 0xff;
+    var tbold  = attr & A_CELL_BOLD;
+    var stroke = h * 0.1;  // underline/strikethrough size
+    
+    if (attr & A_CELL_REVERSE) {
+        var tmp = tfg;
+        tfg = tbg;
+        tbg = tmp;
+        if (tfg == 0)
+            tfg = 16;
+    }
+    if (!modeRealANSI) {
+        if (tbold && (tfg < 8)) {
+            tfg += 8;
+        } 
+        tbold = false;
+    }
+    
+    ctx.fillStyle = clut[tbg];
+    ctx.fillRect(x, 0, w, h);
 
-                // swap for reverse video
-                if (tr) {
-                    tmp = c1;
-                    c1 = c2;
-                    c2 = tmp;
-                    // no transparent on background.
-                    if (c1 == 'transparent')
-                        c1 = clut[16];
-                }
-
-                if (!modeRealANSI) {
-                    // no transparent in BBS/ANSI.SYS mode
-                    c1 = ((c1 == 'transparent') ? '#000000' : c1);
-                    c2 = ((c2 == 'transparent') ? '#000000' : c2);
-                }
-
-                // Conceal
-                if (tc)
-                    c1 = 'transparent';
-
-                // build strings
-                ss = '';
-                cl = '';
-
-                // outline
-                if (tol)
-                    ss += '-webkit-text-stroke:1px ' + c1 + ';color:' + c2 + ';'
-                else
-                    ss += 'color:' + c1 + ';';
-
-                // bg color
-                ss += 'background-color:' + c2 + ';';
-
-                // bold - disabled above for BBS/ANSI.SYS
-                if (tb)
-                    ss += 'font-weight:bold;';
-
-                // italics
-                ss += 'font-style:' + (ti ? 'italic' : 'normal') + ';';
-
-                // underline
-                if (tu)
-                    ss += 'text-decoration:underline;text-underline-position:below;';
-
-                // strikethrough
-                if (tss)
-                    ss += 'text-decoration:line-through;';
-
-                // shadow or glow.
-                if (ts) {
-                    // shadow
-                    ss += 'text-shadow:2px 2px #000;'
-                } else if (tg) {
-                    // glow
-                    // compute darker colors of FG
-                    c1 = brightenRGB(clut[tfg], -0.25);
-                    ss += 'text-shadow:0 0 2px #' + c1
-                        + ',0 0 3px #' + c1
-                        + ',0 0 5px #' + c1
-                        + ',0 0 8px #' + c1
-                        + ';';
-                }
-
-                // blink
-                cl += (tx ? 'blink' : '');
-
-                if ((ss.length > 0) | (cl.length > 0)) {
-                    txtout += '<span';
-                    if (ss.length > 0)
-                        txtout += ' style="' + ss + '"';
-                    if (cl.length > 0)
-                        txtout += ' class="' + cl + '"';
-                    txtout += '>';
-                }
-            }
-            if ((i==0) && (j == conText[i].length-1)) {
-                j=j;
-            }
-            txtout += htmlEncode(conText[i].charAt(j));
-            cattr = cellattr;
+    if (!(attr & A_CELL_CONCEAL)) {
+        // not concealed
+        ctx.fillStyle = clut[tfg];
+        ctx.font = ((attr & A_CELL_ITALICS) ? 'italic ' : '') 
+            + (tbold ? 'bold ' : '') 
+            + rowSize + 'px ' + fontName;
+        ctx.textAlign = 'start';
+        ctx.textBaseline = 'bottom';
+    
+        if (attr & A_CELL_GLOW) {
+            // how does this work on scaled? test
+            ctx.shadowColor = '#' + brightenRGB(clut[tfg], 0.25);
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            ctx.shadowBlur = 7;
+        } else if (attr & A_CELL_SHADOW) {
+            // how does this work on scaled? test
+            ctx.shadowColor = '#000000';
+            ctx.shadowOffsetX = h / rowSize;
+            ctx.shadowOffsetY = h / rowSize;
+            ctx.shadowBlur = 0;
+        } else {
+            ctx.shadowBlur = 0;
         }
-        if (conText[i].length == 0)
-            txtout += '<span></span>'
-        else 
-            txtout += '</span>';
-        txtout += '</div>';
-
-        // set new html for text
-        els[i].innerHTML = txtout;
+        
+        if ((size != 1) || (width != 1)) {
+            ctx.save();
+            ctx.scale(size * width, size);
+            ctx.translate(x / (size * width), 0);
+            if (attr & A_CELL_OUTLINE) {
+                ctx.strokeStyle = clut[tfg];
+                ctx.lineWidth = 1;
+                ctx.strokeText(ch, 0, rowSize);
+            } else {
+                ctx.fillText(ch, 0, rowSize);
+            }
+            ctx.restore();
+        } else {
+            if (attr & A_CELL_OUTLINE) {
+                ctx.strokeStyle = clut[tfg];
+                ctx.lineWidth = 1;
+                ctx.strokeText(ch, x, h);
+            } else {
+                ctx.fillText(ch, x, h);
+            }
+        }
+    
+        // draw underline / strikethough manually
+        if (attr & A_CELL_UNDERLINE) {
+            ctx.fillRect(x, h - stroke, w, stroke);
+        }
+        if (attr & A_CELL_STRIKETHROUGH) {
+            ctx.fillRect(x, (h + stroke) / 2, w, stroke);
+        }
     }
 }
 
@@ -2265,12 +2178,11 @@ function expandToCol(rownum, colnum) {
         conText[rownum] += ' ';
     while (conCellAttr[rownum].length < colnum)
         conCellAttr[rownum][conCellAttr[rownum].length] = defCellAttr;
-    //renderRow(rownum);
 }
 
 // grow total rows to rownum. needs to add html dom elements as well.
 function expandToRow(rownum) {
-    if (crsrRow >= conRowAttr.length) {
+    if (rownum >= conRowAttr.length) {
         while (rownum > getMaxRow()) {
             //document.body.appendChild(createNewRow());
             textDiv.appendChild(createNewRow());
@@ -2333,9 +2245,7 @@ function initDisplay() {
         return; // couldn't find it.
     
     // determine standard sized font width in pixels
-    fsize = getDefaultFontSize();
-    colSize = fsize[0];
-    rowSize = fsize[1];
+    getDefaultFontSize(); // get fontName, colSize, rowSize
     crtWidth = colSize * 80;
 
     pageDiv.style['width'] = crtWidth + 'px';
@@ -2412,7 +2322,6 @@ function initDisplay() {
     setTimers(true);
 
     // one time refresh
-    renderRow(-1);
     crsrHome();
     
     // test websocket connect
