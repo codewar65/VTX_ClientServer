@@ -1,5 +1,5 @@
 VTX
-July 8, 2017
+July 18, 2017
 
 Layout
 ======
@@ -68,7 +68,7 @@ Sequences
 
     CSI n 'Z' : Cursor Back Tab (CBT). Move cursor backwards n tab stops. Stops at left of page {1}
 
-    CSI s ; n ; w ; h ; z '_' : Display sprite. Sprites are defined using APC codes (see below).
+    CSI 0 ; s ; n ; w ; h ; z '_' : Display sprite. Sprites are defined using APC codes (see below).
         s : Sprite number to assign to this sprite. {0}
         n : Sprite definition number. {0}
         w : Width of sprite (in character cell widths). {1}
@@ -112,6 +112,7 @@ Sequences
         3 : Italics on.
         4 : Underline on.
         5 : Blink on.
+        6 : Blink on.
         7 : Reverse foreground and background colors.
         8 : Concealed on.
         9 : Strikethrough on.

@@ -1,228 +1,97 @@
 /*
     VTX - Mark2
-    (c)2017 Dan Mecklenburg - codewar65
+    2017 Dan Mecklenburg - codewar65
 
 
     TODO :
         Client Ident
-        
-        work on server.
-        find scripting engine to use for modules. (javascript / lua)
 
-    NOTES:  APC split on ';'  - SVG info has a ; so parts need to be 
-        reconcatenated.
+        Marquee - row canvas on marquee actual width of text. rebuild row on
+            conText change and row size change. 
+
+        text blink speed finialized / impolement fast blink. CSI 25 m only for
+            blink off.
+
+        alternate node methods - telnet / fake com port?
+
+        Remove unneeded globals.
+
 
     PAGEATTR
     
-    bbbbbbbb BBBBBBBB
+        bbbbbbbb BBBBBBBB
     
-    b : border color
-    B : background color
-
+        b : border color
+        B : background color
     
 
     ROWATTR - numbers stored in conRowAttr[num]
 
-    00000000 00000000 00000000  - bits
-    mwwzzzbb ssssssss ffffffff
+        00000000 00000000 00000000  - bits
+        mwwzzzbb ssssssss ffffffff
 
-    f : First Color (0-255)
-    s : Second Color (0-255)
-    b : Background Pattern
-        00 - none
-        01 - solid (first color)
-        10 - horiz grad (first -> second color)
-        11 - vert grad (first -> second color)
-    z : overall size
-        000 - 25%
-        001 - 50%
-        010 - 75%
-        011 - 100%
-        100 - 125%
-        101 - 150%
-        110 - 175%
-        111 - 200%
-    w : width scale
-        00  - 50%
-        01  - 100%
-        10  - 150%
-        11  - 200%
-    m : marquee (0-1)
-
-    CELLATTRS - numbers stored in conCellAttr[row][col]
-
-    00000000 00000000 00000000 00000000 - bits
-    ------cr gotdkuib BBBBBBBB FFFFFFFF
-
-    F : Foreground Color (0-255) using aixterm palette
-    B : Background Color (0-255)  -''-
-    b : bold (0-1)
-    i : italics (0-1)
-    u : underline (0-1)
-    k : blink (0-1)
-    d : drop shadow (0-1)
-    t : strikethrough (0-1)
-    o : outlined (0-1)
-    g : glow (0-1)
-    r : reversed
-    c : concealed
-    - : unused
+        f : First Color (0-255)
+        s : Second Color (0-255)
+        b : Background Pattern
+            00 - none
+            01 - solid (first color)
+            10 - horiz grad (first -> second color)
+            11 - vert grad (first -> second color)
+        z : overall size
+            000 - 25%
+            001 - 50%
+            010 - 75%
+            011 - 100%
+            100 - 125%
+            101 - 150%
+            110 - 175%
+            111 - 200%
+        w : width scale
+            00  - 50%
+            01  - 100%
+            10  - 150%
+            11  - 200%
+        m : marquee (0-1)
 
     
+    CELLATTRS - numbers stored in conCellAttr[row][col]
 
-    CRSRATTRS - various globals
+        00000000 00000000 00000000 00000000 - bits
+        ------cr gotdkuib BBBBBBBB FFFFFFFF
 
-    00000000 00000000 00000000  - bits
-    -------- -----ozz cccccccc
+        F : Foreground Color (0-255) using aixterm palette
+        B : Background Color (0-255)  -''-
+        b : bold (0-1)
+        i : italics (0-1)
+        u : underline (0-1)
+        k : blink (0-1)
+        d : drop shadow (0-1)
+        t : strikethrough (0-1)
+        o : outlined (0-1)
+        g : glow (0-1)
+        r : reversed
+        c : concealed
+        - : unused
+    
 
-    c : color (0-255)
-    z : size
-        00 : none   0%
-        01 : thin  10%
-        10 : thick 25%
-        11 : full   100%
-    o : orientation
-        0 : horizontal
-        1 : vertical
-    - : unused
+    CRSRATTRS  
+
+        00000000 00000000 00000000  - bits
+        -------- -----ozz cccccccc
+
+        c : color (0-255)
+        z : size
+            00 : none   0%
+            01 : thin  10%
+            10 : thick 25%
+            11 : full   100%
+        o : orientation
+            0 : horizontal
+            1 : vertical
+        - : unused
 
 
-
-    ESC / CSI CODES
-
-    ESC [ + (0-?)... (sp-/)... (@-~)
-
-    undeclared sequences to use for odd ball stuff
-        CSI ... ... [
-        CSI ... ... \
-        CSI ... ... ]
-        CSI ... ... ^
-        CSI ... ... _
-        CSI ... ... j
-        CSI ... ... k
-        CSI ... ... {
-
-    MODE SETS / RESETS
-        'Real ANSI' on      CSI ?50 h
-        BBS/ANSI.SYS        CSI ?50 l
-
-    CURSOR
-        Position            CSI r ; c H  or  CSI r ; c f
-        Up                  CSI n A
-        Down                CSI n B
-        Forward             CSI n C
-        Backward            CSI n D
-        Save Position       CSI s
-        Restore Position    CSI u
-        Next Line           CSI n E
-        Previous Line       CSI n F
-        To Column           CSI n G
-
-    CLEARING
-        Display             CSI n J
-                                n : 0=EOS,1=SOS,2=ALL
-        Row                 CSI n K
-                                n : 0=EOL,1=SOL,2=ALL
-
-    SPRITES (ESC _ = APC - Application Program Command)
-        Define Sprite       ESC _ '0' ; n ; text ST
-                            n = sprite def number
-                            txt = base64 svg file
-        Clear Sprite        ESC _ '0' ; n ST
-        Clear All Sprites   ESC _ '0' ST
-        
-        Display Sprite      CSI s ; n ; r ; c ; w ; h ; z _
-                                s = sprite number
-                                n = sprite def number
-                                r = row
-                                c = col
-                                w = width (in 100% cell size)
-                                h = height (in 100% cell size)
-                                z = zpos, 0=under text, 1=above text
-        Hide Sprite         CSI n _
-        Hide All Sprites    CSI _
-
-    CURSOR ATTRIBUTES
-        Color               CSI '0' ; c ^
-                                c = color (0-255) 7 is default
-        Size                CSI '1' ; s ^
-                                s : 0=none,1=thin,2=thick,3=full 2 is default
-        Orientation         CSI '2' ; o ^ 0 is default
-                                o : 0=horz, 1=vert
-
-    PAGE ATTRIBUTES
-
-    ROW ATTRIBUTES
-        Row Size:           CSI s ; w [ (*** new)
-                            s = size, 0=25%,1=50%,...7=200%; 3=default
-                            w = width, 0=50%,1=100%,..3=200%; 1=default
-        Marquee off :       ESC # 0 (*** new)
-        Marquee on :        ESC # 1 (*** new)
-        Row Background :        CSI c ; d ; s ] (*** new)
-                            c = color1, (0-255) 0=default
-                            d = color2, (0-255) 0=default
-                            s = style, 0=none,1=solid color1,2=horz grad,3=vert grad; 0=def
-        Reset Row :         ESC # 9   reset above to default (*** new)
-
-    CHARACTER ATTRIBUTES
-    Char Attributes :   CSI n ; ... m
-                            0   Clear all attributes
-                            1   Bold on
-                            3   Italics on
-                            4   Underline on
-                            5   Slow blink on
-                            7   Reverse video
-                            8   Concealed on (text not displayed)
-                            9   Strikethrough on
-                            21  Bold off
-                            23  Italics off
-                            24  Underline off
-                            25  Slow blink off
-                            27  Normal video
-                            28  Concealed off
-                            29  Strikethrough off
-                            30  Black foreground
-                            31  Red foreground
-                            32  Green foreground
-                            33  Yellow foreground
-                            34  Blue foreground
-                            35  Magenta foreground
-                            36  Cyan foreground
-                            37  White foreground
-                            38;5;n  Set foreground color to entry in special palette
-                            39  Default foreground color
-                            40  Black background
-                            41  Red background
-                            42  Green background
-                            43  Yellow background
-                            44  Blue background
-                            45  Magenta background
-                            46  Cyan background
-                            47  White background
-                            48;5;n  Set background color to entry in special palette
-                            49  Default background color
-                            50  Glow on (*** new)
-                            56  Outline on (*** new)
-                            57  Shadow on (*** new)
-                            70  Glow off (*** new)
-                            76  Outline off (*** new)
-                            77  Shadow off (*** new)
-                            90  Bold Black foreground
-                            91  Bold Red foreground
-                            92  Bold Green foreground
-                            93  Bold Yellow foreground
-                            94  Bold Blue foreground
-                            95  Bold Magenta foreground
-                            96  Bold Cyan foreground
-                            97  Bold White foreground
-                            100 Bold Black background
-                            101 Bold Red background
-                            102 Bold Green background
-                            103 Bold Yellow background
-                            104 Bold Blue background
-                            105 Bold Magenta background
-                            106 Bold Cyan background
-                            107 Bold White background
+    ESC / CSI CODES - see vtx.txt
 
 */
 
@@ -698,16 +567,6 @@ var
     };
 }(this));
     
-function isMicrosoft() {
-    var 
-        uA = window.navigator.userAgent,
-        onlyIEorEdge = /msie\s|trident\/|edge\//i.test(uA) 
-            && !!( document.uniqueID || window.MSInputMethodContext),
-        checkVersion = (onlyIEorEdge 
-            && +(/(edge\/|rv:|msie\s)([\d.]+)/i.exec(uA)[2])) || NaN;
-
-    return !isNaN(checkVersion);
-}
 
 if (jscd.browser.split(' ')[0] == 'Microsoft') {
     document.write('VTX is not compatible with Microsoft browsers.<br>');
