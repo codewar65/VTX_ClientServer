@@ -1,14 +1,8 @@
-@font-face{
-    font-family:    'VgaUnicode';
-    src:            url('VgaUnicode.woff') format('woff');
-    font-weight:    normal;
-    font-style:     normal;       
-}
 html {
 }
 body {
-    font-family:    'VgaUnicode'; 
-    font-size:      16px;
+    font-family:    Consolas, Courier, monospace;
+    font-size:      18px;
     padding-top:    1em;
     padding-bottom: 1em;
     left:           0;
