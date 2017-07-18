@@ -280,7 +280,7 @@ var
 
     ws = null,              // websocket connection.
 
-    irqResize,
+    irqCheckResize,
     irqCursor,
     
     hex =   '0123456789ABCDEF',
@@ -304,6 +304,7 @@ var
     crsrBlink,              // cursor blink state
     crsrSkipTime,           // skip cursor draws on heavy character output
     cellAttr,               // current active attributes
+    cellBlink,              // text blink state
     defCellAttr,            // default cell attributes.
     lastChar,               // last printable character outputed.
 
@@ -1756,7 +1757,7 @@ function crsrDraw(force) {
 
     force = force || false;        
     
-    if ((new Date().getTime() > crsrSkipTime + 25) && !force)
+    if ((new Date().getTime() > crsrSkipTime + 5) && !force)
         return;
 
     expandToRow(crsrRow);
@@ -1808,7 +1809,7 @@ function getDefaultFontSize() {
         w  = (getTextWidth(b64, f) / b64.length);
         w = (w / 1000) * fsz;
     }
-    colSize = w;
+    colSize = Math.round(w);
     rowSize = fsz;
 }
 
@@ -1899,7 +1900,7 @@ function doCheckResize() {
 }
 
 // blink cursor (533ms is cursor blink speed based on DOS VGA).
-function doTick() {
+function doCursor() {
     crsr.firstChild.style['background-color'] = 
         (crsrBlink = !crsrBlink) ? 'transparent' : clut[getCrsrAttrColor(crsrAttr)];
 }
@@ -2192,11 +2193,39 @@ function adjustRow(rownum) {
     }
 }
 
+// animate blink and marquee
+function doBlink(){
+    var
+        r, c, y, rh;
+
+    // y of first row.
+    y = textDiv.getBoundingClientRect().top;
+    for (r = 0; r < conRowAttr.length; r++) {
+        // check if row is visible
+        rh = rowSize * getRowAttrSize(conRowAttr[r]) / 100;
+        if ((y + rh > 0) && (y < window.innerHeight)) {
+
+            // look for blink
+            // refresh blinkable text.
+            for (c = 0; c < conCellAttr[r].length; c++) 
+                if (conCellAttr[r][c] & A_CELL_BLINK) 
+                    renderCell(r, c);
+        
+            // look for marquee
+            if (conRowAttr[r] & A_ROW_MARQUEE) {
+                // marquee this row
+            }
+        }
+        y += rh;
+    }
+    cellBlink = !cellBlink;
+}
+
 // render an individual row, col
 function renderCell(rownum, colnum) {
     var
-    row, size, width, w, h, x, y,
-    ctx, attr, ch, tfg, tbg, tbold, stroke, tmp;
+        row, size, width, w, h, x, y,
+        ctx, attr, ch, tfg, tbg, tbold, stroke, tmp;
         
     row = getRowElement(rownum);
     size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
@@ -2238,11 +2267,14 @@ function renderCell(rownum, colnum) {
         tbold = false;
     }
     
-    ctx.fillStyle = clut[tbg];
-    ctx.fillRect(x, 0, w, h);
+    if (tbg > 0) {
+        ctx.fillStyle = clut[tbg];
+        ctx.fillRect(x, 0, w, h);
+    } else
+        ctx.clearRect(x, 0, w, h);
 
-    if (!(attr & A_CELL_CONCEAL)) {
-        // not concealed
+    if (!(attr & A_CELL_CONCEAL) && !((attr & A_CELL_BLINK) && cellBlink)) {
+        // not concealed or in blink state
         ctx.fillStyle = clut[tfg];
         ctx.font = ((attr & A_CELL_ITALICS) ? 'italic ' : '') 
             + (tbold ? 'bold ' : '') 
@@ -2250,7 +2282,6 @@ function renderCell(rownum, colnum) {
         ctx.textAlign = 'start';
         ctx.textBaseline = 'top';
         
-
         if (attr & A_CELL_GLOW) {
             // how does this work on scaled? test
             ctx.shadowColor = '#' + brightenRGB(clut[tfg], 0.25);
@@ -2416,15 +2447,6 @@ function initDisplay() {
         fsize,
         defattrs;
 
-        
-    // add blink css to page
-    cssel = document.createElement('style');
-    cssel.innerHTML = '.blink{color:inherit;animation:blink 1111ms step-end infinite;' + CRLF
-        + '-webkit-animation:blink 1111ms step-end infinite;}' + CRLF
-        + '@keyframes blink {50%{color:transparent;}}' + CRLF
-        + '@-webkit-keyframes blink {50%{color:transparent;}}';
-    document.body.appendChild(cssel);
-
     // find the page / text div
     pageDiv = document.getElementById('vtxpage');
     if (!pageDiv)
@@ -2501,8 +2523,10 @@ function initDisplay() {
     pageDiv.style['background-color'] = clut[pageAttr & 0xFF];
     
     // set initial states.
-    shiftState = ctrlState = altState = capState = numState = scrState = false;
-    blink = false;  // cursor blink state for intervaltimer
+    shiftState = ctrlState = altState 
+        = capState = numState = scrState = false;
+    crsrBlink = false;  // cursor blink state for intervaltimer
+    cellBlink = true;
     crsrRow = crsrCol = 0;
     crsrDraw();
 
@@ -2535,11 +2559,13 @@ function initDisplay() {
 // set event for page resize check and cursor blink
 function setTimers(onoff) {
     if (onoff) {
-        irqResize = setInterval(doCheckResize, 10);
-        irqCursor = setInterval(doTick, 533);
+        irqCheckResize = setInterval(doCheckResize, 10);
+        irqCursor = setInterval(doCursor, 533);
+        irqBlink = setInterval(doBlink, 533);
     } else {
-        clearInterval(irqResize);
+        clearInterval(irqCheckResize);
         clearInterval(irqCursor);
+        clearInterval(irqBlink);
     }
 }
 
