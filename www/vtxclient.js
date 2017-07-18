@@ -1562,12 +1562,14 @@ function conCharOut(chr) {
                             break;
 
                         case 5:     // blink
+                        case 6:     // blink
                         case 25:
+                        case 26:
                             cellAttr =
-                                setCellAttrBlink(cellAttr, (parm[i] == 5));
+                                setCellAttrBlink(cellAttr, (parm[i] < 20));
                             break;
 
-                        case 7:     // revers video
+                        case 7:     // reverse video
                         case 27:
                             cellAttr =
                                 setCellAttrReverse(cellAttr, (parm[i] == 7));
