@@ -1,19 +1,22 @@
+@font-face {
+    font-family: 'Vga Unicode';
+    src: url('VgaUnicode.woff'); format('woff');
+}
 html {
 }
 body {
-    font-family:    Consolas, Courier, monospace;
-    font-size:      18px;
+    font-family:    'Vga Unicode';
+    font-size:      16px;
     padding-top:    1em;
     padding-bottom: 1em;
     left:           0;
     right:          0;    
 }
-div.vtx {
+.vtx {
     position:       relative;
     left:           0px;
     line-height:    1em;
     height:         1em;
-    white-space:    pre;
     vertical-align: top;
     overflow:       hidden;
     text-overflow:  clip;
@@ -35,11 +38,4 @@ div.vtx {
     overflow:       hidden;
     text-overflow:  clip;
     z-index:        10;
-}
-#zvtx {
-    z-index:        20;
-}
-zspan {
-    line-height:    1em;
-    height:         1em;
 }

@@ -304,7 +304,7 @@ begin
 
   PrintLn(SGR(ANSI_LTCYAN) + 'Individual characters on the page can be stylized using these ANSI sequences.');
   PrintLn;
-  PrintSyntaxLn('CSI', 'n ; ...', 'm', 'Set Graphics Redntion (SGR).', 'n = values below. Def=0.');
+  PrintSyntaxLn('CSI', 'n ; ...', 'm', 'Set Graphics Rendition (SGR).', 'n = values below. Def=0.');
   PrintLn;
 
   PrintLn(#27'[0;91m  0      '#27'[94m: Reset all to default values.');

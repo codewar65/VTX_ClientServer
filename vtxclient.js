@@ -7,7 +7,7 @@
         Client Ident
 
         Marquee - row canvas on marquee actual width of text. rebuild row on
-            conText change and row size change. 
+            conText change and row size change.
 
         text blink speed finialized / impolement fast blink. CSI 25 m only for
             blink off.
@@ -15,17 +15,17 @@
         alternate node methods - telnet / fake com port?
 
         Remove unneeded globals.
-        
+
         codes for restore cursor attr, restore page attr
 
 
     PAGEATTR
-    
+
         bbbbbbbb BBBBBBBB
-    
+
         b : border color
         B : background color
-    
+
 
     ROWATTR - numbers stored in conRowAttr[num]
 
@@ -55,7 +55,7 @@
             11  - 200%
         m : marquee (0-1)
 
-    
+
     CELLATTRS - numbers stored in conCellAttr[row][col]
 
         00000000 00000000 00000000 00000000 - bits
@@ -74,9 +74,9 @@
         r : reversed
         c : concealed
         - : unused
-    
 
-    CRSRATTRS  
+
+    CRSRATTRS
 
         00000000 00000000 00000000  - bits
         -------- -----ozz cccccccc
@@ -153,7 +153,7 @@ var
 
     irqCheckResize,
     irqCursor,
-    
+
     hex =   '0123456789ABCDEF',
     b64 =   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
     fontName,               // font used
@@ -184,7 +184,7 @@ var
     pageDiv = null,         // page contents div
     textDiv = null,         // text plane
     soundBell = null,       // bell sound
-    
+
     // ansi parsing vars
     parms = '',             // parameters for CSI
     interm = '',            // intermediate for CSI
@@ -200,7 +200,7 @@ var
     conText = [],           // raw text - array of string
 
     spriteDefs = [],        // sprite definitions
-    
+
     // attribute masks
     A_CELL_FG_NASK =        0x000000FF,
     A_CELL_BG_MASK =        0x0000FF00,
@@ -570,7 +570,7 @@ var
         flashVersion: flashVersion
     };
 }(this));
-    
+
 
 //if (jscd.browser.split(' ')[0] == 'Microsoft') {
 //    document.write('VTX is not compatible with Microsoft browsers.<br>');
@@ -640,7 +640,7 @@ function keyDown(e) {
         ka();
     } else if (typeof ka == 'string') {
         // send string to console.
-        if (ws.readyState == 1) 
+        if (ws.readyState == 1)
             ws.send(ka)
         else
             conStrOut(ka);
@@ -683,11 +683,11 @@ function keyDown(e) {
 
         } else if (ka > 0) {
             // send ascii if online, send to server. if offline, localecho
-            if (ws.readyState == 1) 
+            if (ws.readyState == 1)
                 ws.send(ka)
             else
                 conCharOut(ka);
-            
+
             e.keyCode = 0;
             e.preventDefault();
             return (e.returnValue = false);
@@ -796,7 +796,7 @@ function minMax(v, min, max, fallback) {
     return v;
 }
 
-// flush out parameter array with defaults.             
+// flush out parameter array with defaults.
 // truncate to match defs length
 function fixParams(parm, defs) {
     var
@@ -847,7 +847,7 @@ function conCharOut(chr) {
             soundBell.pause();
             soundBell.play();
             break;
-            
+
         case 8:     // backspace
             if (crsrCol > 0) {
                 expandToRow(crsrRow);
@@ -1018,7 +1018,7 @@ function conCharOut(chr) {
                     insChar(crsrRow, crsrCol, 32);
                 crsrrender = true;
                 break;
-            
+
             case 0x41:  // A - Cursor Up
                 parm = fixParams(parm, [1]);
                 parm[0] = minMax(parm[0], 1, 999);
@@ -1092,7 +1092,7 @@ function conCharOut(chr) {
                 }
                 crsrrender = true;
                 break;
-                
+
             case 0x4A:  // J - Erase in Screen (0=EOS,1=SOS,2=ALL)
                 parm = fixParams(parm, [0]);
                 parm[0] = minMax(parm[0], 0, 2, 0);
@@ -1185,7 +1185,7 @@ function conCharOut(chr) {
                     insRow(crsrRow);
                 crsrrender = true;
                 break;
-                
+
             case 0x4D:  // M - DL - delete lines
                 parm = fixParams(parm, [1]);
                 parm[0] = minMax(parm[0], 1, 999);
@@ -1193,14 +1193,14 @@ function conCharOut(chr) {
                     delRow(crsrRow);
                 crsrrender = true;
                 break;
-                
+
             case 0x50:  // P - DCH - delete character
                 parm = fixParams(parm, [1]);
                 parm[0] = minMax(parm[0], 1, 999);
                 for (i = 0; i < parm[0]; i++)
                     delChar(crsrRow, crsrCol);
                 break;
-                
+
             case 0x58:  // X - ECH - erase n characters
                 parm = fixParams(parm, [1]);
                 parm[0] = minMax(parm[0], 1, 999);
@@ -1208,7 +1208,7 @@ function conCharOut(chr) {
                     conPutChar(crsrRow, crsrCol + i, 0x32, defCellAttr);
                 }
                 break;
-                
+
             case 0x5A:  // Z - CBT - back tab
                 parm = fixParams(parm, [1]);
                 parm[0] = minMax(parm[0], 1, 999);
@@ -1221,7 +1221,7 @@ function conCharOut(chr) {
                 }
                 crsrrender = true;
                 break;
-                
+
             case 0x5F:  // _ - Display/Hide Sprite | CSI '0'; s ; n ; w ; h ; z _
                 parm = fixParams(parm, [ 0, 1, 1, 1, 1, 0 ]);
                 parm[1] = minMax(parm[1], 1, 64, 1);    // sprint #
@@ -1239,13 +1239,13 @@ function conCharOut(chr) {
                     } else if (l == 2) {
                         // remove one sprite
                         div = document.getElementById('sprite' + parm[1]);
-                        if (div != null) 
+                        if (div != null)
                             div.parentNode.removeChild(div);
                     } else {
                         // display a new sprite
                         // remove old one if it exists first
                         div = document.getElementById('sprite' + parm[1]);
-                        if (div != null) 
+                        if (div != null)
                             div.parentNode.removeChild(div);
 
                         // make a new one.
@@ -1280,7 +1280,7 @@ function conCharOut(chr) {
                     }
                 }
                 break;
-                
+
             case 0x5E:  // ^ - Cursor / Page Modes
                 if (parm.length == 0){
                     // no paremeters - reset cursor to default
@@ -1291,26 +1291,26 @@ function conCharOut(chr) {
                             crsrAttr = setCrsrAttrColor(crsrAttr, i);
                             newCrsr();
                             break;
-                            
+
                         case 1:// cursor size
                             i = (parm[1] & 0x03);
                             crsrAttr = setCrsrAttrSize(crsrAttr, i);
                             newCrsr();
                             break;
-                            
+
                         case 2:// cursor orientation
                             i = (parm[1] ? A_CRSR_ORIENTATION : 0);
                             crsrAttr = setCrsrAttrOrientation(crsrAttr, i);
                             newCrsr();
                             break;
-                            
+
                         case 3:// page border color
                             i = (parm[1] & 0xFF);
                             pageAttr = setPageAttrBorder(pageAttr, i);
                             p = pageDiv.parentNode;
                             p.style['background-color'] = clut[(pageAttr >> 8) & 0xFF];
                             break;
-                            
+
                         case 4:// page background color
                             i = (parm[1] & 0xFF);
                             pageAttr = setPageAttrBackground(pageAttr, i);
@@ -1368,7 +1368,7 @@ function conCharOut(chr) {
                     conPrintChar(lastChar);
                 }
                 crsrrender = true;
-                break;              
+                break;
 
             case 0x63:  // c - device attributes
                 parm = fixParams(parm, [0]);
@@ -1378,7 +1378,7 @@ function conCharOut(chr) {
                     ws.send(CSI + '?50;86;84;88c'); // reply for VTX
                 }
                 break;
-                
+
             case 0x66:  // f - Cursor Position
             case 0x48:  // H - Cursor Position
                 // set missing to defaults of 1
@@ -1544,7 +1544,7 @@ function conCharOut(chr) {
                     ws.Send(CSI + crsrRow + ';' + crsrCol + 'R');
                 }
                 break;
-                
+
             case 0x73:  // s - Save Position
                 crsrSaveRow = crsrRow;
                 crsrSaveCol = crsrCol;
@@ -1571,12 +1571,12 @@ function conCharOut(chr) {
                         // clear all definitions
                         spriteDefs = [];
                         break;
-                    
+
                     case 2:
                         // clear a single sprite
                         spriteDefs[parm[1]] = null;
                         break;
-                    
+
                     default:
                         // define a sprite
                         def = '';
@@ -1627,15 +1627,15 @@ function crsrDraw(force) {
         csize,
         dt, wh;
 
-    force = force || false;        
-    
+    force = force || false;
+
     if ((new Date().getTime() > crsrSkipTime + 5) && !force)
         return;
 
     expandToRow(crsrRow);
     row = getRowElement(crsrRow);
     if (row == null) return;
-    
+
     // position of row in relation to parent.
     rpos = getElementPosition(row);
 
@@ -1667,7 +1667,7 @@ function crsrDraw(force) {
 // get default font size for page
 function getDefaultFontSize() {
     // look for font-width: in body
-    var 
+    var
         cs, font, textSize, h, w,
         x, y, d,
         txtTop, txtBottom, txtLeft, txtRight,
@@ -1675,17 +1675,17 @@ function getDefaultFontSize() {
         canvas = document.createElement('canvas'),
         bmpw = 2000,
         bmph = 64;
-        
+
     testString += '\u2588\u2584\u2580\u2590\u258c\u2591\u2592\u2593';
     for (i = 32; i < 128; i++)
         testString += String.fromCharCode(i);
     testString += '\u2588\u2584\u2580\u2590\u258c\u2591\u2592\u2593';
-        
+
     cs = document.defaultView.getComputedStyle(document.body, null);
     fontName = cs['font-family'];
     fontSize = parseInt(cs['font-size']);
     font = fontSize + 'px ' + fontName;
-    
+
     // interrogate font
     canvas.width = bmpw;
     canvas.height = bmph;
@@ -1807,7 +1807,7 @@ function doCheckResize() {
 
 // blink cursor (533ms is cursor blink speed based on DOS VGA).
 function doCursor() {
-    crsr.firstChild.style['background-color'] = 
+    crsr.firstChild.style['background-color'] =
         (crsrBlink = !crsrBlink) ? 'transparent' : clut[getCrsrAttrColor(crsrAttr)];
 }
 
@@ -1825,7 +1825,7 @@ function getRowFontSize(rownum) {
 
 // convert 4 digit base64 str to 24bit int
 function btoi(str) {
-    var 
+    var
         digits = str.split('');
     return  (b64.indexOf(digits[0]) << 18) +
             (b64.indexOf(digits[1]) << 12) +
@@ -2073,7 +2073,7 @@ function getCrsrAttrOrientation(attr) { return (attr & A_CRSR_ORIENTATION) >> 10
 function adjustRow(rownum) {
     var
         row, size, width, h, w, x, cnv, i, nw;
-        
+
     row = getRowElement(rownum);
     size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
     width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
@@ -2087,14 +2087,14 @@ function adjustRow(rownum) {
         cnv = document.createElement('canvas');
         row.appendChild(cnv);
     }
-    
+
     if (conRowAttr[rownum] & A_ROW_MARQUEE) {
         // marquee are normal width min or text length max
         nw = Math.max(conText[rownum].length * w, 80 * colSize)
     } else {
         nw= 80 * colSize;
     }
-    
+
     if ((cnv.height != (h + 16)) || (cnv.width != nw)) {
         // adjust for new height.
         row.style['height'] = size + 'em';
@@ -2121,10 +2121,10 @@ function doBlink(){
 
             // look for blink
             // refresh blinkable text.
-            for (c = 0; c < conCellAttr[r].length; c++) 
-                if (conCellAttr[r][c] & A_CELL_BLINK) 
+            for (c = 0; c < conCellAttr[r].length; c++)
+                if (conCellAttr[r][c] & A_CELL_BLINK)
                     renderCell(r, c);
-        
+
             // look for marquee
             if (conRowAttr[r] & A_ROW_MARQUEE) {
                 // marquee this row
@@ -2138,9 +2138,9 @@ function doBlink(){
 // render an individual row, col
 function renderCell(rownum, colnum) {
     var
-        row, size, width, w, h, x, 
+        row, size, width, w, h, x,
         ctx, attr, ch, tfg, tbg, tbold, stroke, tmp;
-        
+
     size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
     width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
     w = colSize * size * width;     // width of char
@@ -2162,14 +2162,14 @@ function renderCell(rownum, colnum) {
         cnv.height = (h + 16);
     }
     ctx = cnv.getContext('2d');
-    
+
     attr = conCellAttr[rownum][colnum];
     ch = conText[rownum].charAt(colnum);
     tfg = (attr & 0xFF);
     tbg = (attr >> 8) & 0xff;
     tbold  = attr & A_CELL_BOLD;
     stroke = h * 0.1;  // underline/strikethrough size
-    
+
     if (attr & A_CELL_REVERSE) {
         tmp = tfg;
         tfg = tbg;
@@ -2180,10 +2180,10 @@ function renderCell(rownum, colnum) {
     if (!modeRealANSI) {
         if (tbold && (tfg < 8)) {
             tfg += 8;
-        } 
+        }
         tbold = false;
     }
-    
+
     if (tbg > 0) {
         ctx.fillStyle = clut[tbg];
         ctx.fillRect(x, 0, w, h);
@@ -2193,12 +2193,12 @@ function renderCell(rownum, colnum) {
     if (!(attr & A_CELL_CONCEAL) && !((attr & A_CELL_BLINK) && cellBlink)) {
         // not concealed or in blink state
         ctx.fillStyle = clut[tfg];
-        ctx.font = ((attr & A_CELL_ITALICS) ? 'italic ' : '') 
-            + (tbold ? 'bold ' : '') 
+        ctx.font = ((attr & A_CELL_ITALICS) ? 'italic ' : '')
+            + (tbold ? 'bold ' : '')
             + fontSize + 'px ' + fontName;
         ctx.textAlign = 'start';
         ctx.textBaseline = 'top';
-        
+
         if (attr & A_CELL_GLOW) {
             // how does this work on scaled? test
             ctx.shadowColor = '#' + brightenRGB(clut[tfg], 0.25);
@@ -2214,7 +2214,7 @@ function renderCell(rownum, colnum) {
         } else {
             ctx.shadowBlur = 0;
         }
-        
+
         if ((size != 1) || (width != 1)) {
             ctx.save();
             ctx.scale(size * width, size);
@@ -2236,7 +2236,7 @@ function renderCell(rownum, colnum) {
                 ctx.fillText(ch, x, 0);
             }
         }
-    
+
         // draw underline / strikethough manually
         if (attr & A_CELL_UNDERLINE) {
             ctx.fillRect(x, h - stroke, w, stroke);
@@ -2371,13 +2371,13 @@ function initDisplay() {
     textDiv = document.getElementById('vtxtext');
     if (!textDiv)
         return; // couldn't find it.
-    
+
     // determine standard sized font width in pixels
     getDefaultFontSize(); // get fontName, colSize, rowSize
     crtWidth = colSize * 80;
 
     pageDiv.style['width'] = crtWidth + 'px';
-    
+
     // add indicators for online/capslk/numlk/scrlk
     pos = 0;
     o = document.createElement('img');
@@ -2419,15 +2419,15 @@ function initDisplay() {
         style.appendChild(document.createTextNode(css));
     var head = document.head || document.getElementsByTagName('head')[0];
     head.appendChild(style);
-    
-    // get default attributes for page from <div id='vtxpage'...> 
+
+    // get default attributes for page from <div id='vtxpage'...>
     // stored as hex values in cellattr, crsrattr, and pageattr
     defCellAttr = htoi(pageDiv.getAttribute('cellattr') || '00000007');
     cellAttr =  defCellAttr;
     crsrAttr = htoi(pageDiv.getAttribute('crsrattr') || '00000207');
     pageAttr = htoi(pageDiv.getAttribute('pageattr') || '00000000');
-    
-    // create cursor 
+
+    // create cursor
     newCrsr();
     crsrSkipTime = 0;
 
@@ -2444,14 +2444,14 @@ function initDisplay() {
             this.play();
         }
     });
-    
+
     // set page attributes
     p = pageDiv.parentNode;
     p.style['background-color'] = clut[(pageAttr >> 8) & 0xFF];
     pageDiv.style['background-color'] = clut[pageAttr & 0xFF];
-    
+
     // set initial states.
-    shiftState = ctrlState = altState 
+    shiftState = ctrlState = altState
         = capState = numState = scrState = false;
     crsrBlink = false;  // cursor blink state for intervaltimer
     cellBlink = true;
@@ -2464,20 +2464,20 @@ function initDisplay() {
 
     // one time refresh
     crsrHome();
-    
+
     // test websocket connect
     ws = new WebSocket('ws://@InternetIP@:@WSPort@', ['vtx']);
-    ws.onopen = function() { 
+    ws.onopen = function() {
         setBulbs();
     }
-    ws.onclose = function() { 
+    ws.onclose = function() {
         conStrOut('\r\n\r\n\x1b[#9\x1b[0;91mDisconnected from server.\r\n');
         setBulbs();
     }
-    ws.onmessage = function(e) { 
+    ws.onmessage = function(e) {
         conStrOut(e.data);
     }
-    ws.onerror = function(error) { 
+    ws.onerror = function(error) {
         conStrOut('\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error + '\r\n');
         setBulbs();
     }
@@ -2547,13 +2547,13 @@ function newCrsr() {
         o.style['left'] = '0px';
         crsr.appendChild(o);
         textDiv.appendChild(crsr);
-    } else 
+    } else
         o = crsr.firstChild;
 
     z = getCrsrAttrOrientation(crsrAttr);
     sz = getCrsrAttrSize(crsrAttr)
     switch (z) {
-        case 0: 
+        case 0:
             o.style['width'] = '100%';
             o.style['height'] = sizes[sz];
             break;
@@ -2570,7 +2570,7 @@ function newCrsr() {
 alert(
     'OS: ' + jscd.os +' '+ jscd.osVersion + '\n' +
     'Browser: ' + jscd.browser +' '+ jscd.browserMajorVersion +
-      ' (' + jscd.browserVersion + ')\n' + 
+      ' (' + jscd.browserVersion + ')\n' +
     'Mobile: ' + jscd.mobile + '\n' +
     'Flash: ' + jscd.flashVersion + '\n' +
     'Cookies: ' + jscd.cookies + '\n' +
