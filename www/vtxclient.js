@@ -158,7 +158,6 @@ var
     b64 =   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
     fontName,               // font used
     fontSize,               // font size to use
-    //fontYAdj,               // font y adj
     rowSize,                // character size
     colSize,                // cell width in pixels
     crtWidth,               // crt width in pixels
@@ -243,7 +242,10 @@ var
     DO_CAPLK =          -2,
     DO_NUMLK =          -3,
     DO_SCRLK =          -4,
+    DO_FADE = -5,
 
+    fade = false, ovl,
+    
     // special char codes and sequences
     ESC =       '\x1B',
     CSI =       '\x1B[',
@@ -341,7 +343,7 @@ var
        109: [ '-',      0,      0,          0,      0,      0,      0,      0 ], // subtract
        110: [ '.',      0,      0,          0,      0,      0,      0,      0 ], // decimal
        111: [ '/',      0,      0,          0,      0,      0,      0,      0 ], // divide
-       112: [ ESC+'OP', 0,      0,          0,      0,      0,      0,      0 ], // f1
+       112: [ ESC+'OP', DO_FADE,0,          0,      0,      0,      0,      0 ], // f1
        113: [ ESC+'OQ', 0,      0,          0,      0,      0,      0,      0 ], // f2
        114: [ ESC+'OR', 0,      0,          0,      0,      0,      0,      0 ], // f3
        115: [ ESC+'OS', 0,      0,          0,      0,      0,      0,      0 ], // f4
@@ -642,8 +644,10 @@ function keyDown(e) {
         // send string to console.
         if (ws.readyState == 1) 
             ws.send(ka)
-        else
+        else {
             conStrOut(ka);
+            crsrDraw();
+        }
 
         e.keyCode = 0;
         e.preventDefault();
@@ -674,6 +678,32 @@ function keyDown(e) {
                     setBulbs();
                     break;
 
+                case DO_FADE:
+                    // sample fade effect for file transfer
+                    fade = !fade;
+                    if (!fade) {
+                        fadeScreen(false);
+                        // remove overlay
+                        document.body.removeChild(ovl);
+                        // enable keys / cursor
+                        setTimers(true);
+                    } else {
+                        fadeScreen(true);
+                        // add overlay
+                        ovl = document.createElement('div');
+                        ovl.style['width'] = '256px';
+                        ovl.style['height'] = '128px';
+                        ovl.style['display'] = 'block'
+                        ovl.style['background'] = 'gray';
+                        ovl.style['position'] = 'absolute';
+                        ovl.style['top'] = ((window.height - 128) / 2) + 'px'; 
+                        ovl.style['left'] = ((pageWidth - 256) / 2) + 'px';
+                        document.body.appendChild(ovl);
+                        // disable keys / cursor
+                        setTimers(false);
+                    }
+                    break;
+
                 default:
                     // unknown action - pass to keyPress
                     return;
@@ -685,8 +715,10 @@ function keyDown(e) {
             // send ascii if online, send to server. if offline, localecho
             if (ws.readyState == 1) 
                 ws.send(ka)
-            else
+            else {
                 conCharOut(ka);
+                crsrDraw();
+            }
             
             e.keyCode = 0;
             e.preventDefault();
@@ -881,7 +913,7 @@ function conCharOut(chr) {
             expandToRow(crsrRow);
             expandToCol(crsrRow, crsrCol);
             delChar(crsrRow, crsrCol);
-            crsrrender = true;
+            redrawRow(crsrRow);
             break;
 
         default:
@@ -1016,7 +1048,7 @@ function conCharOut(chr) {
                 parm[0] = minMax(parm[0], 1, 999);
                 for (i = 0; i < parm[0]; i++)
                     insChar(crsrRow, crsrCol, 32);
-                crsrrender = true;
+                redrawRow(crsrRow);
                 break;
             
             case 0x41:  // A - Cursor Up
@@ -1117,11 +1149,15 @@ function conCharOut(chr) {
                         // clear SOL first
                         for (c = 0; c <= crsrCol; c++)
                             conPutChar(crsrRow, c, 32, defCellAttr);
+                        redrawRow(crsrRow);
+                        
                         // clear SOS
                         for (r = 0; r < crsrRow; r++) {
                             conRowAttr[r] = defRowAttr;
                             conCellAttr[r] = [];
                             conText[r] = '';
+                            adjustRow(crsrRow);
+                            redrawRow(crsrRow);
                         }
                         break;
 
@@ -1147,7 +1183,8 @@ function conCharOut(chr) {
                             expandToRow(crsrRow);   // ECMA-048 complient
                             expandToCol(crsrRow, crsrCol);
                         }
-                        cellAttr = defCellAttr;
+                        if (modeRealANSI)
+                            cellAttr = defCellAttr;
                         break;
                 }
                 break;
@@ -1162,18 +1199,21 @@ function conCharOut(chr) {
                         // clear EOL first
                         conCellAttr[crsrRow].length = crsrCol;
                         conText[crsrRow] = conText[crsrRow].substring(0, crsrCol);
+                        redrawRow(crsrRow);
                         break;
 
                     case 1:
                         // clear SOL first
                         for (c = 0; c <= crsrCol; c++)
                             conPutChar(crsrRow, c, 32, defCellAttr);
+                        redrawRow(crsrRow);
                         break;
 
                     case 2:
                         // clear row.
                         conText[crsrRow] = '';
                         conCellAttr[crsrRow] = [];
+                        redrawRow(crsrRow);
                         break;
                 }
                 break;
@@ -1183,7 +1223,6 @@ function conCharOut(chr) {
                 parm[0] = minMax(parm[0], 1, 999);
                 for (i = 0; i < parm[0]; i++)
                     insRow(crsrRow);
-                crsrrender = true;
                 break;
                 
             case 0x4D:  // M - DL - delete lines
@@ -1191,7 +1230,6 @@ function conCharOut(chr) {
                 parm[0] = minMax(parm[0], 1, 999);
                 for (i = 0; i < parm[0]; i++)
                     delRow(crsrRow);
-                crsrrender = true;
                 break;
                 
             case 0x50:  // P - DCH - delete character
@@ -1199,13 +1237,14 @@ function conCharOut(chr) {
                 parm[0] = minMax(parm[0], 1, 999);
                 for (i = 0; i < parm[0]; i++)
                     delChar(crsrRow, crsrCol);
+                redrawRow(crsrRow);
                 break;
                 
             case 0x58:  // X - ECH - erase n characters
                 parm = fixParams(parm, [1]);
                 parm[0] = minMax(parm[0], 1, 999);
                 for (i = 0; i < parm[0]; i++) {
-                    conPutChar(crsrRow, crsrCol + i, 0x32, defCellAttr);
+                    conPutChar(crsrRow, crsrCol + i, 0x20, defCellAttr);
                 }
                 break;
                 
@@ -1541,7 +1580,8 @@ function conCharOut(chr) {
                 parm[0] = minMax(parm[0], 1, 999);
                 if (parm[0] == 6) {
                     // request cursor position
-                    ws.Send(CSI + crsrRow + ';' + crsrCol + 'R');
+                    var reply = CSI + (crsrRow+1) + ';' + (crsrCol+1) + 'R';
+                    ws.send(reply);
                 }
                 break;
                 
@@ -1629,8 +1669,8 @@ function crsrDraw(force) {
 
     force = force || false;        
     
-    if ((new Date().getTime() > crsrSkipTime + 5) && !force)
-        return;
+//    if ((new Date().getTime() > crsrSkipTime + 5) && !force)
+//        return;
 
     expandToRow(crsrRow);
     row = getRowElement(crsrRow);
@@ -1680,7 +1720,7 @@ function getDefaultFontSize() {
     for (i = 32; i < 128; i++)
         testString += String.fromCharCode(i);
     testString += '\u2588\u2584\u2580\u2590\u258c\u2591\u2592\u2593';
-        
+
     cs = document.defaultView.getComputedStyle(document.body, null);
     fontName = cs['font-family'];
     fontSize = parseInt(cs['font-size']);
@@ -1694,7 +1734,7 @@ function getDefaultFontSize() {
     ctx.textBaseline = 'top';
     ctx.textAlign='left';
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(testString, 12, 12);
+    ctx.fillText(testString, 0, 0);
 
     data = ctx.getImageData(0, 0, bmpw, bmph).data;
     txtTop = txtLeft = bmpw;
@@ -1714,9 +1754,8 @@ function getDefaultFontSize() {
                     txtRight = x;
             }
         }
-    //fontYAdj = (txtTop - 12);
-    colSize = Math.round((txtRight - txtLeft) / testString.length);
-    rowSize = Math.round(txtBottom - txtTop) + 1;
+    colSize = Math.floor((txtRight - txtLeft) / testString.length);
+    rowSize = Math.floor(txtBottom - txtTop) + 1;
 }
 
 // compute size of text based on text and font.
@@ -1739,7 +1778,6 @@ function getTextWidth(text, font) {
 // get maximum row on document.
 function getMaxRow() {
     return conRowAttr.length - 1;
-    //return document.getElementsByClassName('vtx').length - 1;
 }
 
 // get row length for a row
@@ -2102,9 +2140,37 @@ function adjustRow(rownum) {
         cnv.height = (h + 16);
 
         // redraw this entire row
-        for (i = 0; i < conText[rownum].length; i++)
-            renderCell(rownum, i);
+        redrawRow(rownum);
     }
+}
+
+function redrawRow(rownum){
+    var
+        row, size, width, w, h, x, y, i, l;
+        
+    // redraw this entire row
+    l = conText[rownum].length;
+    for (i = 0; i < l; i++)
+        renderCell(rownum, i);
+
+    // clear end of row
+    row = getRowElement(rownum);
+    size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
+    width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
+    w = colSize * size * width;     // width of char
+    x = w * l;                  // left pos of char on canv
+    cnv = row.firstChild;
+    ctx = cnv.getContext('2d');
+    ctx.clearRect(x, 0, cnv.width - x, cnv.height);
+}
+
+function fadeScreen(on){
+    // fade out the screen for use with progress overlays and file
+    // transfer windows
+    if (on)
+        pageDiv.classList.add('fade')
+    else
+        pageDiv.classList.remove('fade');
 }
 
 // animate blink and marquee
@@ -2475,10 +2541,11 @@ function initDisplay() {
         setBulbs();
     }
     ws.onmessage = function(e) { 
-        conStrOut(e.data);
+        var data = e.data;
+        conStrOut(data);
     }
     ws.onerror = function(error) { 
-        conStrOut('\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error + '\r\n');
+        conStrOut('\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
         setBulbs();
     }
     return;

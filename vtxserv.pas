@@ -1,4 +1,33 @@
+{
+
+
+	Project:	VTX Server
+  Author:		Daniel Mecklenburg Jr
+  Date:			2017-07-20
+	License:	GNU 3.0
+	File:			vtxserv.pas
+  Descr:		VTX server.
+
+
+}
+
 program vtxserv;
+
+{
+
+	!!!!!!!!!!!
+	Need to implement telnet client from scratch from socket up.
+
+
+  ondata needs to
+  	handle telnet negotiations
+    append new data (converted from codepate to utf8) (less negotiation data) to buffer
+
+	onclose needs to
+  	close nanny
+
+}
+
 
 {$codepage utf8}
 {$mode objfpc}{$H+}
@@ -6,58 +35,137 @@ program vtxserv;
 
 uses
   cmem,
-{$IFDEF UNIX}{$IFDEF UseCThreads}
-  cthreads,
-{$ENDIF}{$ENDIF}
+	{$IFDEF UNIX}{$IFDEF UseCThreads}
+  	cthreads,
+	{$ENDIF}{$ENDIF}
 
   // pascal / os stuff
   {$IFDEF WINDOWS}
     Windows, {for setconsoleoutputcp}
   {$ENDIF}
-  Classes, Process, Pipes, DateUtils, SysUtils, IniFiles, Crt,
-  LConvEncoding,
+  Classes, Process, Pipes, DateUtils, SysUtils, IniFiles, Crt, LConvEncoding,
 
   // network stuff
+  winsock2, ctypes,
   BlckSock, Sockets, Synautil, Laz_Synapse, WebSocket2, CustomServer2;
 
 
-const
-  CRLF = #13#10;
-
 type
-  TvtxHTTPServer =    class;  // very basic web server for dishing out client
-  TvtxWSServer =      class;  // quasi robust websocket server
-  TvtxIOBridge =      class;
-  TvtxWSConnection =  class;  // websocket connection spawns consoles per connection
-  TvtxProcessNanny =  class;
+
+  TTelnetState = (
+  	tsDATA,
+    tsIAC,
+    tsIAC_SB,
+    tsIAC_WILL,
+    tsIAC_DO,
+    tsIAC_WONT,
+    tsIAC_DONT,
+    tsIAC_SBIAC,
+    tsIAC_SBDATA,
+    tsSBDATA_IAC );
+
+  TvtxWSConnection =  class;
 
   TvtxProgressEvent = procedure(ip, msg: string) of object;
 
-  { TvtxHTTPServer : for basic webserver front end for dishing out client }
-  TvtxHTTPServer = class(TThread)
+  { TvtxProcessNanny : thread for spawning connection console. terminate
+    connection on exit }
+  TvtxProcessNanny = class(TThread)
     private
-      fProgress :   string;
+      FState : TTelnetState;
+      FSubType, FSubNeg : string;
+      fProgress : string;
       fOnProgress : TvtxProgressEvent;
-      procedure     DoProgress;
+      procedure DoProgress;
 
     protected
-      procedure     Execute; override;
-      procedure     AttendConnection(ASocket : TTCPBlockSocket);
-      function      SendFile(
-                      ASocket : TTCPBlockSocket;
-                      ContentType : string;
-                      Filename : string) : integer;
-      function      SendImage(
-                      ASocket : TTCPBlockSocket;
-                      ContentType : string;
-                      Filename : string) : integer;
+      procedure Execute; override;
+      procedure OnFilterData(Sender: TObject; var Value: AnsiString);
+      function Negotiate(const Buf: Ansistring; Sender : TObject): Ansistring;
 
     public
-      constructor   Create(CreateSuspended: boolean);
-      destructor    Destroy; override;
-      property      OnProgress : TvtxProgressEvent
-                      read fOnProgress
-                      write fOnProgress;
+      serverCon : TvtxWSConnection;
+      constructor Create(CreateSuspended: boolean);
+      destructor  Destroy; override;
+      property    OnProgress: TvtxProgressEvent read fOnProgress write fOnProgress;
+  end;
+
+  TCodePages = (
+    CP1250, CP1251, CP1252, CP1253,
+    CP1254, CP1255, CP1256, CP1257,
+    CP1258, CP437, CP850, CP852,
+    CP866, CP874, CP932, CP936,
+    CP949, CP950, MACINTOSH, KOI8 );
+
+  TCodePageConverter = 		function(const s: string): string;
+  TCodePageUnconverter = 	function(const s: string; SetTargetCodePage: boolean = false): RawByteString;
+
+  { Node process type. }
+  TvtxNodeType = ( ExtProc, Telnet );
+
+  { TvtxSystemInfo : Board Inofo record }
+  TvtxSystemInfo = record
+
+    SystemName :  string;   // name of bbs - webpage title
+
+    SystemIP :    string;   // ip address of this host - needed to bind to socket
+    InternetIP :  string;   // ip address as seen from internet
+
+    HTTPPort :    string;   // port number for http front end
+    WSPort :      string;   // port number for ws back end
+
+    NodeType :		TvtxNodeType;
+
+    ExtProc :  		string;   // command line string for process to fork for connection
+                            // messaged for @ codes prior to execution.
+
+    TelnetIP :		string;		// ip address of extern telnet process
+    TelnetPort : 	string;		// port
+    TelnetCP :		TCodePages;
+
+    MaxConnections : integer;
+
+  end;
+
+  TServices = ( HTTP, WS, Bridge, All, Unknown );
+  TServSet = set of TServices;
+
+  { TvtxWSServer : websocket server class object }
+  TvtxWSServer = class(TWebSocketServer)
+    public
+      function GetWebSocketConnectionClass(
+                Socket: TTCPCustomConnectionSocket;
+                Header: TStringList;
+                ResourceName, sHost, sPort, Origin, Cookie: string;
+            out HttpResult: integer;
+            var Protocol, Extensions: string) : TWebSocketServerConnections; override;
+  end;
+
+  { TvtxWSConnection : Websocket connection class. }
+  TvtxWSConnection = class(TWebSocketServerConnection)
+    public
+      ExtProcType :	TvtxNodeType;
+
+      // needed for ExtProc
+      ExtNanny :  	TvtxProcessNanny; // the TThread that runs below ExtProcess
+      ExtProc :   	TProcess;         // the TProcess spawned board
+
+      // for 				Telnet
+      Telnet :			TTCPBlockSocket;
+
+      property ReadFinal: boolean read fReadFinal;
+      property ReadRes1: boolean read fReadRes1;
+      property ReadRes2: boolean read fReadRes2;
+      property ReadRes3: boolean read fReadRes3;
+      property ReadCode: integer read fReadCode;
+      property ReadStream: TMemoryStream read fReadStream;
+
+      property WriteFinal: boolean read fWriteFinal;
+      property WriteRes1: boolean read fWriteRes1;
+      property WriteRes2: boolean read fWriteRes2;
+      property WriteRes3: boolean read fWriteRes3;
+      property WriteCode: integer read fWriteCode;
+      property WriteStream: TMemoryStream read fWriteStream;
   end;
 
   { TvtxIOBridge : these are for the background worker that routes stdout from
@@ -82,68 +190,6 @@ type
       property        OnProgress : TvtxProgressEvent
                         read fOnProgress
                         write fOnProgress;
-  end;
-
-  { TvtxWSServer : websocket server class object }
-  TvtxWSServer = class(TWebSocketServer)
-    public
-      function GetWebSocketConnectionClass(
-                Socket: TTCPCustomConnectionSocket;
-                Header: TStringList;
-                ResourceName, sHost, sPort, Origin, Cookie: string;
-            out HttpResult: integer;
-            var Protocol, Extensions: string) : TWebSocketServerConnections; override;
-  end;
-
-  { TvtxProcessNanny : thread for spawning connection console. terminate
-    connection on exit }
-  TvtxProcessNanny = class(TThread)
-    private
-      fProgress : string;
-      fOnProgress : TvtxProgressEvent;
-      procedure DoProgress;
-
-    protected
-      procedure Execute; override;
-
-    public
-      serverCon : TvtxWSConnection;
-      constructor Create(CreateSuspended: boolean);
-      destructor  Destroy; override;
-      property    OnProgress: TvtxProgressEvent read fOnProgress write fOnProgress;
-  end;
-
-  { TvtxWSConnection : Websocket connection class. }
-  TvtxWSConnection = class(TWebSocketServerConnection)
-    public
-      ExtNanny   :  TvtxProcessNanny; // the TThread that runs below ExtProcess
-      ExtProcess :  TProcess;         // the TProcess spawned board
-
-      property ReadFinal: boolean read fReadFinal;
-      property ReadRes1: boolean read fReadRes1;
-      property ReadRes2: boolean read fReadRes2;
-      property ReadRes3: boolean read fReadRes3;
-      property ReadCode: integer read fReadCode;
-      property ReadStream: TMemoryStream read fReadStream;
-
-      property WriteFinal: boolean read fWriteFinal;
-      property WriteRes1: boolean read fWriteRes1;
-      property WriteRes2: boolean read fWriteRes2;
-      property WriteRes3: boolean read fWriteRes3;
-      property WriteCode: integer read fWriteCode;
-      property WriteStream: TMemoryStream read fWriteStream;
-  end;
-
-  { TvtxSystemInfo : Board Inofo record }
-  TvtxSystemInfo = record
-    SystemName :  string;   // name of bbs - webpage title
-    SystemIP :    string;   // ip address of this host - needed to bind to socket
-    InternetIP :  string;   // ip address as seen from internet
-    HTTPPort :    string;   // port number for http front end
-    WSPort :      string;   // port number for ws back end
-    ExtProcess :  string;   // command line string for process to fork for connection
-                            // messaged for @ codes prior to execution.
-    MaxConnections : integer;
   end;
 
   { TvtxApp : Main application class }
@@ -174,28 +220,48 @@ type
     procedure HTTPTerminate(Sender : TObject); register;
   end;
 
-  TServices = ( HTTP, WS, Bridge, All, Unknown );
-  TServSet = set of TServices;
+  { TvtxHTTPServer : for basic webserver front end for dishing out client }
+  TvtxHTTPServer = class(TThread)
+    private
+      fProgress :   string;
+      fOnProgress : TvtxProgressEvent;
+      procedure     DoProgress;
 
-  // Code page stuff.
+    protected
+      procedure     Execute; override;
+      procedure     AttendConnection(ASocket : TTCPBlockSocket);
+      function      SendFile(
+                      ASocket : TTCPBlockSocket;
+                      ContentType : string;
+                      Filename : string) : integer;
+      function      SendImage(
+                      ASocket : TTCPBlockSocket;
+                      ContentType : string;
+                      Filename : string) : integer;
 
-  TCodePages = (
-    CP1250, CP1251, CP1252, CP1253,
-    CP1254, CP1255, CP1256, CP1257,
-    CP1258, CP437, CP850, CP852,
-    CP866, CP874, CP932, CP936,
-    CP949, CP950, MACINTOSH, KOI8 );
-  TCodePageConverter = function(const s: string): string;
+    public
+      constructor   Create(CreateSuspended: boolean);
+      destructor    Destroy; override;
+      property      OnProgress : TvtxProgressEvent
+                      read fOnProgress
+                      write fOnProgress;
+  end;
+
+
+{ *************************************************************************** }
+{ CONSTANTS }
 
 const
   FirstCP : TCodePages = CP1250;
   LastCP : TCodePages = KOI8;
+
   CodePageNames : array [ CP1250 .. KOI8 ] of string = (
     'CP1250', 'CP1251', 'CP1252', 'CP1253',
     'CP1254', 'CP1255', 'CP1256', 'CP1257',
     'CP1258', 'CP437', 'CP850', 'CP852',
     'CP866', 'CP874', 'CP932', 'CP936',
     'CP949', 'CP950', 'MACINTOSH', 'KOI8' );
+
   CodePageConverters : array [ CP1250 .. KOI8 ] of TCodePageConverter = (
     @CP1250ToUTF8, @CP1251ToUTF8, @CP1252ToUTF8, @CP1253ToUTF8,
     @CP1254ToUTF8, @CP1255ToUTF8, @CP1256ToUTF8, @CP1257ToUTF8,
@@ -203,179 +269,345 @@ const
     @CP866ToUTF8, @CP874ToUTF8, @CP932ToUTF8, @CP936ToUTF8,
     @CP949ToUTF8, @CP950ToUTF8, @MACINTOSHToUTF8, @KOI8ToUTF8 );
 
-function Convert(cp : TCodePages; filename : string) : string; register;
-  var
-    fin : TextFile;
-    linein : RawByteString;
-    str : string;
-  begin
-    result := '';
-    str := '';
-    if fileexists(filename) then
-    begin
-      assign(fin, filename);
-      reset(fin);
-      while not eof(fin) do
-      begin
-        readln(fin, linein);
-        str += CodePageConverters[cp](linein) + CRLF;
-      end;
-      closefile(fin);
-      result := str;
-    end;
-  end;
+  CodePageUnconverters : array [ CP1250 .. KOI8 ] of TCodePageUnconverter = (
+    @UTF8ToCP1250, @UTF8ToCP1251, @UTF8ToCP1252, @UTF8ToCP1253,
+    @UTF8ToCP1254, @UTF8ToCP1255, @UTF8ToCP1256, @UTF8ToCP1257,
+    @UTF8ToCP1258, @UTF8ToCP437, @UTF8ToCP850, @UTF8ToCP852,
+    @UTF8ToCP866, @UTF8ToCP874, @UTF8ToCP932, @UTF8ToCP936,
+    @UTF8ToCP949, @UTF8ToCP950, @UTF8ToMACINTOSH, @UTF8ToKOI8 );
+
+  ProcessType : array [0..1] of string = ('ExtProc', 'Telnet');
+
+  CRLF = #13#10;
+
+  { Telnet Commands }
+  TLNT_STATUS							= #5;
+  TLNT_EOR                = #239;
+  TLNT_SE                 = #240;
+  TLNT_NOP                = #241;
+  TLNT_DATA_MARK          = #242;
+  TLNT_BREAK              = #243;
+  TLNT_IP                 = #244;
+  TLNT_AO                 = #245;
+  TLNT_AYT                = #246;
+  TLNT_EC                 = #247;
+  TLNT_EL                 = #248;
+  TLNT_GA                 = #249;
+  TLNT_SB                 = #250;
+  TLNT_WILL               = #251;
+  TLNT_WONT               = #252;
+  TLNT_DO                 = #253;
+  TLNT_DONT               = #254;
+  TLNT_IAC                = #255;
 
 
-procedure LoadSettings; forward;
-function GetSocketErrorMsg(errno : integer) : string; forward;
-function GetServFromWords(word : TStringArray) : TServSet; forward;
-function ConsoleLineIn : string; forward;
+{ *************************************************************************** }
+{ GLOBALS }
 
 var
-  app :         TvtxApp;
+  app :         	TvtxApp;
 
-  lastaction :  TDateTime;      // last time activity
+  SystemInfo :  	TvtxSystemInfo;
+  lastaction :  	TDateTime;      // last time activity
 
-  serverWS :    TvtxWSServer;   // ws server.
-  serverHTTP :  TvtxHTTPServer; // http srever.
-  bridgeWS :    TvtxIOBridge;   // bridge streams.
+  serverWS :    	TvtxWSServer;   // ws server.
+  serverHTTP :  	TvtxHTTPServer; // http srever.
+  bridgeWS :    	TvtxIOBridge;   // bridge streams.
 
   runningWS,
   runningHTTP,
-  runningBridge: boolean;
+  runningBridge: 	boolean;
 
-  SystemInfo :    TvtxSystemInfo;
+  cmdbuff :   		string = '';    // console linein buffer
 
-{ TvtxIOBridge }
 
-constructor TvtxIOBridge.Create(CreateSuspended: boolean);
+{ *************************************************************************** }
+{ SUPPORT PROCEDURES / FUNCTIONS }
+
+{ Convert contents of filename to UTF-8 }
+function Convert(cp : TCodePages; filename : string) : string; register;
+var
+  fin : TextFile;
+  linein : RawByteString;
+  str : string;
+begin
+  result := '';
+  str := '';
+  if fileexists(filename) then
   begin
-    fProgress := '';
-    FreeOnTerminate := True;
-    inherited Create(CreateSuspended);
-  end;
-
-destructor TvtxIOBridge.Destroy;
-  begin
-    inherited Destroy;
-  end;
-
-procedure TvtxIOBridge.DoProgress;
-  begin
-    if Assigned(FOnProgress) then
+    assign(fin, filename);
+    reset(fin);
+    while not eof(fin) do
     begin
-      FOnProgress('', fProgress);
+      readln(fin, linein);
+      str += CodePageConverters[cp](linein) + CRLF;
     end;
+    closefile(fin);
+    result := str;
   end;
+end;
 
-procedure TvtxIOBridge.PipeToConn(input : TInputPipeStream; conn : TvtxWSConnection);
-  var
-    i, bytes : integer;
-    b : byte;
-    str : ansistring;
-  begin
-    try
-      bytes := input.NumBytesAvailable;
-    except
-      bytes := 0;
-    end;
+{ Convert strin to UTF-8 }
+function ConvertFromCP(cp : TCodePages; strin : string) : string; register;
+begin
+  result := CodePageConverters[cp](strin);
+end;
 
-    str := '';
-    if bytes > 0 then
+{ Convert strin to codepage }
+function ConvertToCP(cp : TCodePages; strin : string) : RawByteString; register;
+begin
+  result := CodePageUnconverters[cp](strin);
+end;
+
+
+{ Get a socket error description. }
+function GetSocketErrorMsg(errno : integer) : string;
+begin
+  result := 'Unknown error.';
+  case errno of
+    6:  result := 'Specified event object handle is invalid.';
+    8:  result := 'Insufficient memory available.';
+    87: result := 'One or more parameters are invalid.';
+    995:  result := 'Overlapped operation aborted.';
+    996:  result := 'Overlapped I/O event object not in signaled state.';
+    997:  result := 'Overlapped operations will complete later.';
+    10004:  result := 'Interrupted function call.';
+    10009:  result := 'File handle is not valid.';
+    10013:  result := 'Permission denied.';
+    10014:  result := 'Bad address.';
+    10022:  result := 'Invalid argument.';
+    10024:  result := 'Too many open files.';
+    10035:  result := 'Resource temporarily unavailable.';
+    10036:  result := 'Operation now in progress.';
+    10037:  result := 'Operation already in progress.';
+    10038:  result := 'Socket operation on nonsocket.';
+    10039:  result := 'Destination address required.';
+    10040:  result := 'Message too long.';
+    10041:  result := 'Protocol wrong type for socket.';
+    10042:  result := 'Bad protocol option.';
+    10043:  result := 'Protocol not supported.';
+    10044:  result := 'Socket type not supported.';
+    10045:  result := 'Operation not supported.';
+    10046:  result := 'Protocol family not supported.';
+    10047:  result := 'Address family not supported by protocol family.';
+    10048:  result := 'Address already in use.';
+    10049:  result := 'Cannot assign requested address.';
+    10050:  result := 'Network is down.';
+    10051:  result := 'Network is unreachable.';
+    10052:  result := 'Network dropped connection on reset.';
+    10053:  result := 'Software caused connection abort.';
+    10054:  result := 'Connection reset by peer.';
+    10055:  result := 'No buffer space available.';
+    10056:  result := 'Socket is already connected.';
+    10057:  result := 'Socket is not connected.';
+    10058:  result := 'Cannot send after socket shutdown.';
+    10059:  result := 'Too many references.';
+    10060:  result := 'Connection timed out.';
+    10061:  result := 'Connection refused.';
+    10062:  result := 'Cannot translate name.';
+    10063:  result := 'Name too long.';
+    10064:  result := 'Host is down.';
+    10065:  result := 'No route to host.';
+    10066:  result := 'Directory not empty.';
+    10067:  result := 'Too many processes.';
+    10068:  result := 'User quota exceeded.';
+    10069:  result := 'Disk quota exceeded.';
+    10070:  result := 'Stale file handle reference.';
+    10071:  result := 'Item is remote.';
+    10091:  result := 'Network subsystem is unavailable.';
+    10092:  result := 'Winsock.dll version out of range.';
+    10093:  result := 'Successful WSAStartup not yet performed.';
+    10101:  result := 'Graceful shutdown in progress.';
+    10102:  result := 'No more results.';
+    10103:  result := 'Call has been canceled.';
+    10104:  result := 'Procedure call table is invalid.';
+    10105:  result := 'Service provider is invalid.';
+    10106:  result := 'Service provider failed to initialize.';
+    10107:  result := 'System call failure.';
+    10108:  result := 'Service not found.';
+    10109:  result := 'Class type not found.';
+    10110:  result := 'No more results.';
+    10111:  result := 'Call was canceled.';
+    10112:  result := 'Database query was refused.';
+    11001:  result := 'Host not found.';
+    11002:  result := 'Nonauthoritative host not found.';
+    11003:  result := 'This is a nonrecoverable error.';
+    11004:  result := 'Valid name, no data record of requested type.';
+    11005:  result := 'QoS receivers.';
+    11006:  result := 'QoS senders.';
+    11007:  result := 'No QoS senders.';
+    11008:  result := 'QoS no receivers.';
+    11009:  result := 'QoS request confirmed.';
+    11010:  result := 'QoS admission error.';
+    11011:  result := 'QoS policy failure.';
+    11012:  result := 'QoS bad style.';
+    11013:  result := 'QoS bad object.';
+    11014:  result := 'QoS traffic control error.';
+    11015:  result := 'QoS generic error.';
+    11016:  result := 'QoS service type error.';
+    11017:  result := 'QoS flowspec error.';
+    11018:  result := 'Invalid QoS provider buffer.';
+    11019:  result := 'Invalid QoS filter style.';
+    11020:  result := 'Invalid QoS filter type.';
+    11021:  result := 'Incorrect QoS filter count.';
+    11022:  result := 'Invalid QoS object length.';
+    11023:  result := 'Incorrect QoS flow count.';
+    11024:  result := 'Unrecognized QoS object.';
+    11025:  result := 'Invalid QoS policy object.';
+    11026:  result := 'Invalid QoS flow descriptor.';
+    11027:  result := 'Invalid QoS provider-specific flowspec.';
+    11028:  result := 'Invalid QoS provider-specific filterspec.';
+    11029:  result := 'Invalid QoS shape discard mode object.';
+    11030:  result := 'Invalid QoS shaping rate object.';
+    11031:  result := 'Reserved policy QoS element type.';
+  end
+end;
+
+function InList(str : string; list : array of string) : integer;
+var
+  i : integer;
+begin
+  result := -1;
+	for i := 0 to length(list) - 1 do
+		if upCase(str) = upCase(list[i]) then
     begin
-      lastaction := now;
-      for i := 0 to bytes - 1 do
-      begin
-        try
-          b := input.ReadByte;
-        finally
-          str += char(b);
-        end;
-      end;
-      conn.SendText(str);
+      result := i;
+      break;
+    end;
+end;
+
+{ read the vtxserv.ini file for settings }
+procedure LoadSettings;
+var
+  iin : TIniFile;
+
+const
+  sect = 'Config';
+
+begin
+  iin := TIniFile.Create('vtxserv.ini');
+  SystemInfo.SystemName :=  iin.ReadString(sect, 'SystmeName',  'A VTX Board');
+  SystemInfo.SystemIP :=    iin.ReadString(sect, 'SystemIP',    'localhost');
+  SystemInfo.InternetIP :=  iin.ReadString(sect, 'InternetIP',  '142.105.247.156');
+  SystemInfo.HTTPPort :=    iin.ReadString(sect, 'HTTPPort',    '7001');
+  SystemInfo.WSPort :=      iin.ReadString(sect, 'WSPort',      '7003');
+
+  SystemInfo.NodeType :=		TvtxNodeType(
+  														InList(
+                              	iin.ReadString(sect, 'NodeType', 'Telnet'),
+                                ProcessType));
+
+  SystemInfo.ExtProc :=  		iin.ReadString(sect, 'ExtProc',  		'cscript.exe //Nologo //I test.js @UserIP@');
+  SystemInfo.TelnetIP :=		iin.ReadString(sect, 'TelnetIP', 		'localhost');
+  SystemInfo.TelnetPort :=	iin.ReadString(sect, 'TelnetPort', 	'23');
+  SystemInfo.TelnetCP := 		TCodePages(
+  														InList(
+                              	iin.ReadString(sect, 'TelnetCP', 'CP437'),
+																CodePageNames));
+
+  SystemInfo.MaxConnections := iin.ReadInteger(sect, 'MaxConnections',  32);
+  iin.Free;
+end;
+
+{ get services associated with words in list 1 .. end }
+function GetServFromWords(word : TStringArray) : TServSet;
+var
+  i : integer;
+
+begin
+  result := [];
+  for i := 1 to Length(word) - 1 do
+  begin
+    case upcase(word[i]) of
+      'HTTP':   result += [ HTTP ];
+      'WS':     result += [ WS ];
+      'BRIDGE': result += [ Bridge ];
+      'ALL' :   result += [ All ];
+      else      result += [ Unknown ];
     end;
   end;
+end;
 
-procedure TvtxIOBridge.PipeToLocal(input : TInputPipeStream);
-  var
-    i, bytes : integer;
-    b : byte;
-    str : ansistring;
+{ read a console line, returns '' if none entered }
+function ConsoleLineIn : string;
+var
+  key :     char;
+
+begin
+  result := '';
+  if wherex = 1 then
+    write(']' + cmdbuff);
+  if keypressed then
   begin
-    try
-      bytes := input.NumBytesAvailable;
-    except
-      bytes := 0;
-    end;
-
-    str := '';
-    if bytes > 0 then
+    lastaction := now;
+    key := readkey;
+    if key <> #0 then
     begin
-      lastaction := now;
-      for i := 0 to bytes - 1 do
-      begin
-        try
-          b := input.ReadByte;
-        finally
-          str += char(b);
-        end;
-      end;
-      fProgress := str;
-      Synchronize(@DoProgress);
-    end;
-  end;
-
-procedure TvtxIOBridge.Execute;
-  var
-    i : integer;
-    conn : TvtxWSConnection;
-  begin
-    // for each connect that has process, send input, read output
-    repeat
-      if not serverWS.CheckTerminated then
-      begin
-        for i := 0 to serverWS.Count - 1 do
-        begin
-          lastaction := now;  // there are active connections
-          conn := TvtxWSConnection(serverWS.Connection[i]);
-
-          if not conn.Closed then
+      case key of
+        #13:
           begin
-            if conn.ExtProcess <> nil then
+            write(CRLF);
+            result := cmdbuff;
+            cmdbuff := '';
+          end;
+
+        #8: // backspace
+          begin
+            if length(cmdbuff) > 0 then
             begin
-
-              // send console stdout to websocket connection
-              if conn.ExtProcess.Output <> nil then
-                PipeToConn(conn.ExtProcess.Output, conn);
-
-              // send console stderr to websocket connection
-              if conn.ExtProcess.Stderr <> nil then
-              begin
-                // pipe this to writecon
-                PipeToLocal(conn.ExtProcess.Stderr);
-              end;
+              write(#8' '#8);
+              cmdbuff := LeftStr(cmdbuff, cmdbuff.length - 1);
             end;
           end;
-        end;
+        else
+          begin
+            write(key);
+            cmdbuff += key;
+          end;
       end;
-
-      // keep this thread from smoking the system
-      sleep(25);
-
-      if Terminated then
-        break;
-
-    until false;
-    //fProgress := 'Bridge Terminating.';
-    //Synchronize(@DoProgress);
+    end
+    else
+    begin
+      // special key
+      key := readkey;
+      case ord(key) of
+        $4B:  // left arrow
+          begin
+            if length(cmdbuff) > 0 then
+            begin
+              write(#8' '#8);
+              cmdbuff := LeftStr(cmdbuff, cmdbuff.length - 1);
+            end;
+          end;
+        else  beep;
+      end;
+    end;
   end;
+end;
 
+function IsTelnetConnected(ASocket: TTCPBlockSocket): Boolean;
+begin
+  if ASocket = nil then
+  	Result := false
+  else if ASocket.LastError <> 0 then
+  	Result := false
+  else
+  begin
+    try
+	    ASocket.SendString(TLNT_IAC + TLNT_DO + TLNT_STATUS);
+  	  Result := (ASocket.LastError = 0);
+    except
+			result := false;
+    end;
+  end;
+end;
 
+{ *************************************************************************** }
 { TvtxHTTPServer }
 
 constructor TvtxHTTPServer.Create(CreateSuspended: boolean);
 begin
-  fProgress := '';
+	fProgress := '';
   FreeOnTerminate := True;
   inherited Create(CreateSuspended);
 end;
@@ -403,7 +635,6 @@ begin
   begin
     ListenerSocket := TTCPBlockSocket.Create;
     ConnectionSocket := TTCPBlockSocket.Create;
-
     // not designed to run on high performance production servers
     // give users all the time they need.
     try
@@ -417,7 +648,6 @@ begin
         if ListenerSocket.CanRead(1000) then
         begin
           lastaction := now;  // there are active connections
-
           // todo: thread this out.
           ConnectionSocket.Socket := ListenerSocket.Accept;
           errno := ConnectionSocket.LastError;
@@ -453,22 +683,19 @@ var
   size : integer;
   buff : pbyte;
   expires : TTimeStamp;
-
-begin
+  begin
   result := 200;
   Filename := 'www' + Filename;
   if FileExists(Filename) then
   begin
     expires := DateTimeToTimeStamp(now);
     expires.Date += 30;  // + 30 days
-
-    fin := TFileStream.Create(Filename, fmShareDenyNone);
+      fin := TFileStream.Create(Filename, fmShareDenyNone);
     size := fin.Size;
     buff := getmemory(fin.Size);
     fin.ReadBuffer(buff^, Size);
     fin.Free;
-
-    try
+      try
       ASocket.SendString(
           'HTTP/1.0 200' + CRLF
         + 'Pragma: public' + CRLF
@@ -517,7 +744,6 @@ begin
       str += instr + CRLF;
     end;
     closefile(fin);
-
     try
       ASocket.SendString(
           'HTTP/1.0 200' + CRLF
@@ -550,18 +776,15 @@ var
 
 begin
   timeout := 120000;
-
   //read request line
   s := ASocket.RecvString(timeout);
   method := fetch(s, ' ');
   uri := fetch(s, ' ');
   protocol := fetch(s, ' ');
-
   //read request headers
   repeat
     s := ASocket.RecvString(Timeout);
   until s = '';
-
   code := 200;
   if uri = '/' then
     code := SendFile(ASocket, 'text/html', '/index.html')
@@ -583,14 +806,147 @@ begin
       else      code := 404;
     end;
   end;
-
-  if code <> 200 then
-    ASocket.SendString(
+    if code <> 200 then
+    	ASocket.SendString(
         'HTTP/1.0 ' + IntToStr(code) + CRLF
-      + httpCode(code) + CRLF);
+      	+ httpCode(code) + CRLF);
 end;
 
 
+{ *************************************************************************** }
+{ TvtxIOBridge }
+
+constructor TvtxIOBridge.Create(CreateSuspended: boolean);
+  begin
+    fProgress := '';
+    FreeOnTerminate := True;
+    inherited Create(CreateSuspended);
+  end;
+
+destructor TvtxIOBridge.Destroy;
+  begin
+    inherited Destroy;
+  end;
+
+procedure TvtxIOBridge.DoProgress;
+  begin
+    if Assigned(FOnProgress) then
+    begin
+      FOnProgress('', fProgress);
+    end;
+  end;
+
+procedure TvtxIOBridge.PipeToConn(input : TInputPipeStream; conn : TvtxWSConnection);
+  var
+    i, bytes : integer;
+    b : byte;
+    str : ansistring;
+begin
+
+  str := '';
+  if SystemInfo.NodeType = ExtProc then
+  begin
+    try
+	    bytes := input.NumBytesAvailable;
+  	except
+    	bytes := 0;
+    end;
+
+	  if bytes > 0 then
+  	begin
+  	  lastaction := now;
+ 	  	for i := 0 to bytes - 1 do
+   	  begin
+     	 	try
+         	b := input.ReadByte;
+	      finally
+ 		      str += char(b);
+   		  end;
+     	end;
+    	conn.SendText(str);
+    end;
+  end;
+end;
+
+procedure TvtxIOBridge.PipeToLocal(input : TInputPipeStream);
+  var
+    i, bytes : integer;
+    b : byte;
+    str : ansistring;
+  begin
+    try
+      bytes := input.NumBytesAvailable;
+    except
+      bytes := 0;
+    end;
+
+    str := '';
+    if bytes > 0 then
+    begin
+      lastaction := now;
+      for i := 0 to bytes - 1 do
+      begin
+        try
+          b := input.ReadByte;
+        finally
+          str += char(b);
+        end;
+      end;
+      fProgress := str;
+      Synchronize(@DoProgress);
+    end;
+  end;
+
+procedure TvtxIOBridge.Execute;
+  var
+    i : integer;
+    conn : TvtxWSConnection;
+  begin
+    // for each connect that has process, send input, read output
+    repeat
+      if not serverWS.CheckTerminated then
+      begin
+        for i := 0 to serverWS.Count - 1 do
+        begin
+          lastaction := now;  // there are active connections
+          conn := TvtxWSConnection(serverWS.Connection[i]);
+
+          if not conn.Closed then
+          begin
+            if SystemInfo.NodeType = ExtProc then
+            begin
+
+      	      if conn.ExtProc <> nil then
+    	        begin
+  	            // send console stdout to websocket connection
+	              if conn.ExtProc.Output <> nil then
+              	  PipeToConn(conn.ExtProc.Output, conn);
+
+            	  // send console stderr to websocket connection
+          	    if conn.ExtProc.Stderr <> nil then
+        	      begin
+      	          // pipe this to writecon
+    	            PipeToLocal(conn.ExtProc.Stderr);
+  	            end;
+	            end;
+            end;
+          end;
+        end;
+      end;
+
+      // keep this thread from smoking the system
+      sleep(25);
+
+      if Terminated then
+        break;
+
+    until false;
+    //fProgress := 'Bridge Terminating.';
+    //Synchronize(@DoProgress);
+  end;
+
+
+{ *************************************************************************** }
 { TvtxProcessNanny }
 
 // thread launched that launches tprocess and waits for it to terminate.
@@ -605,14 +961,22 @@ end;
 destructor TvtxProcessNanny.Destroy;
 begin
   // kill the process also
-  if (self.serverCon.extProcess <> nil) and self.serverCon.ExtProcess.Running then
+  if SystemInfo.NodeType = ExtProc then
   begin
-    {$ifdef WINDOWS}
-      GenerateConsoleCtrlEvent(CTRL_C_EVENT, serverCon.ExtProcess.ProcessID);
-      //serverCon.ExtProcess.Terminate(0);
-    {$else}
-      FpKill(serverCon.ExtProcess.ProcessID, SIGINT);
-    {$endif}
+  	if (self.serverCon.extProc <> nil) and self.serverCon.ExtProc.Running then
+  	begin
+	    {$ifdef WINDOWS}
+    	  GenerateConsoleCtrlEvent(CTRL_C_EVENT, serverCon.ExtProc.ProcessID);
+  	    //serverCon.ExtProcess.Terminate(0);
+	    {$else}
+    	  FpKill(serverCon.ExtProcess.ProcessID, SIGINT);
+  	  {$endif}
+	  end;
+  end
+  else if SystemInfo.NodeType = Telnet then
+  begin
+    if IsTelnetConnected(self.serverCon.Telnet) then
+    	self.serverCon.Telnet.Free;
   end;
   inherited Destroy;
 end;
@@ -625,65 +989,244 @@ begin
   end;
 end;
 
+procedure TvtxProcessNanny.OnFilterData(Sender : TObject; var Value: AnsiString);
+begin
+  Value := Negotiate(Value, Sender);
+end;
+
+function TvtxProcessNanny.Negotiate(
+          const Buf: Ansistring;
+          Sender : TObject): Ansistring;
+var
+  n: integer;
+  c: Ansichar;
+  Reply: Ansistring;
+  SubReply: Ansistring;
+	aSocket : TTCPBlockSocket;
+begin
+  aSocket := TTCPBlockSocket(Sender);
+  Result := '';
+  for n := 1 to Length(Buf) do
+  begin
+    c := Buf[n];
+    Reply := '';
+    case FState of
+      tsData:
+        if c = TLNT_IAC then
+          FState := tsIAC
+        else
+          Result := Result + c;
+
+      tsIAC:
+        case c of
+          TLNT_IAC:
+            begin
+              FState := tsData;
+              Result := Result + TLNT_IAC;
+            end;
+          TLNT_WILL:
+            FState := tsIAC_WILL;
+          TLNT_WONT:
+            FState := tsIAC_WONT;
+          TLNT_DONT:
+            FState := tsIAC_DONT;
+          TLNT_DO:
+            FState := tsIAC_DO;
+          TLNT_EOR:
+            FState := tsDATA;
+          TLNT_SB:
+            begin
+              FState := tsIAC_SB;
+              FSubType := #0;
+              FSubNeg := '';
+            end;
+        else
+          FState := tsData;
+        end;
+
+      tsIAC_WILL:
+        begin
+        case c of
+          #3:  //suppress GA
+            Reply := TLNT_DO;
+        else
+          Reply := TLNT_DONT;
+        end;
+          FState := tsData;
+        end;
+
+      tsIAC_WONT:
+        begin
+          Reply := TLNT_DONT;
+          FState := tsData;
+        end;
+
+      tsIAC_DO:
+      begin
+        case c of
+          #24:  //termtype
+            Reply := TLNT_WILL;
+        else
+          Reply := TLNT_WONT;
+        end;
+        FState := tsData;
+      end;
+
+      tsIAC_DONT:
+      begin
+        Reply := TLNT_WONT;
+        FState := tsData;
+      end;
+
+      tsIAC_SB:
+        begin
+          FSubType := c;
+          FState := tsIAC_SBDATA;
+        end;
+
+      tsIAC_SBDATA:
+        begin
+          if c = TLNT_IAC then
+            FState := tsSBDATA_IAC
+          else
+            FSubNeg := FSubNeg + c;
+        end;
+
+      tsSBDATA_IAC:
+        case c of
+          TLNT_IAC:
+            begin
+              FState := tsIAC_SBDATA;
+              FSubNeg := FSubNeg + c;
+            end;
+          TLNT_SE:
+            begin
+              SubReply := '';
+              case FSubType of
+                #24:  //termtype
+                  begin
+                    if (FSubNeg <> '') and (FSubNeg[1] = #1) then
+                      SubReply := #0 + 'ANSI';
+                  end;
+              end;
+              aSocket.SendString(TLNT_IAC + TLNT_SB + FSubType + SubReply + TLNT_IAC + TLNT_SE);
+              FState := tsDATA;
+            end;
+         else
+           FState := tsDATA;
+         end;
+
+      else
+        FState := tsData;
+    end;
+    if Reply <> '' then
+      aSocket.SendString(TLNT_IAC + Reply + c);
+  end;
+end;
+
 procedure TvtxProcessNanny.Execute;
 var
   parms : TStringArray;
   i : integer;
+  str : ANSIString;
+  bytes : integer;
+  b : byte;
+  connect : boolean;
+  rawout : RawByteString;
 begin
   // for each connect that has process, send input, read output
   if serverWS <> nil then
   begin
 
-    fProgress := 'Spawning process for ' + serverCon.Socket.GetRemoteSinIP + '.';
-    Synchronize(@DoProgress);
-
-    parms := SystemInfo.ExtProcess.Split(' ');
-    for i := 0 to length(parms) - 1 do
+    if SystemInfo.NodeType = TvtxNodeType.ExtProc then
     begin
-      parms[i] := parms[i].Replace('@UserIP@', self.serverCon.Socket.GetRemoteSinIP);
-      parms[i] := parms[i].Replace('@SystemIP@', SystemInfo.SystemIP);
-      parms[i] := parms[i].Replace('@InternetIP@', SystemInfo.InternetIP);
-      parms[i] := parms[i].Replace('@SystemName@', SystemInfo.SystemName);
-      parms[i] := parms[i].Replace('@HTTPPort@', SystemInfo.HTTPPort);
-      parms[i] := parms[i].Replace('@WSPort@', SystemInfo.WSPort);
+	    fProgress := 'Spawning process for ' + serverCon.Socket.GetRemoteSinIP + '.';
+	    Synchronize(@DoProgress);
+
+	    parms := SystemInfo.ExtProc.Split(' ');
+	    for i := 0 to length(parms) - 1 do
+	    begin
+	      parms[i] := parms[i].Replace('@UserIP@', self.serverCon.Socket.GetRemoteSinIP);
+	      parms[i] := parms[i].Replace('@SystemIP@', SystemInfo.SystemIP);
+	      parms[i] := parms[i].Replace('@InternetIP@', SystemInfo.InternetIP);
+	      parms[i] := parms[i].Replace('@SystemName@', SystemInfo.SystemName);
+	      parms[i] := parms[i].Replace('@HTTPPort@', SystemInfo.HTTPPort);
+	      parms[i] := parms[i].Replace('@WSPort@', SystemInfo.WSPort);
+	    end;
+
+	    self.serverCon.ExtProc := TProcess.Create(nil);
+	    self.serverCon.ExtProc.CurrentDirectory:= 'node';
+	    self.serverCon.ExtProc.FreeOnRelease;
+	    self.serverCon.ExtProc.Executable := 'node\' + parms[0];
+	    for i := 1 to length(parms) - 1 do
+	      serverCon.ExtProc.Parameters.Add(parms[i]);
+
+	    serverCon.ExtProc.Options := [
+	        poWaitOnExit,
+	        poUsePipes,
+	        poNoConsole,
+	        poDefaultErrorMode,
+	        poNewProcessGroup
+	      ];
+
+	    // go run. wait on exit.
+	    try
+	      serverCon.ExtProc.Execute;
+	    except
+	      fProgress:='** Error on ProcessNanny.Execute';
+	      Synchronize(@DoProgress);
+	    end;
+
+	    // disconnect afterwards.
+	    self.serverCon.Close(wsCloseNormal, 'Good bye');
+
+	    fProgress := 'Finished process for '
+	      + self.serverCon.Socket.GetRemoteSinIP + '.';
+	    Synchronize(@DoProgress);
+		end
+    else if SystemInfo.NodeType = TvtxNodeType.Telnet then
+    begin
+
+      // init telnet client - connect
+      with self.serverCon do
+      begin
+        Telnet := TTCPBlockSocket.Create;
+        Telnet.CreateSocket;
+        Telnet.Family := SF_IP4;
+        Telnet.SetTimeout(10000);
+        Telnet.SetLinger(true, 10000);
+        Telnet.OnReadFilter := @OnFilterData;
+        Telnet.Connect(SystemInfo.TelnetIP, SystemInfo.TelnetPort);
+
+	      while IsTelnetConnected(Telnet) do
+        begin
+          if Telnet.WaitingData > 0 then
+          begin
+						str := Telnet.RecvPacket(1000);
+  	     	  rawout := ConvertFromCP(SystemInfo.TelnetCP, str);
+    	   		self.serverCon.SendText(rawout);
+          end;
+          sleep(100);
+        end;
+
+        // wait for data to be sent
+        repeat
+					str := Telnet.RecvPacket(1000);
+       	  rawout := ConvertFromCP(SystemInfo.TelnetCP, str);
+  	   		self.serverCon.SendText(rawout);
+        until str = '';
+        sleep(2000);
+
+      end;
+	   	self.serverCon.Close(wsCloseNormal, 'Good bye');
     end;
-
-    self.serverCon.ExtProcess := TProcess.Create(nil);
-    self.serverCon.ExtProcess.CurrentDirectory:= 'node';
-    self.serverCon.ExtProcess.FreeOnRelease;
-    self.serverCon.ExtProcess.Executable := 'node\' + parms[0];
-    for i := 1 to length(parms) - 1 do
-      serverCon.ExtProcess.Parameters.Add(parms[i]);
-    serverCon.ExtProcess.Options := [
-        poWaitOnExit,
-        poUsePipes,
-        poNoConsole,
-        poDefaultErrorMode,
-        poNewProcessGroup
-      ];
-
-    // go run. wait on exit.
-    try
-      serverCon.ExtProcess.Execute;
-    except
-      fProgress:='** Error on ProcessNanny.Execute';
-      Synchronize(@DoProgress);
-    end;
-//    serverCon.ExtProcess.Free;
-
-    // diconnect afterwards.
-    self.serverCon.Close(wsCloseNormal, 'Good bye');
-
-    fProgress := 'Finished process for '
-      + self.serverCon.Socket.GetRemoteSinIP + '.';
-    Synchronize(@DoProgress);
-
   end;
   //fProgress := 'Process Terminating.';
   //Synchronize(@DoProgress);
 end;
 
 
+{ *************************************************************************** }
 { TvtxWSServer }
 
 function TvtxWSServer.GetWebSocketConnectionClass(
@@ -696,6 +1239,8 @@ begin
   result := TvtxWSConnection;
 end;
 
+
+{ *************************************************************************** }
 { TvtxApp - main application stuffz }
 
 procedure TvtxApp.HTTPTerminate(Sender : TObject); register;
@@ -710,7 +1255,7 @@ end;
 
 procedure TvtxApp.NannyTerminate(Sender: TObject);
 begin
-  WriteCon('', 'Process Terminated.');
+  WriteCon('', 'Node Terminated.');
 end;
 
 procedure TvtxApp.WSBeforeAddConnection(
@@ -767,27 +1312,44 @@ var
   i, bytes : integer;
   str : ansistring;
   con : TvtxWSConnection;
+  strout : rawbytestring;
 begin
   lastaction := now;
   //WriteCon('Read WS Connection.');
 
   // send aData to process - doesn't work in bridge so do it here.
   con := TvtxWSConnection(aSender);
-  if (con.ExtProcess <> nil) and con.ExtProcess.Running then
+
+	bytes := aData.Size;
+  str := '';
+  if bytes > 0 then
   begin
-    bytes := aData.Size;
-    if bytes > 0 then
-    begin
-      for i := 0 to bytes - 1 do
-      begin
-        str += char(aData.ReadByte);
-      end;
-      try
-        con.ExtProcess.Input.WriteAnsiString(str);
-      except
-        app.WriteCon('', '** Error on sending data to stdin.');
-      end;
+	  for i := 0 to bytes - 1 do
+  	begin
+    	str += char(aData.ReadByte);
     end;
+  end;
+
+  if SystemInfo.NodeType = ExtProc then
+  begin
+	  if (con.ExtProc <> nil) and con.ExtProc.Running then
+  	begin
+	    try
+   		  con.ExtProc.Input.WriteAnsiString(str);
+ 	  	except
+      	app.WriteCon('', '** Error on sending data to stdin.');
+     	end;
+  	end
+  end
+  else if SystemInfo.NodeType = Telnet then
+	begin
+  	// convert to proper codepage
+    if IsTelnetConnected(con.Telnet) and (length(str) > 0) then
+    begin
+  		strout := ConvertToCP(SystemInfo.TelnetCP, str);
+			// escape TLNT_IAC = #255; with TLNT_IAC/TLNT_IAC
+      con.Telnet.SendString(strout);
+    end
   end;
 end;
 
@@ -820,16 +1382,27 @@ var
   conn : TvtxWSConnection;
 begin
   conn := TvtxWSConnection(aConnection);
-  if (conn.ExtProcess <> nil) and conn.ExtProcess.Running then
+  if SystemInfo.NodeType = ExtProc then
   begin
-    WriteCon(TvtxWSConnection(aConnection).Socket.GetRemoteSinIP,
-    	'Force Terminate Node Processes');
-    try
-      conn.ExtProcess.Terminate(0);
-    except
-      WriteCon('', '** Error terminating node process.');
+    if (conn.ExtProc <> nil) and conn.ExtProc.Running then
+    begin
+      WriteCon(TvtxWSConnection(aConnection).Socket.GetRemoteSinIP,
+      	'Force Terminate Node Processes');
+      try
+        conn.ExtProc.Terminate(0);
+      except
+        WriteCon('', '** Error terminating node process.');
+      end;
+    end;
+  end
+  else if SystemInfo.NodeType = Telnet then
+  begin
+    if IsTelnetConnected(conn.Telnet) then
+    begin
+      conn.Telnet.Free;
     end;
   end;
+
   WriteCon('', 'Before Remove WS Connection.');
 
 end;
@@ -1012,213 +1585,18 @@ begin
   if not serverWS.Connection[n].Finished then
   begin
     con := TvtxWSConnection(serverWS.Connection[n]);
-    if con.ExtProcess.Running then
-      try
-        con.ExtProcess.Terminate(1);
-      finally
-        WriteCon('', 'Node Process terminated.');
-      end;
-  end;
-end;
-
-{ read the vtxserv.ini file for settings }
-procedure LoadSettings;
-var
-  iin : TIniFile;
-
-const
-  sect = 'Config';
-
-begin
-  iin := TIniFile.Create('vtxserv.ini');
-  SystemInfo.SystemName :=  iin.ReadString(sect, 'SystmeName',  'A VTX Board');
-  SystemInfo.SystemIP :=    iin.ReadString(sect, 'SystemIP',    'localhost');
-  SystemInfo.InternetIP :=  iin.ReadString(sect, 'InternetIP',  '142.105.247.156');
-  SystemInfo.HTTPPort :=    iin.ReadString(sect, 'HTTPPort',    '7001');
-  SystemInfo.WSPort :=      iin.ReadString(sect, 'WSPort',      '7003');
-  SystemInfo.ExtProcess :=  iin.ReadString(sect, 'ExtProcess',  'cscript.exe //Nologo //I test.js @UserIP@');
-  SystemInfo.MaxConnections := iin.ReadInteger(sect, 'MaxConnections',  32);
-  iin.Free;
-end;
-
-{ the bla bla on a socket error. }
-function GetSocketErrorMsg(errno : integer) : string;
-begin
-  result := 'Unknown error.';
-  case errno of
-    6:  result := 'Specified event object handle is invalid.';
-    8:  result := 'Insufficient memory available.';
-    87: result := 'One or more parameters are invalid.';
-    995:  result := 'Overlapped operation aborted.';
-    996:  result := 'Overlapped I/O event object not in signaled state.';
-    997:  result := 'Overlapped operations will complete later.';
-    10004:  result := 'Interrupted function call.';
-    10009:  result := 'File handle is not valid.';
-    10013:  result := 'Permission denied.';
-    10014:  result := 'Bad address.';
-    10022:  result := 'Invalid argument.';
-    10024:  result := 'Too many open files.';
-    10035:  result := 'Resource temporarily unavailable.';
-    10036:  result := 'Operation now in progress.';
-    10037:  result := 'Operation already in progress.';
-    10038:  result := 'Socket operation on nonsocket.';
-    10039:  result := 'Destination address required.';
-    10040:  result := 'Message too long.';
-    10041:  result := 'Protocol wrong type for socket.';
-    10042:  result := 'Bad protocol option.';
-    10043:  result := 'Protocol not supported.';
-    10044:  result := 'Socket type not supported.';
-    10045:  result := 'Operation not supported.';
-    10046:  result := 'Protocol family not supported.';
-    10047:  result := 'Address family not supported by protocol family.';
-    10048:  result := 'Address already in use.';
-    10049:  result := 'Cannot assign requested address.';
-    10050:  result := 'Network is down.';
-    10051:  result := 'Network is unreachable.';
-    10052:  result := 'Network dropped connection on reset.';
-    10053:  result := 'Software caused connection abort.';
-    10054:  result := 'Connection reset by peer.';
-    10055:  result := 'No buffer space available.';
-    10056:  result := 'Socket is already connected.';
-    10057:  result := 'Socket is not connected.';
-    10058:  result := 'Cannot send after socket shutdown.';
-    10059:  result := 'Too many references.';
-    10060:  result := 'Connection timed out.';
-    10061:  result := 'Connection refused.';
-    10062:  result := 'Cannot translate name.';
-    10063:  result := 'Name too long.';
-    10064:  result := 'Host is down.';
-    10065:  result := 'No route to host.';
-    10066:  result := 'Directory not empty.';
-    10067:  result := 'Too many processes.';
-    10068:  result := 'User quota exceeded.';
-    10069:  result := 'Disk quota exceeded.';
-    10070:  result := 'Stale file handle reference.';
-    10071:  result := 'Item is remote.';
-    10091:  result := 'Network subsystem is unavailable.';
-    10092:  result := 'Winsock.dll version out of range.';
-    10093:  result := 'Successful WSAStartup not yet performed.';
-    10101:  result := 'Graceful shutdown in progress.';
-    10102:  result := 'No more results.';
-    10103:  result := 'Call has been canceled.';
-    10104:  result := 'Procedure call table is invalid.';
-    10105:  result := 'Service provider is invalid.';
-    10106:  result := 'Service provider failed to initialize.';
-    10107:  result := 'System call failure.';
-    10108:  result := 'Service not found.';
-    10109:  result := 'Class type not found.';
-    10110:  result := 'No more results.';
-    10111:  result := 'Call was canceled.';
-    10112:  result := 'Database query was refused.';
-    11001:  result := 'Host not found.';
-    11002:  result := 'Nonauthoritative host not found.';
-    11003:  result := 'This is a nonrecoverable error.';
-    11004:  result := 'Valid name, no data record of requested type.';
-    11005:  result := 'QoS receivers.';
-    11006:  result := 'QoS senders.';
-    11007:  result := 'No QoS senders.';
-    11008:  result := 'QoS no receivers.';
-    11009:  result := 'QoS request confirmed.';
-    11010:  result := 'QoS admission error.';
-    11011:  result := 'QoS policy failure.';
-    11012:  result := 'QoS bad style.';
-    11013:  result := 'QoS bad object.';
-    11014:  result := 'QoS traffic control error.';
-    11015:  result := 'QoS generic error.';
-    11016:  result := 'QoS service type error.';
-    11017:  result := 'QoS flowspec error.';
-    11018:  result := 'Invalid QoS provider buffer.';
-    11019:  result := 'Invalid QoS filter style.';
-    11020:  result := 'Invalid QoS filter type.';
-    11021:  result := 'Incorrect QoS filter count.';
-    11022:  result := 'Invalid QoS object length.';
-    11023:  result := 'Incorrect QoS flow count.';
-    11024:  result := 'Unrecognized QoS object.';
-    11025:  result := 'Invalid QoS policy object.';
-    11026:  result := 'Invalid QoS flow descriptor.';
-    11027:  result := 'Invalid QoS provider-specific flowspec.';
-    11028:  result := 'Invalid QoS provider-specific filterspec.';
-    11029:  result := 'Invalid QoS shape discard mode object.';
-    11030:  result := 'Invalid QoS shaping rate object.';
-    11031:  result := 'Reserved policy QoS element type.';
-  end
-end;
-
-{ get services associated with words in list 1 .. end }
-function GetServFromWords(word : TStringArray) : TServSet;
-var
-  i : integer;
-
-begin
-  result := [];
-  for i := 1 to Length(word) - 1 do
-  begin
-    case upcase(word[i]) of
-      'HTTP':   result += [ HTTP ];
-      'WS':     result += [ WS ];
-      'BRIDGE': result += [ Bridge ];
-      'ALL' :   result += [ All ];
-      else      result += [ Unknown ];
-    end;
-  end;
-end;
-
-{ read a console line, returns '' if none entered }
-var
-  cmdbuff :   string = '';      // console linein buffer
-
-function ConsoleLineIn : string;
-var
-  key :     char;
-
-begin
-  result := '';
-  if wherex = 1 then
-    write(']' + cmdbuff);
-  if keypressed then
-  begin
-    lastaction := now;
-    key := readkey;
-    if key <> #0 then
+    if SystemInfo.NodeType = ExtProc then
     begin
-      case key of
-        #13:
-          begin
-            write(CRLF);
-            result := cmdbuff;
-            cmdbuff := '';
-          end;
-
-        #8: // backspace
-          begin
-            if length(cmdbuff) > 0 then
-            begin
-              write(#8' '#8);
-              cmdbuff := LeftStr(cmdbuff, cmdbuff.length - 1);
-            end;
-          end;
-        else
-          begin
-            write(key);
-            cmdbuff += key;
-          end;
-      end;
+	    if con.ExtProc.Running then
+  	    try
+    	    con.ExtProc.Terminate(1);
+      	finally
+        	WriteCon('', 'Node Process terminated.');
+	      end;
     end
-    else
+    else if SystemInfo.NodeType = Telnet then
     begin
-      // special key
-      key := readkey;
-      case ord(key) of
-        $4B:  // left arrow
-          begin
-            if length(cmdbuff) > 0 then
-            begin
-              write(#8' '#8);
-              cmdbuff := LeftStr(cmdbuff, cmdbuff.length - 1);
-            end;
-          end;
-        else  beep;
-      end;
+      con.Telnet.Free;
     end;
   end;
 end;

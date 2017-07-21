@@ -1,6 +1,6 @@
 @font-face {
     font-family: 'Vga Unicode';
-    src: url('VgaUnicode.woff'); format('woff');
+    src: url('VgaUnicode8.woff'); format('woff');
 }
 html {
 }
@@ -11,6 +11,7 @@ body {
     padding-bottom: 1em;
     left:           0;
     right:          0;    
+    position: relative;
 }
 .vtx {
     position:       relative;
@@ -22,7 +23,7 @@ body {
     text-overflow:  clip;
 }
 #vtxpage {
-    min-height:     100vh;
+    min-height:     95vh;
     margin:         0px auto;
     padding:        0px;
     border:         0px;
@@ -38,4 +39,8 @@ body {
     overflow:       hidden;
     text-overflow:  clip;
     z-index:        10;
+}
+.fade {
+    opacity:    .5;
+    background: #000055;
 }
