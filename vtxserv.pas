@@ -26,9 +26,7 @@ uses
   Classes, Process, Pipes, DateUtils, SysUtils, IniFiles, Crt, LConvEncoding,
 
   // network stuff
-  synafpc,
-  synsock, synacode, synaip,
-  winsock2, ctypes,
+  synafpc, synsock, synacode, synaip, winsock2, ctypes,
   BlckSock, Sockets, Synautil, Laz_Synapse, WebSocket2, CustomServer2;
 
 
@@ -38,9 +36,9 @@ type
 
   TvtxProgressEvent = procedure(ip, msg: string) of object;
 
-  { TvtxProcessNanny : thread for spawning connection console. terminate
+  { TvtxNodeProcess : thread for spawning connection console. terminate
     connection on exit }
-  TvtxProcessNanny = class(TThread)
+  TvtxNodeProcess = class(TThread)
     private
       fProgress : string;
       fOnProgress : TvtxProgressEvent;
@@ -48,6 +46,8 @@ type
 
     protected
       procedure Execute; override;
+      procedure PipeToConn;
+      procedure PipeToLocal;
 
     public
       serverCon : TvtxWSConnection;
@@ -67,29 +67,29 @@ type
   TCodePageUnconverter = 	function(const s: string; SetTargetCodePage: boolean = false): RawByteString;
 
   { Node process type. }
-  TvtxNodeType = ( ExtProc );
+  TvtxNodeType = ( ExtProc, Telnet );
 
   { TvtxSystemInfo : Board Inofo record }
   TvtxSystemInfo = record
+    SystemName :  		string;   // name of bbs - webpage title
+    SystemIP :    		string;   // ip address of this host - needed to bind to socket
+    InternetIP :  		string;   // ip address as seen from internet
+    HTTPPort :    		string;   // port number for http front end
+    WSPort :      		string;   // port number for ws back end
+    MaxConnections : 	integer;
 
-    SystemName :  string;   // name of bbs - webpage title
+    NodeType :				TvtxNodeType;
 
-    SystemIP :    string;   // ip address of this host - needed to bind to socket
-    InternetIP :  string;   // ip address as seen from internet
+    // string to launch node preocess
+    ExtProc :  				string;
 
-    HTTPPort :    string;   // port number for http front end
-    WSPort :      string;   // port number for ws back end
-
-    NodeType :		TvtxNodeType;
-
-    ExtProc :  		string;   // command line string for process to fork for connection
-                            // messaged for @ codes prior to execution.
-
-    MaxConnections : integer;
-
+    // connection info for internal telnet client
+    tnsock : 					longint;
+    tnaddr : 					sockaddr_in;
+    tnbuff : 					array [0..255] of char;
   end;
 
-  TServices = ( HTTP, WS, Bridge, All, Unknown );
+  TServices = ( HTTP, WS, All, Unknown );
   TServSet = set of TServices;
 
   { TvtxWSServer : websocket server class object }
@@ -109,7 +109,7 @@ type
       ExtProcType :	TvtxNodeType;
 
       // needed for ExtProc
-      ExtNanny :  	TvtxProcessNanny; // the TThread that runs below ExtProcess
+      ExtNode :  		TvtxNodeProcess; // the TThread that runs below ExtProcess
       ExtProc :   	TProcess;         // the TProcess spawned board
 
       property ReadFinal: boolean read fReadFinal;
@@ -127,38 +127,12 @@ type
       property WriteStream: TMemoryStream read fWriteStream;
   end;
 
-  { TvtxIOBridge : these are for the background worker that routes stdout from
-    client processes to websocket output and input from websocket to stdin of
-    client processes. }
-  TvtxIOBridge = class(TThread)
-    private
-      fProgress :     string;
-      fOnProgress:    TvtxProgressEvent;
-      procedure       DoProgress;
-
-    protected
-      procedure       Execute; override;
-      procedure       PipeToConn(
-                        input : TInputPipeStream;
-                        conn : TvtxWSConnection);
-      procedure       PipeToLocal(input : TInputPipeStream);
-
-    public
-      constructor     Create(CreateSuspended : boolean);
-      destructor      Destroy; override;
-      property        OnProgress : TvtxProgressEvent
-                        read fOnProgress
-                        write fOnProgress;
-  end;
-
   { TvtxApp : Main application class }
   TvtxApp = class
     procedure StartHTTP;
     procedure StartWS;
-    procedure StartBridge;
     procedure StopHTTP;
     procedure StopWS;
-    procedure StopBridge;
     procedure WriteCon(ip, msg : string); register;
     procedure WSBeforeAddConnection(Server : TCustomServer; aConnection : TCustomConnection;var CanAdd : boolean); register;
     procedure WSAfterAddConnection(Server : TCustomServer; aConnection : TCustomConnection); register;
@@ -174,8 +148,7 @@ type
     procedure CloseAllNodes;
     procedure CloseNode(n : integer);
 
-    procedure BridgeTerminate(Sender: TObject);
-    procedure NannyTerminate(Sender: TObject);
+    procedure NodeTerminate(Sender: TObject);
     procedure HTTPTerminate(Sender : TObject); register;
   end;
 
@@ -235,7 +208,7 @@ const
     @UTF8ToCP866, @UTF8ToCP874, @UTF8ToCP932, @UTF8ToCP936,
     @UTF8ToCP949, @UTF8ToCP950, @UTF8ToMACINTOSH, @UTF8ToKOI8 );
 
-  ProcessType : array [0..0] of string = ('ExtProc' );
+  ProcessType : array [0..1] of string = ('ExtProc', 'Telnet' );
 
   CRLF = #13#10;
 
@@ -247,15 +220,10 @@ var
 
   SystemInfo :  	TvtxSystemInfo;
   lastaction :  	TDateTime;      // last time activity
-
   serverWS :    	TvtxWSServer;   // ws server.
   serverHTTP :  	TvtxHTTPServer; // http srever.
-  bridgeWS :    	TvtxIOBridge;   // bridge streams.
-
-  runningWS,
-  runningHTTP,
-  runningBridge: 	boolean;
-
+  runningWS : 		boolean;
+  runningHTTP : 	boolean;
   cmdbuff :   		string = '';    // console linein buffer
 
 
@@ -453,7 +421,6 @@ begin
     case upcase(word[i]) of
       'HTTP':   result += [ HTTP ];
       'WS':     result += [ WS ];
-      'BRIDGE': result += [ Bridge ];
       'ALL' :   result += [ All ];
       else      result += [ Unknown ];
     end;
@@ -681,25 +648,28 @@ end;
 // fulfill the request.
 procedure TvtxHTTPServer.AttendConnection(ASocket: TTCPBlockSocket);
 var
-  timeout,
-  code :      integer;
-  s,
-  ext,
-  method,
-  uri,
-  protocol :  string;
+  timeout :		integer;
+  code :    	integer;
+  s: 					string;
+  ext: 				string;
+  //method : 		string;
+  uri : 			string;
+  //protocol :	string;
 
 begin
   timeout := 120000;
+
   //read request line
   s := ASocket.RecvString(timeout);
-  method := fetch(s, ' ');
+  fetch(s, ' '); //method := fetch(s, ' ');
   uri := fetch(s, ' ');
-  protocol := fetch(s, ' ');
+  fetch(s, ' '); //protocol := fetch(s, ' ');
+
   //read request headers
   repeat
     s := ASocket.RecvString(Timeout);
   until s = '';
+
   code := 200;
   if uri = '/' then
     code := SendFile(ASocket, 'text/html', '/index.html')
@@ -729,29 +699,10 @@ end;
 
 
 { *************************************************************************** }
-{ TvtxIOBridge }
+{ TvtxNodeProcess }
 
-constructor TvtxIOBridge.Create(CreateSuspended: boolean);
-  begin
-    fProgress := '';
-    FreeOnTerminate := True;
-    inherited Create(CreateSuspended);
-  end;
-
-destructor TvtxIOBridge.Destroy;
-  begin
-    inherited Destroy;
-  end;
-
-procedure TvtxIOBridge.DoProgress;
-  begin
-    if Assigned(FOnProgress) then
-    begin
-      FOnProgress('', fProgress);
-    end;
-  end;
-
-procedure TvtxIOBridge.PipeToConn(input : TInputPipeStream; conn : TvtxWSConnection);
+// copy input to websocket
+procedure TvtxNodeProcess.PipeToConn;
   var
     i, bytes : integer;
     b : byte;
@@ -759,127 +710,74 @@ procedure TvtxIOBridge.PipeToConn(input : TInputPipeStream; conn : TvtxWSConnect
 begin
 
   str := '';
-  if SystemInfo.NodeType = ExtProc then
-  begin
-    try
-	    bytes := input.NumBytesAvailable;
-  	except
-    	bytes := 0;
-    end;
+  try
+		bytes := self.serverCon.ExtProc.Output.NumBytesAvailable;
+	except
+   	bytes := 0;
+  end;
 
-	  if bytes > 0 then
-  	begin
-  	  lastaction := now;
- 	  	for i := 0 to bytes - 1 do
-   	  begin
-     	 	try
-         	b := input.ReadByte;
-	      finally
- 		      str += char(b);
-   		  end;
-     	end;
-    	conn.SendText(str);
-    end;
+  if bytes > 0 then
+ 	begin
+ 	  lastaction := now;
+  	for i := 0 to bytes - 1 do
+ 	  begin
+   	 	try
+       	b := self.serverCon.ExtProc.Output.ReadByte;
+	    finally
+ 	      str += char(b);
+  	  end;
+   	end;
+   	self.serverCon.SendText(str);
   end;
 end;
 
-procedure TvtxIOBridge.PipeToLocal(input : TInputPipeStream);
-  var
-    i, bytes : integer;
-    b : byte;
-    str : ansistring;
-  begin
-    try
-      bytes := input.NumBytesAvailable;
-    except
-      bytes := 0;
-    end;
+// copy input to console
+procedure TvtxNodeProcess.PipeToLocal;
+var
+  i, bytes : integer;
+  b : byte;
+  str : ansistring;
 
-    str := '';
-    if bytes > 0 then
+begin
+  try
+    bytes := self.serverCon.ExtProc.StdErr.NumBytesAvailable;
+  except
+    bytes := 0;
+  end;
+
+ 	str := '';
+  if bytes > 0 then
+  begin
+    lastaction := now;
+    for i := 0 to bytes - 1 do
     begin
-      lastaction := now;
-      for i := 0 to bytes - 1 do
-      begin
-        try
-          b := input.ReadByte;
-        finally
-          str += char(b);
-        end;
+    	try
+      	b := self.serverCon.ExtProc.StdErr.ReadByte;
+      finally
+      	str += char(b);
       end;
-      fProgress := str;
-      Synchronize(@DoProgress);
     end;
+    fProgress := str;
+    Synchronize(@DoProgress);
   end;
+end;
 
-procedure TvtxIOBridge.Execute;
-  var
-    i : integer;
-    conn : TvtxWSConnection;
-
-  begin
-    // for each connect that has process, send input, read output
-    repeat
-      if not serverWS.CheckTerminated then
-      begin
-        for i := 0 to serverWS.Count - 1 do
-        begin
-          lastaction := now;  // there are active connections
-          conn := TvtxWSConnection(serverWS.Connection[i]);
-
-          if not conn.Closed then
-          begin
-            if SystemInfo.NodeType = ExtProc then
-            begin
-
-      	      if conn.ExtProc <> nil then
-    	        begin
-  	            // send console stdout to websocket connection
-	              if conn.ExtProc.Output <> nil then
-              	  PipeToConn(conn.ExtProc.Output, conn);
-
-            	  // send console stderr to websocket connection
-          	    if conn.ExtProc.Stderr <> nil then
-        	      begin
-      	          // pipe this to writecon
-    	            PipeToLocal(conn.ExtProc.Stderr);
-  	            end;
-	            end;
-            end;
-          end;
-        end;
-      end;
-
-      // keep this thread from smoking the system
-      sleep(25);
-
-      if Terminated then
-        break;
-
-    until false;
-    //fProgress := 'Bridge Terminating.';
-    //Synchronize(@DoProgress);
-  end;
-
-
-{ *************************************************************************** }
-{ TvtxProcessNanny }
 
 // thread launched that launches tprocess and waits for it to terminate.
 // closes clients connection at end.
-constructor TvtxProcessNanny.Create(CreateSuspended: boolean);
+constructor TvtxNodeProcess.Create(CreateSuspended: boolean);
 begin
   fProgress := '';
   FreeOnTerminate := True;
   inherited Create(CreateSuspended);
 end;
 
-destructor TvtxProcessNanny.Destroy;
+destructor TvtxNodeProcess.Destroy;
 begin
   inherited Destroy;
 end;
 
-procedure TvtxProcessNanny.DoProgress;
+procedure TvtxNodeProcess.DoProgress;
 begin
   if Assigned(FOnProgress) then
   begin
@@ -887,16 +785,10 @@ begin
   end;
 end;
 
-procedure TvtxProcessNanny.Execute;
+procedure TvtxNodeProcess.Execute;
 var
   parms : TStringArray;
   i : integer;
-  str : ANSIString;
-  rawout : RawByteString;
-  doneState : integer;
-  doneTime : TDateTime;
-bytes : integer;
-  WsaDataOnce: TWSADATA;
 
 begin
   // for each connect that has process, send input, read output
@@ -905,6 +797,8 @@ begin
 
     if SystemInfo.NodeType = TvtxNodeType.ExtProc then
     begin
+      // execute a spawned node session.
+
 	    fProgress := 'Spawning process for ' + serverCon.Socket.GetRemoteSinIP + '.';
 	    Synchronize(@DoProgress);
 
@@ -927,7 +821,7 @@ begin
 	      serverCon.ExtProc.Parameters.Add(parms[i]);
 
 	    serverCon.ExtProc.Options := [
-	        poWaitOnExit,
+	        //poWaitOnExit,
 	        poUsePipes,
 	        poNoConsole,
 	        poDefaultErrorMode,
@@ -937,8 +831,21 @@ begin
 	    // go run. wait on exit.
 	    try
 	      serverCon.ExtProc.Execute;
+
+				while not serverCon.IsTerminated and serverCon.ExtProc.Active do
+        begin
+          // pipe strout to websocket.
+          if serverCon.ExtProc.Output <> nil then
+        	  PipeToConn;
+
+          // pipe strerr to local console.
+    	    if serverCon.ExtProc.Stderr <> nil then
+            PipeToLocal;
+
+        end;
+
 	    except
-	      fProgress:='** Error on ProcessNanny.Execute';
+	      fProgress:='** Error on Node Process.Execute';
 	      Synchronize(@DoProgress);
 	    end;
 
@@ -948,7 +855,12 @@ begin
 	    fProgress := 'Finished process for '
 	      + self.serverCon.Socket.GetRemoteSinIP + '.';
 	    Synchronize(@DoProgress);
-		end;
+		end
+    else if SystemInfo.NodeType = TvtxNodeType.Telnet then
+    begin
+      // execute a telnet node session.
+
+    end;
   end;
   fProgress := 'Node Terminating.';
   Synchronize(@DoProgress);
@@ -977,12 +889,7 @@ begin
   WriteCon('', 'HTTP Terminated.');
 end;
 
-procedure TvtxApp.BridgeTerminate(Sender: TObject);
-begin
-  WriteCon('', 'Bridge Terminated.');
-end;
-
-procedure TvtxApp.NannyTerminate(Sender: TObject);
+procedure TvtxApp.NodeTerminate(Sender: TObject);
 begin
   WriteCon('', 'Node Terminated.');
 end;
@@ -1011,14 +918,14 @@ begin
   con.OnClose := @WSClose;
 
   // spawn a new process for this connection
-  con.ExtNanny := TvtxProcessNanny.Create(true);
-  con.ExtNanny.serverCon := con;
-  con.ExtNanny.OnProgress := @WriteCon;
-  con.ExtNanny.OnTerminate := @NannyTerminate;
+  con.ExtNode := TvtxNodeProcess.Create(true);
+  con.ExtNode.serverCon := con;
+  con.ExtNode.OnProgress := @WriteCon;
+  con.ExtNode.OnTerminate := @NodeTerminate;
   try
-    con.ExtNanny.Start;
+    con.ExtNode.Start;
   except
-    WriteCon('', '** Error on Nanny Create.');
+    WriteCon('', '** Error on Node Create.');
   end;
 
 end;
@@ -1041,12 +948,12 @@ var
   i, bytes : integer;
   str : ansistring;
   con : TvtxWSConnection;
-  strout : rawbytestring;
+
 begin
   lastaction := now;
   //WriteCon('Read WS Connection.');
 
-  // send aData to process - doesn't work in bridge so do it here.
+  // send aData to process
   con := TvtxWSConnection(aSender);
 
 	bytes := aData.Size;
@@ -1221,22 +1128,6 @@ begin
     WriteCon('', 'WS server already running.');
 end;
 
-procedure TvtxApp.StartBridge;
-begin
-  // create bridge process to transmit stdin/stdout from client TProcesses
-  if not runningBridge then
-  begin
-    WriteCon('', 'Bridge starting.');
-    bridgeWS := TvtxIOBridge.Create(true);
-    bridgeWS.OnProgress := @WriteCon;
-    bridgeWS.OnTerminate := @BridgeTerminate;
-    bridgeWS.Start;
-    runningBridge := true;
-  end
-  else
-    WriteCon('', 'Bridge is already running.');
-end;
-
 procedure TvtxApp.StopHTTP;
 begin
   if runningHTTP then
@@ -1250,10 +1141,6 @@ end;
 
 { Call CloseAllConnections prior to calling. }
 procedure TvtxApp.StopWS;
-var
-  i : integer;
-  conn : TvtxWSConnection;
-
 begin
   if runningWS then
   begin
@@ -1261,17 +1148,6 @@ begin
     if serverWS <> nil then
       serverWS.Terminate;
     runningWS := false;
-  end;
-end;
-
-procedure TvtxApp.StopBridge;
-begin
-  if runningBridge then
-  begin
-    WriteCon('', 'Bridge server terminating.');
-    if bridgeWS <> nil then
-      bridgeWS.Terminate;
-    runningBridge := false;
   end;
 end;
 
@@ -1342,7 +1218,6 @@ begin
   serverWS :=       nil;
   runningHTTP :=    false;
   runningWS :=      false;
-  runningBridge :=  false;
   Done :=           false;
   Hybernate :=      false;
 
@@ -1371,7 +1246,6 @@ begin
                 begin
                   app.StartHTTP;
                   app.StartWS;
-                  app.StartBridge;
                 end
                 else
                 begin
@@ -1379,8 +1253,6 @@ begin
                     app.StartHTTP;
                   if WS in serv then
                     app.StartWS;
-                  if Bridge in serv then
-                    app.StartBridge;
                 end;
               end;
             end;
@@ -1399,7 +1271,6 @@ begin
                   app.StopHTTP;
                   app.CloseAllNodes();
                   app.StopWS;
-                  app.StopBridge;
                 end
                 else
                 begin
@@ -1410,8 +1281,6 @@ begin
                     app.CloseAllNodes();
                     app.StopWS;
                   end;
-                  if Bridge in serv then
-                    app.StopBridge;
                 end;
               end;
             end;
@@ -1421,7 +1290,6 @@ begin
             linein := '';
             if runningHTTP    then linein += 'HTTP, ';
             if runningWS      then linein += 'WS, ';
-            if runningBridge  then linein += 'Bridge, ';
             if linein = ''    then linein += 'None, ';
             linein := LeftStr(linein, linein.length - 2);
             app.WriteCon('', 'Currently running services: ' + linein);
@@ -1539,7 +1407,7 @@ begin
             app.WriteCon('', '          CONV <codepage> <input> <output>  - Convert text file to UTF8.');
             app.WriteCon('', '          CPS  - List supported codepages available for CONV.');
             app.WriteCon('', '');
-            app.WriteCon('', '          serv = HTTP, WS, Bridge, or ALL');
+            app.WriteCon('', '          serv = HTTP, WS, or ALL');
           end
           else
           	app.WriteCon('', 'Unknown command.');
@@ -1575,7 +1443,6 @@ begin
   app.CloseAllNodes;
   app.StopHTTP;
   app.StopWS;
-  app.StopBridge;
   sleep(2000);
 end.
 
