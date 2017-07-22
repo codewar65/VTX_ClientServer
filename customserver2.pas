@@ -524,7 +524,9 @@ end;
 function TCustomServer.GetConnection(index: integer): TCustomConnection;
 begin
   fConnectionTermLock.Enter;
-  result := TCustomConnection(fConnections[index]);
+  result := nil;
+  if index < fConnections.Count then
+	  result := TCustomConnection(fConnections[index]);
   fConnectionTermLock.Leave;
 end;
 
@@ -782,7 +784,7 @@ end;
 
 function TCustomConnection.GetIsTerminated: boolean;
 begin
-  result := terminated or (fSocket = nil)// or (fSocket.Socket = INVALID_SOCKET);
+  result := terminated or (fSocket = nil) or (fSocket.Socket = INVALID_SOCKET);
 end;
 
 procedure TCustomConnection.AfterConnectionExecute;

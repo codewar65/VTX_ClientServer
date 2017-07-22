@@ -1,33 +1,13 @@
 {
-
-
 	Project:	VTX Server
   Author:		Daniel Mecklenburg Jr
   Date:			2017-07-20
 	License:	GNU 3.0
 	File:			vtxserv.pas
   Descr:		VTX server.
-
-
 }
 
 program vtxserv;
-
-{
-
-	!!!!!!!!!!!
-	Need to implement telnet client from scratch from socket up.
-
-
-  ondata needs to
-  	handle telnet negotiations
-    append new data (converted from codepate to utf8) (less negotiation data) to buffer
-
-	onclose needs to
-  	close nanny
-
-}
-
 
 {$codepage utf8}
 {$mode objfpc}{$H+}
@@ -46,23 +26,13 @@ uses
   Classes, Process, Pipes, DateUtils, SysUtils, IniFiles, Crt, LConvEncoding,
 
   // network stuff
+  synafpc,
+  synsock, synacode, synaip,
   winsock2, ctypes,
   BlckSock, Sockets, Synautil, Laz_Synapse, WebSocket2, CustomServer2;
 
 
 type
-
-  TTelnetState = (
-  	tsDATA,
-    tsIAC,
-    tsIAC_SB,
-    tsIAC_WILL,
-    tsIAC_DO,
-    tsIAC_WONT,
-    tsIAC_DONT,
-    tsIAC_SBIAC,
-    tsIAC_SBDATA,
-    tsSBDATA_IAC );
 
   TvtxWSConnection =  class;
 
@@ -72,16 +42,12 @@ type
     connection on exit }
   TvtxProcessNanny = class(TThread)
     private
-      FState : TTelnetState;
-      FSubType, FSubNeg : string;
       fProgress : string;
       fOnProgress : TvtxProgressEvent;
       procedure DoProgress;
 
     protected
       procedure Execute; override;
-      procedure OnFilterData(Sender: TObject; var Value: AnsiString);
-      function Negotiate(const Buf: Ansistring; Sender : TObject): Ansistring;
 
     public
       serverCon : TvtxWSConnection;
@@ -101,7 +67,7 @@ type
   TCodePageUnconverter = 	function(const s: string; SetTargetCodePage: boolean = false): RawByteString;
 
   { Node process type. }
-  TvtxNodeType = ( ExtProc, Telnet );
+  TvtxNodeType = ( ExtProc );
 
   { TvtxSystemInfo : Board Inofo record }
   TvtxSystemInfo = record
@@ -118,10 +84,6 @@ type
 
     ExtProc :  		string;   // command line string for process to fork for connection
                             // messaged for @ codes prior to execution.
-
-    TelnetIP :		string;		// ip address of extern telnet process
-    TelnetPort : 	string;		// port
-    TelnetCP :		TCodePages;
 
     MaxConnections : integer;
 
@@ -149,9 +111,6 @@ type
       // needed for ExtProc
       ExtNanny :  	TvtxProcessNanny; // the TThread that runs below ExtProcess
       ExtProc :   	TProcess;         // the TProcess spawned board
-
-      // for 				Telnet
-      Telnet :			TTCPBlockSocket;
 
       property ReadFinal: boolean read fReadFinal;
       property ReadRes1: boolean read fReadRes1;
@@ -276,30 +235,9 @@ const
     @UTF8ToCP866, @UTF8ToCP874, @UTF8ToCP932, @UTF8ToCP936,
     @UTF8ToCP949, @UTF8ToCP950, @UTF8ToMACINTOSH, @UTF8ToKOI8 );
 
-  ProcessType : array [0..1] of string = ('ExtProc', 'Telnet');
+  ProcessType : array [0..0] of string = ('ExtProc' );
 
   CRLF = #13#10;
-
-  { Telnet Commands }
-  TLNT_STATUS							= #5;
-  TLNT_EOR                = #239;
-  TLNT_SE                 = #240;
-  TLNT_NOP                = #241;
-  TLNT_DATA_MARK          = #242;
-  TLNT_BREAK              = #243;
-  TLNT_IP                 = #244;
-  TLNT_AO                 = #245;
-  TLNT_AYT                = #246;
-  TLNT_EC                 = #247;
-  TLNT_EL                 = #248;
-  TLNT_GA                 = #249;
-  TLNT_SB                 = #250;
-  TLNT_WILL               = #251;
-  TLNT_WONT               = #252;
-  TLNT_DO                 = #253;
-  TLNT_DONT               = #254;
-  TLNT_IAC                = #255;
-
 
 { *************************************************************************** }
 { GLOBALS }
@@ -494,16 +432,10 @@ begin
 
   SystemInfo.NodeType :=		TvtxNodeType(
   														InList(
-                              	iin.ReadString(sect, 'NodeType', 'Telnet'),
+                              	iin.ReadString(sect, 'NodeType', 'ExtProc'),
                                 ProcessType));
 
   SystemInfo.ExtProc :=  		iin.ReadString(sect, 'ExtProc',  		'cscript.exe //Nologo //I test.js @UserIP@');
-  SystemInfo.TelnetIP :=		iin.ReadString(sect, 'TelnetIP', 		'localhost');
-  SystemInfo.TelnetPort :=	iin.ReadString(sect, 'TelnetPort', 	'23');
-  SystemInfo.TelnetCP := 		TCodePages(
-  														InList(
-                              	iin.ReadString(sect, 'TelnetCP', 'CP437'),
-																CodePageNames));
 
   SystemInfo.MaxConnections := iin.ReadInteger(sect, 'MaxConnections',  32);
   iin.Free;
@@ -581,23 +513,6 @@ begin
           end;
         else  beep;
       end;
-    end;
-  end;
-end;
-
-function IsTelnetConnected(ASocket: TTCPBlockSocket): Boolean;
-begin
-  if ASocket = nil then
-  	Result := false
-  else if ASocket.LastError <> 0 then
-  	Result := false
-  else
-  begin
-    try
-	    ASocket.SendString(TLNT_IAC + TLNT_DO + TLNT_STATUS);
-  	  Result := (ASocket.LastError = 0);
-    except
-			result := false;
     end;
   end;
 end;
@@ -901,6 +816,7 @@ procedure TvtxIOBridge.Execute;
   var
     i : integer;
     conn : TvtxWSConnection;
+
   begin
     // for each connect that has process, send input, read output
     repeat
@@ -960,24 +876,6 @@ end;
 
 destructor TvtxProcessNanny.Destroy;
 begin
-  // kill the process also
-  if SystemInfo.NodeType = ExtProc then
-  begin
-  	if (self.serverCon.extProc <> nil) and self.serverCon.ExtProc.Running then
-  	begin
-	    {$ifdef WINDOWS}
-    	  GenerateConsoleCtrlEvent(CTRL_C_EVENT, serverCon.ExtProc.ProcessID);
-  	    //serverCon.ExtProcess.Terminate(0);
-	    {$else}
-    	  FpKill(serverCon.ExtProcess.ProcessID, SIGINT);
-  	  {$endif}
-	  end;
-  end
-  else if SystemInfo.NodeType = Telnet then
-  begin
-    if IsTelnetConnected(self.serverCon.Telnet) then
-    	self.serverCon.Telnet.Free;
-  end;
   inherited Destroy;
 end;
 
@@ -989,150 +887,17 @@ begin
   end;
 end;
 
-procedure TvtxProcessNanny.OnFilterData(Sender : TObject; var Value: AnsiString);
-begin
-  Value := Negotiate(Value, Sender);
-end;
-
-function TvtxProcessNanny.Negotiate(
-          const Buf: Ansistring;
-          Sender : TObject): Ansistring;
-var
-  n: integer;
-  c: Ansichar;
-  Reply: Ansistring;
-  SubReply: Ansistring;
-	aSocket : TTCPBlockSocket;
-begin
-  aSocket := TTCPBlockSocket(Sender);
-  Result := '';
-  for n := 1 to Length(Buf) do
-  begin
-    c := Buf[n];
-    Reply := '';
-    case FState of
-      tsData:
-        if c = TLNT_IAC then
-          FState := tsIAC
-        else
-          Result := Result + c;
-
-      tsIAC:
-        case c of
-          TLNT_IAC:
-            begin
-              FState := tsData;
-              Result := Result + TLNT_IAC;
-            end;
-          TLNT_WILL:
-            FState := tsIAC_WILL;
-          TLNT_WONT:
-            FState := tsIAC_WONT;
-          TLNT_DONT:
-            FState := tsIAC_DONT;
-          TLNT_DO:
-            FState := tsIAC_DO;
-          TLNT_EOR:
-            FState := tsDATA;
-          TLNT_SB:
-            begin
-              FState := tsIAC_SB;
-              FSubType := #0;
-              FSubNeg := '';
-            end;
-        else
-          FState := tsData;
-        end;
-
-      tsIAC_WILL:
-        begin
-        case c of
-          #3:  //suppress GA
-            Reply := TLNT_DO;
-        else
-          Reply := TLNT_DONT;
-        end;
-          FState := tsData;
-        end;
-
-      tsIAC_WONT:
-        begin
-          Reply := TLNT_DONT;
-          FState := tsData;
-        end;
-
-      tsIAC_DO:
-      begin
-        case c of
-          #24:  //termtype
-            Reply := TLNT_WILL;
-        else
-          Reply := TLNT_WONT;
-        end;
-        FState := tsData;
-      end;
-
-      tsIAC_DONT:
-      begin
-        Reply := TLNT_WONT;
-        FState := tsData;
-      end;
-
-      tsIAC_SB:
-        begin
-          FSubType := c;
-          FState := tsIAC_SBDATA;
-        end;
-
-      tsIAC_SBDATA:
-        begin
-          if c = TLNT_IAC then
-            FState := tsSBDATA_IAC
-          else
-            FSubNeg := FSubNeg + c;
-        end;
-
-      tsSBDATA_IAC:
-        case c of
-          TLNT_IAC:
-            begin
-              FState := tsIAC_SBDATA;
-              FSubNeg := FSubNeg + c;
-            end;
-          TLNT_SE:
-            begin
-              SubReply := '';
-              case FSubType of
-                #24:  //termtype
-                  begin
-                    if (FSubNeg <> '') and (FSubNeg[1] = #1) then
-                      SubReply := #0 + 'ANSI';
-                  end;
-              end;
-              aSocket.SendString(TLNT_IAC + TLNT_SB + FSubType + SubReply + TLNT_IAC + TLNT_SE);
-              FState := tsDATA;
-            end;
-         else
-           FState := tsDATA;
-         end;
-
-      else
-        FState := tsData;
-    end;
-    if Reply <> '' then
-      aSocket.SendString(TLNT_IAC + Reply + c);
-  end;
-end;
-
 procedure TvtxProcessNanny.Execute;
 var
   parms : TStringArray;
   i : integer;
   str : ANSIString;
-  bytes : integer;
-  b : byte;
-  connect : boolean;
   rawout : RawByteString;
+  doneState : integer;
+  doneTime : TDateTime;
+bytes : integer;
+  WsaDataOnce: TWSADATA;
+
 begin
   // for each connect that has process, send input, read output
   if serverWS <> nil then
@@ -1183,46 +948,10 @@ begin
 	    fProgress := 'Finished process for '
 	      + self.serverCon.Socket.GetRemoteSinIP + '.';
 	    Synchronize(@DoProgress);
-		end
-    else if SystemInfo.NodeType = TvtxNodeType.Telnet then
-    begin
-
-      // init telnet client - connect
-      with self.serverCon do
-      begin
-        Telnet := TTCPBlockSocket.Create;
-        Telnet.CreateSocket;
-        Telnet.Family := SF_IP4;
-        Telnet.SetTimeout(10000);
-        Telnet.SetLinger(true, 10000);
-        Telnet.OnReadFilter := @OnFilterData;
-        Telnet.Connect(SystemInfo.TelnetIP, SystemInfo.TelnetPort);
-
-	      while IsTelnetConnected(Telnet) do
-        begin
-          if Telnet.WaitingData > 0 then
-          begin
-						str := Telnet.RecvPacket(1000);
-  	     	  rawout := ConvertFromCP(SystemInfo.TelnetCP, str);
-    	   		self.serverCon.SendText(rawout);
-          end;
-          sleep(100);
-        end;
-
-        // wait for data to be sent
-        repeat
-					str := Telnet.RecvPacket(1000);
-       	  rawout := ConvertFromCP(SystemInfo.TelnetCP, str);
-  	   		self.serverCon.SendText(rawout);
-        until str = '';
-        sleep(2000);
-
-      end;
-	   	self.serverCon.Close(wsCloseNormal, 'Good bye');
-    end;
+		end;
   end;
-  //fProgress := 'Process Terminating.';
-  //Synchronize(@DoProgress);
+  fProgress := 'Node Terminating.';
+  Synchronize(@DoProgress);
 end;
 
 
@@ -1340,16 +1069,6 @@ begin
       	app.WriteCon('', '** Error on sending data to stdin.');
      	end;
   	end
-  end
-  else if SystemInfo.NodeType = Telnet then
-	begin
-  	// convert to proper codepage
-    if IsTelnetConnected(con.Telnet) and (length(str) > 0) then
-    begin
-  		strout := ConvertToCP(SystemInfo.TelnetCP, str);
-			// escape TLNT_IAC = #255; with TLNT_IAC/TLNT_IAC
-      con.Telnet.SendString(strout);
-    end
   end;
 end;
 
@@ -1381,6 +1100,8 @@ procedure TvtxApp.WSBeforeRemoveConnection(
 var
   conn : TvtxWSConnection;
 begin
+  WriteCon('', 'Before Remove WS Connection 1.');
+
   conn := TvtxWSConnection(aConnection);
   if SystemInfo.NodeType = ExtProc then
   begin
@@ -1394,16 +1115,9 @@ begin
         WriteCon('', '** Error terminating node process.');
       end;
     end;
-  end
-  else if SystemInfo.NodeType = Telnet then
-  begin
-    if IsTelnetConnected(conn.Telnet) then
-    begin
-      conn.Telnet.Free;
-    end;
   end;
 
-  WriteCon('', 'Before Remove WS Connection.');
+  WriteCon('', 'Before Remove WS Connection 2.');
 
 end;
 
@@ -1593,10 +1307,6 @@ begin
       	finally
         	WriteCon('', 'Node Process terminated.');
 	      end;
-    end
-    else if SystemInfo.NodeType = Telnet then
-    begin
-      con.Telnet.Free;
     end;
   end;
 end;

@@ -1754,8 +1754,8 @@ function getDefaultFontSize() {
                     txtRight = x;
             }
         }
-    colSize = Math.floor((txtRight - txtLeft) / testString.length);
-    rowSize = Math.floor(txtBottom - txtTop) + 1;
+    colSize = Math.round((txtRight - txtLeft) / testString.length);
+    rowSize = Math.round(txtBottom - txtTop) + 1;
 }
 
 // compute size of text based on text and font.
