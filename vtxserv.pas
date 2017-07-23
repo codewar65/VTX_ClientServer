@@ -1,10 +1,10 @@
 {
-	Project:	VTX Server
-  Author:		Daniel Mecklenburg Jr
-  Date:			2017-07-20
-	License:	GNU 3.0
-	File:			vtxserv.pas
-  Descr:		VTX server.
+  Project:  VTX Server
+  Author:   Daniel Mecklenburg Jr
+  Date:     2017-07-20
+  License:  GNU 3.0
+  File:     vtxserv.pas
+  Descr:    VTX server.
 }
 
 program vtxserv;
@@ -15,20 +15,26 @@ program vtxserv;
 
 uses
   cmem,
-	{$IFDEF UNIX}{$IFDEF UseCThreads}
-  	cthreads,
-	{$ENDIF}{$ENDIF}
+  {$IFDEF UNIX}{$IFDEF UseCThreads}
+    cthreads,
+  {$ENDIF}{$ENDIF}
 
   // pascal / os stuff
   {$IFDEF WINDOWS}
     Windows, {for setconsoleoutputcp}
   {$ENDIF}
   Classes, Process, Pipes, DateUtils, SysUtils, IniFiles, Crt, LConvEncoding,
+  Variants,
 
   // network stuff
-  synafpc, synsock, synacode, synaip, winsock2, ctypes,
-  BlckSock, Sockets, Synautil, Laz_Synapse, WebSocket2, CustomServer2;
+  sockets,
+  winsock2,
+  BlckSock,
+  Synautil,
+  WebSocket2,
+  CustomServer2;
 
+{$define BUFFSIZE:=16768}
 
 type
 
@@ -40,20 +46,24 @@ type
     connection on exit }
   TvtxNodeProcess = class(TThread)
     private
-      fProgress : string;
+      fProgress :   string;
       fOnProgress : TvtxProgressEvent;
-      procedure DoProgress;
+      procedure     DoProgress;
 
     protected
-      procedure Execute; override;
-      procedure PipeToConn;
-      procedure PipeToLocal;
+      procedure     Execute; override;
+      procedure     PipeToConn;
+      procedure     PipeToLocal;
+      function      Negotiate(buf : array of byte; len : integer) : rawbytestring;
+      function      SendStr(str : rawbytestring) : integer;
+      function      SendBuffer(buf : pbyte; len : integer) : integer;
+      function      SendCmd(stuff : array of Variant) : integer;
 
     public
-      serverCon : TvtxWSConnection;
-      constructor Create(CreateSuspended: boolean);
-      destructor  Destroy; override;
-      property    OnProgress: TvtxProgressEvent read fOnProgress write fOnProgress;
+      serverCon :   TvtxWSConnection;
+      constructor   Create(CreateSuspended: boolean);
+      destructor    Destroy; override;
+      property      OnProgress: TvtxProgressEvent read fOnProgress write fOnProgress;
   end;
 
   TCodePages = (
@@ -63,30 +73,30 @@ type
     CP866, CP874, CP932, CP936,
     CP949, CP950, MACINTOSH, KOI8 );
 
-  TCodePageConverter = 		function(const s: string): string;
-  TCodePageUnconverter = 	function(const s: string; SetTargetCodePage: boolean = false): RawByteString;
+  TCodePageConverter =    function(const s: string): string;
+  TCodePageUnconverter =  function(const s: string; SetTargetCodePage: boolean = false): RawByteString;
 
   { Node process type. }
   TvtxNodeType = ( ExtProc, Telnet );
 
   { TvtxSystemInfo : Board Inofo record }
   TvtxSystemInfo = record
-    SystemName :  		string;   // name of bbs - webpage title
-    SystemIP :    		string;   // ip address of this host - needed to bind to socket
-    InternetIP :  		string;   // ip address as seen from internet
-    HTTPPort :    		string;   // port number for http front end
-    WSPort :      		string;   // port number for ws back end
-    MaxConnections : 	integer;
+    SystemName :      string;   // name of bbs - webpage title
+    SystemIP :        string;   // ip address of this host - needed to bind to socket
+    InternetIP :      string;   // ip address as seen from internet
+    HTTPPort :        string;   // port number for http front end
+    WSPort :          string;   // port number for ws back end
+    MaxConnections :  integer;
 
-    NodeType :				TvtxNodeType;
+    NodeType :        TvtxNodeType;
 
     // string to launch node preocess
-    ExtProc :  				string;
+    ExtProc :         string;
 
     // connection info for internal telnet client
-    tnsock : 					longint;
-    tnaddr : 					sockaddr_in;
-    tnbuff : 					array [0..255] of char;
+    TelnetIP :        string;
+    TelnetPort :      string;
+    TelnetCP :        TCodePages;
   end;
 
   TServices = ( HTTP, WS, All, Unknown );
@@ -106,11 +116,20 @@ type
   { TvtxWSConnection : Websocket connection class. }
   TvtxWSConnection = class(TWebSocketServerConnection)
     public
-      ExtProcType :	TvtxNodeType;
+      ExtProcType : TvtxNodeType;
 
       // needed for ExtProc
-      ExtNode :  		TvtxNodeProcess; // the TThread that runs below ExtProcess
-      ExtProc :   	TProcess;         // the TProcess spawned board
+      ExtNode :     TvtxNodeProcess;  // the TThread that runs below ExtProcess
+      ExtProc :     TProcess;         // the TProcess spawned board
+
+      tnsock :      longint;
+      tnserver :    sockaddr_in;
+      tnbuf :       array [0..BUFFSIZE] of byte;
+      tnlive :      boolean;
+      tnstate :     integer;          // telnet read state (IAC cmds)
+      tncmd :       byte;             // current telnet command
+      tnqus :       array [0..255] of byte;
+      tnqhim :      array [0..255] of byte;
 
       property ReadFinal: boolean read fReadFinal;
       property ReadRes1: boolean read fReadRes1;
@@ -144,10 +163,8 @@ type
     procedure WSWrite(aSender : TWebSocketCustomConnection; aFinal, aRes1, aRes2, aRes3 : boolean; aCode :integer; aData :TMemoryStream);
     procedure WSClose(aSender: TWebSocketCustomConnection; aCloseCode: integer; aCloseReason: string; aClosedByPeer: boolean);
     procedure WSTerminate(Sender : TObject); register;
-
     procedure CloseAllNodes;
     procedure CloseNode(n : integer);
-
     procedure NodeTerminate(Sender: TObject);
     procedure HTTPTerminate(Sender : TObject); register;
   end;
@@ -212,19 +229,65 @@ const
 
   CRLF = #13#10;
 
+  // telnet commands
+  TN_IS           = $00;
+  TN_SEND         = $01;
+  TN_BIN          = $00;
+  TN_ECHO         = $01;
+  TN_RECONNECT    = $02;
+  TN_SGA          = $03;
+  TN_STATUS       = $05;
+  TN_TMARK        = $06;
+  TN_SLOC         = $17;
+  TN_TTYPE        = $18;
+  TN_NAWS         = $1F;
+  TN_TSPEED       = $20;
+  TN_RFC          = $21;
+  TN_LM           = $22;
+  TN_XLOC         = $23;
+  TN_EVARS        = $24;
+  TN_AUTH         = $25;
+  TN_NEWE         = $27;
+  TN_SE           = $F0;
+  TN_NOP          = $F1;
+  TN_DM           = $F2;
+  TN_BRK          = $F3;
+  TN_IP           = $F4;
+  TN_AO           = $F5;
+  TN_AYT          = $F6;
+  TN_EC           = $F7;
+  TN_EL           = $F8;
+  TN_GA           = $F9;
+  TN_SB           = $FA;
+  TN_WILL         = $FB;
+  TN_WONT         = $FC;
+  TN_DO           = $FD;
+  TN_DONT         = $FE;
+  TN_IAC          = $FF;
+
+  // TELNET states for Q method
+  // option is enabled ONLY IF state is TNS_YES
+  TNQ_NO          = 0;
+  TNQ_YES         = 1;
+  TNQ_WANTNO      = 2;
+  TNQ_WANTYES     = 3;
+  TNQ_WANTNO_OP   = 4;
+  TNQ_WANTYES_OP  = 5;
+
+
 { *************************************************************************** }
 { GLOBALS }
 
 var
-  app :         	TvtxApp;
+  app :           TvtxApp;
 
-  SystemInfo :  	TvtxSystemInfo;
-  lastaction :  	TDateTime;      // last time activity
-  serverWS :    	TvtxWSServer;   // ws server.
-  serverHTTP :  	TvtxHTTPServer; // http srever.
-  runningWS : 		boolean;
-  runningHTTP : 	boolean;
-  cmdbuff :   		string = '';    // console linein buffer
+  SystemInfo :    TvtxSystemInfo;
+  lastaction :    TDateTime;      // last time activity
+  serverWS :      TvtxWSServer;   // ws server.
+  serverHTTP :    TvtxHTTPServer; // http srever.
+  runningWS :     boolean;
+  runningHTTP :   boolean;
+  cmdbuff :       string = '';    // console linein buffer
 
 
 { *************************************************************************** }
@@ -374,8 +437,8 @@ var
   i : integer;
 begin
   result := -1;
-	for i := 0 to length(list) - 1 do
-		if upCase(str) = upCase(list[i]) then
+  for i := 0 to length(list) - 1 do
+    if upCase(str) = upCase(list[i]) then
     begin
       result := i;
       break;
@@ -398,12 +461,18 @@ begin
   SystemInfo.HTTPPort :=    iin.ReadString(sect, 'HTTPPort',    '7001');
   SystemInfo.WSPort :=      iin.ReadString(sect, 'WSPort',      '7003');
 
-  SystemInfo.NodeType :=		TvtxNodeType(
-  														InList(
-                              	iin.ReadString(sect, 'NodeType', 'ExtProc'),
-                                ProcessType));
+  SystemInfo.NodeType :=    TvtxNodeType(InList(
+                              iin.ReadString(sect, 'NodeType', 'ExtProc'),
+                              ProcessType));
 
-  SystemInfo.ExtProc :=  		iin.ReadString(sect, 'ExtProc',  		'cscript.exe //Nologo //I test.js @UserIP@');
+  SystemInfo.ExtProc :=     iin.ReadString(sect, 'ExtProc',     'cscript.exe //Nologo //I test.js @UserIP@');
+
+  SystemInfo.TelnetIP :=    iin.ReadString(sect, 'TelnetIP', '192.168.0.2');
+  SystemInfo.TelnetPort :=  iin.ReadString(sect, 'TelnetPort',  '7002');
+  SystemInfo.TelnetCP :=    TCodePages(
+                              InList(
+                                iin.ReadString(sect, 'TelnetCP', 'CP437'),
+                                CodePageNames));
 
   SystemInfo.MaxConnections := iin.ReadInteger(sect, 'MaxConnections',  32);
   iin.Free;
@@ -489,7 +558,7 @@ end;
 
 constructor TvtxHTTPServer.Create(CreateSuspended: boolean);
 begin
-	fProgress := '';
+  fProgress := '';
   FreeOnTerminate := True;
   inherited Create(CreateSuspended);
 end;
@@ -648,13 +717,13 @@ end;
 // fulfill the request.
 procedure TvtxHTTPServer.AttendConnection(ASocket: TTCPBlockSocket);
 var
-  timeout :		integer;
-  code :    	integer;
-  s: 					string;
-  ext: 				string;
-  //method : 		string;
-  uri : 			string;
-  //protocol :	string;
+  timeout :   integer;
+  code :      integer;
+  s:          string;
+  ext:        string;
+  //method :    string;
+  uri :       string;
+  //protocol :  string;
 
 begin
   timeout := 120000;
@@ -692,9 +761,9 @@ begin
     end;
   end;
     if code <> 200 then
-    	ASocket.SendString(
+      ASocket.SendString(
         'HTTP/1.0 ' + IntToStr(code) + CRLF
-      	+ httpCode(code) + CRLF);
+        + httpCode(code) + CRLF);
 end;
 
 
@@ -711,23 +780,23 @@ begin
 
   str := '';
   try
-		bytes := self.serverCon.ExtProc.Output.NumBytesAvailable;
-	except
-   	bytes := 0;
+    bytes := serverCon.ExtProc.Output.NumBytesAvailable;
+  except
+    bytes := 0;
   end;
 
   if bytes > 0 then
- 	begin
- 	  lastaction := now;
-  	for i := 0 to bytes - 1 do
- 	  begin
-   	 	try
-       	b := self.serverCon.ExtProc.Output.ReadByte;
-	    finally
- 	      str += char(b);
-  	  end;
-   	end;
-   	self.serverCon.SendText(str);
+  begin
+    lastaction := now;
+    for i := 0 to bytes - 1 do
+    begin
+      try
+        b := serverCon.ExtProc.Output.ReadByte;
+      finally
+        str += char(b);
+      end;
+    end;
+    serverCon.SendText(str);
   end;
 end;
 
@@ -740,28 +809,27 @@ var
 
 begin
   try
-    bytes := self.serverCon.ExtProc.StdErr.NumBytesAvailable;
+    bytes := serverCon.ExtProc.StdErr.NumBytesAvailable;
   except
     bytes := 0;
   end;
 
- 	str := '';
+  str := '';
   if bytes > 0 then
   begin
     lastaction := now;
     for i := 0 to bytes - 1 do
     begin
-    	try
-      	b := self.serverCon.ExtProc.StdErr.ReadByte;
+      try
+        b := serverCon.ExtProc.StdErr.ReadByte;
       finally
-      	str += char(b);
+        str += char(b);
       end;
     end;
     fProgress := str;
     Synchronize(@DoProgress);
   end;
 end;
-
 
 // thread launched that launches tprocess and waits for it to terminate.
 // closes clients connection at end.
@@ -785,10 +853,287 @@ begin
   end;
 end;
 
+function TvtxNodeProcess.SendBuffer(buf : pbyte; len : integer) : integer;
+begin
+  if SystemInfo.NodeType = ExtProc then
+  begin
+    // to do
+  end
+  else if SystemInfo.NodeType = Telnet then
+  begin
+    if serverCon.tnlive then
+      result := fpsend(serverCon.tnsock, buf, len, 0);
+  end;
+end;
+
+function TvtxNodeProcess.SendStr(str : rawbytestring) : integer;
+begin
+  if SystemInfo.NodeType = ExtProc then
+  begin
+    // to do
+  end
+  else if SystemInfo.NodeType = Telnet then
+  begin
+    if serverCon.tnlive then
+      result := fpsend(serverCon.tnsock, pointer(str), length(str), 0);
+  end;
+end;
+
+function TvtxNodeProcess.SendCmd(stuff : array of Variant) : integer;
+var
+  i, j : 		integer;
+  str : 		rawbytestring;
+  tmpstr : 	string;
+  len : integer;
+
+begin
+  str := char(TN_IAC);
+  for i := 0 to length(stuff) - 1 do
+  begin
+    case VarType(stuff[i]) of
+      varString:
+        begin
+          tmpstr := stuff[i];
+          for j := 0 to length(tmpstr) - 1 do
+            str += char(tmpstr.Chars[j]);
+        end;
+
+      else
+        str += char(byte(stuff[i]));
+    end;
+  end;
+  len := length(str);
+  result := fpsend(serverCon.tnsock, pointer(str), len, 0);
+end;
+
+// process str for telnet commands, return string with commands stripped.
+function TvtxNodeProcess.Negotiate(
+    buf : array of byte;
+    len : integer) : rawbytestring;
+var
+  strout : rawbytestring;
+  b : byte;
+  i : integer;
+  minibuf : array [0..32] of byte;
+
+begin
+  strout := '';
+  for i := 0 to len - 1 do
+  begin
+    b := byte(buf[i]);
+    case serverCon.tnstate of
+      0:  // not in a telnet state
+        begin
+          if b = TN_IAC then
+            serverCon.tnstate := 1
+          else
+            strout := strout + char(b);
+        end;
+
+      1:  // recieved a TN_IAC
+        begin
+          case b of
+            TN_IAC:   // escaped $FF
+              strout := strout + char(b);
+
+            // ignore for now.
+            TN_SE,    // subneg end
+            TN_NOP,   // no operation
+            TN_DM,    // data mark
+            TN_BRK,   // break
+            TN_IP,    // interrupt process
+            TN_AO,    // abort output
+            TN_AYT,   // are you there? try responding with NUL
+            TN_EC,    // erase char
+            TN_EL,    // erase line
+            TN_GA:    // go ahead
+              serverCon.tnstate := 0;
+
+            TN_SB:    // subneg begin
+              serverCon.tnstate := 3;
+
+            TN_WILL,
+            TN_WONT,
+            TN_DO,
+            TN_DONT:
+              begin
+                serverCon.tncmd := b;
+                serverCon.tnstate := 2;
+              end;
+
+            else
+              begin
+                strout := strout + char(b);
+                serverCon.tnstate := 0;
+              end;
+          end;
+        end;
+
+      2:  // have IAC + cmd so far
+        begin
+          case serverCon.tncmd of
+            TN_WILL:
+              // server would like to do something. send DO or DONT
+              begin
+                if serverCon.tnqus[b] = TNQ_WANTYES then
+                begin
+                  // response to my request to do
+                  serverCon.tnqus[b] := TNQ_YES;
+                end
+                else
+                begin
+                  case b of
+                    TN_BIN,
+                    TN_SGA,
+                    TN_ECHO,
+                    TN_NAWS,
+                    TN_TTYPE,
+                    TN_TSPEED:
+                      begin
+                        SendCmd([ TN_DO, b ]);
+                        serverCon.tnqhim[b] := TNQ_YES;
+                      end;
+
+                    else
+                      begin
+                        SendCmd([ TN_DONT, b ]);
+                        serverCon.tnqhim[b] := TNQ_NO;
+                      end;
+                  end;
+                end;
+              end;
+
+            TN_WONT:
+              // server would like to not do something. send DONT
+              begin
+                if (serverCon.tnqus[b] = TNQ_WANTYES)
+                  or (serverCon.tnqus[b] = TNQ_WANTNO) then
+                begin
+                  // response to my request to do or dont
+                  serverCon.tnqus[b] := TNQ_NO;
+                end
+                else
+                begin
+                  // server wants to not do
+                  SendCmd([ TN_DONT, b ]);
+                  serverCon.tnqhim[b] := TNQ_NO;
+                end;
+              end;
+
+            TN_DO:
+              // server wants me to do something. send WILL or WONT
+              begin
+                if serverCon.tnqus[b] = TNQ_WANTYES then
+                begin
+                  // response to my request to will
+                  serverCon.tnqus[b] := TNQ_YES;
+
+                  // send some SB stuff now
+                  if b = TN_NAWS then
+                  begin
+                    SendCmd([ TN_SB, 0, 80, 0, 25, TN_IAC, TN_SE ]);
+                  end;
+                end
+                else
+                begin
+                  // server wants us to do
+                  case b of
+                    TN_BIN,
+                    TN_SGA,
+                    TN_ECHO,
+                    TN_NAWS,
+                    TN_TTYPE,
+                    TN_TSPEED:
+                      begin
+                        SendCmd([ TN_WILL, b ]);
+                        serverCon.tnqus[b] := TNQ_YES;
+                      end;
+
+                    else
+                      begin
+                        SendCmd([ TN_WONT, b ]);
+                        serverCon.tnqus[b] := TNQ_NO;
+                      end;
+                  end;
+                end;
+              end;
+
+            TN_DONT:
+              begin
+                // server wants me to not do something. send WONT
+                if serverCon.tnqus[b] = TNQ_WANTYES then
+                begin
+                  // response to my request to will
+                  serverCon.tnqus[b] := TNQ_NO;
+                end
+                else
+                begin
+                  // server wants us to not do. respond WONT
+                  SendCmd([ TN_WONT, b ]);
+                  serverCon.tnqus[b] := TNQ_NO;
+                end;
+              end;
+          end;
+          serverCon.tnstate := 0;
+        end;
+
+      3:  // have IAC SB
+        begin
+          serverCon.tncmd    := b;
+          serverCon.tnstate  := 4;
+        end;
+
+      4: // have IAC SB cmd
+        begin
+          // this should be SEND (1)
+          if b = TN_SEND then
+          begin
+            case serverCon.tncmd of
+              TN_TTYPE:
+                // will neg term type;
+                begin
+                  SendCmd([ TN_SB, serverCon.tncmd, TN_IS, 'ANSI' ]);
+                  SendCmd([ TN_SE ]);
+                end;
+
+              TN_TSPEED:
+                // will neg terminal speed
+                begin
+                  SendCmd([ TN_SB, serverCon.tncmd, TN_IS, '921600,921600' ]);
+                  SendCmd([ TN_SE ]);
+                end;
+
+              TN_NEWE:
+                begin
+                  SendCmd([ TN_SB, serverCon.tncmd, TN_IS, 0 ]);
+                  SendCmd([ TN_SE ]);
+                end;
+
+              else
+                begin
+                  // ? why are we being asked this? server on drugs?
+                  SendCmd([ TN_DONT, serverCon.tncmd ]);
+                  strout := strout + char(b);
+                end;
+            end;
+          end;
+          serverCon.tnstate := 0;
+        end;
+    end;
+  end;
+  result := strout;
+end;
+
 procedure TvtxNodeProcess.Execute;
 var
-  parms : TStringArray;
-  i : integer;
+  parms :   TStringArray;
+  i :       integer;
+  he :      PHostEnt;
+  status :  integer;
+  rv :      integer;
+  linger :  TLinger;
+  str :     rawbytestring;
+  mode :    longint;
 
 begin
   // for each connect that has process, send input, read output
@@ -798,74 +1143,194 @@ begin
     if SystemInfo.NodeType = TvtxNodeType.ExtProc then
     begin
       // execute a spawned node session.
+      fProgress := 'Spawning process for ' + serverCon.Socket.GetRemoteSinIP + '.';
+      Synchronize(@DoProgress);
 
-	    fProgress := 'Spawning process for ' + serverCon.Socket.GetRemoteSinIP + '.';
-	    Synchronize(@DoProgress);
+      parms := SystemInfo.ExtProc.Split(' ');
+      for i := 0 to length(parms) - 1 do
+      begin
+        parms[i] := parms[i].Replace('@UserIP@', serverCon.Socket.GetRemoteSinIP);
+        parms[i] := parms[i].Replace('@SystemIP@', SystemInfo.SystemIP);
+        parms[i] := parms[i].Replace('@InternetIP@', SystemInfo.InternetIP);
+        parms[i] := parms[i].Replace('@SystemName@', SystemInfo.SystemName);
+        parms[i] := parms[i].Replace('@HTTPPort@', SystemInfo.HTTPPort);
+        parms[i] := parms[i].Replace('@WSPort@', SystemInfo.WSPort);
+      end;
 
-	    parms := SystemInfo.ExtProc.Split(' ');
-	    for i := 0 to length(parms) - 1 do
-	    begin
-	      parms[i] := parms[i].Replace('@UserIP@', self.serverCon.Socket.GetRemoteSinIP);
-	      parms[i] := parms[i].Replace('@SystemIP@', SystemInfo.SystemIP);
-	      parms[i] := parms[i].Replace('@InternetIP@', SystemInfo.InternetIP);
-	      parms[i] := parms[i].Replace('@SystemName@', SystemInfo.SystemName);
-	      parms[i] := parms[i].Replace('@HTTPPort@', SystemInfo.HTTPPort);
-	      parms[i] := parms[i].Replace('@WSPort@', SystemInfo.WSPort);
-	    end;
+      serverCon.ExtProc := TProcess.Create(nil);
+      serverCon.ExtProc.CurrentDirectory:= 'node';
+      serverCon.ExtProc.FreeOnRelease;
+      serverCon.ExtProc.Executable := 'node\' + parms[0];
+      for i := 1 to length(parms) - 1 do
+        serverCon.ExtProc.Parameters.Add(parms[i]);
 
-	    self.serverCon.ExtProc := TProcess.Create(nil);
-	    self.serverCon.ExtProc.CurrentDirectory:= 'node';
-	    self.serverCon.ExtProc.FreeOnRelease;
-	    self.serverCon.ExtProc.Executable := 'node\' + parms[0];
-	    for i := 1 to length(parms) - 1 do
-	      serverCon.ExtProc.Parameters.Add(parms[i]);
+      serverCon.ExtProc.Options := [
+          //poWaitOnExit,
+          poUsePipes,
+          poNoConsole,
+          poDefaultErrorMode,
+          poNewProcessGroup
+        ];
 
-	    serverCon.ExtProc.Options := [
-	        //poWaitOnExit,
-	        poUsePipes,
-	        poNoConsole,
-	        poDefaultErrorMode,
-	        poNewProcessGroup
-	      ];
+      // go run. wait on exit.
+      try
+        serverCon.ExtProc.Execute;
 
-	    // go run. wait on exit.
-	    try
-	      serverCon.ExtProc.Execute;
-
-				while not serverCon.IsTerminated and serverCon.ExtProc.Active do
+        while not serverCon.IsTerminated and serverCon.ExtProc.Running do
         begin
           // pipe strout to websocket.
           if serverCon.ExtProc.Output <> nil then
-        	  PipeToConn;
+            PipeToConn;
 
           // pipe strerr to local console.
-    	    if serverCon.ExtProc.Stderr <> nil then
+          if serverCon.ExtProc.Stderr <> nil then
             PipeToLocal;
 
         end;
 
-	    except
-	      fProgress:='** Error on Node Process.Execute';
-	      Synchronize(@DoProgress);
-	    end;
+      except
+        fProgress:='** Error on Node Process.Execute';
+        Synchronize(@DoProgress);
+      end;
 
-	    // disconnect afterwards.
-	    self.serverCon.Close(wsCloseNormal, 'Good bye');
-
-	    fProgress := 'Finished process for '
-	      + self.serverCon.Socket.GetRemoteSinIP + '.';
-	    Synchronize(@DoProgress);
-		end
+    end
     else if SystemInfo.NodeType = TvtxNodeType.Telnet then
     begin
       // execute a telnet node session.
 
+      // create socket
+      serverCon.tnlive := false;
+      serverCon.tnsock := fpsocket(AF_INET, SOCK_STREAM, 0);
+      if serverCon.tnsock = -1 then
+      begin
+        fProgress := 'Unable to create telnet client socket.';
+        Synchronize(@DoProgress);
+        exit;
+      end;
+
+      // build address
+      ZeroMemory(@serverCon.tnserver, sizeof(sizeof(TSockAddrIn)));
+      he := gethostbyname(@(SystemInfo.TelnetIP[1]));
+      if he = nil then
+      begin
+        fProgress := 'Unable to resolve telnet address.';
+        Synchronize(@DoProgress);
+        exit;
+      end;
+      serverCon.tnserver.sin_addr.S_addr := inet_addr(he^.h_name);
+      serverCon.tnserver.sin_family := AF_INET;
+      serverCon.tnserver.sin_port := htons(StrToInt(SystemInfo.TelnetPort));
+
+      // connect
+      status := Connect(
+                  serverCon.tnsock,
+                  @serverCon.tnserver,
+                  sizeof(TSockAddrIn));
+      if status < 0 then
+      begin
+        fProgress := 'Unable to connect to telnet server.';
+        Synchronize(@DoProgress);
+        exit;
+      end;
+      serverCon.tnlive := true;
+
+      linger.l_linger:=1;
+      linger.l_onoff:=1;
+      setsockopt(
+        serverCon.tnsock,
+        SOL_SOCKET,
+        SO_LINGER,
+        @linger,
+        sizeof(TLinger));
+
+      mode := 1;
+      ioctlsocket(serverCon.tnsock, longint(FIONBIO), @mode);
+
+      // clear tn options
+      FillMemory(@serverCon.tnqhim, 256, TNQ_NO);
+      FillMemory(@serverCon.tnqus, 256, TNQ_NO);
+
+      // send telnet setups.
+      // set initial telnet options
+      serverCon.tnqus[TN_SGA] :=    TNQ_WANTYES;
+      serverCon.tnqhim[TN_SGA] :=   TNQ_WANTYES;
+      serverCon.tnqhim[TN_ECHO] :=  TNQ_WANTYES;
+      serverCon.tnqus[TN_NAWS] :=   TNQ_WANTYES;
+      serverCon.tnqus[TN_TTYPE] :=  TNQ_WANTYES;
+      serverCon.tnqus[TN_TSPEED] := TNQ_WANTYES;
+      serverCon.tnqus[TN_BIN] :=    TNQ_WANTYES;
+
+      // send initial barrage of telnet settings
+      for i := 0 to 255 do
+      begin
+        case serverCon.tnqus[i] of
+          TNQ_WANTYES:  SendCmd([ TN_WILL, i ]);
+          TNQ_WANTNO:   SendCmd([ TN_WONT, i ]);
+        end;
+
+        case serverCon.tnqhim[i] of
+          TNQ_WANTYES:  SendCmd([ TN_DO, i ]);
+          TNQ_WANTNO:   SendCmd([ TN_DONT, i ]);
+        end;
+      end;
+
+      // connected!!! loop
+      while true do
+      begin
+
+        if serverCon.tnsock = -1 then
+        begin
+          fProgress := 'invalid socket.';
+          Synchronize(@DoProgress);
+          break;
+        end;
+
+        // stuff to read
+        rv := fprecv(serverCon.tnsock, @serverCon.tnbuf, BUFFSIZE, 0);
+        if rv = 0 then
+        begin
+          fProgress := 'telnet closed by remote.';
+          Synchronize(@DoProgress);
+          break;
+        end;
+
+        // handle negotiations
+        if not serverCon.Closed then
+        begin
+          if rv > 0 then
+          begin
+            str := negotiate(serverCon.tnbuf, rv);
+            if length(str) > 0 then
+            begin
+              serverCon.SendText(ConvertFromCP(Systeminfo.TelnetCP, str));
+            end;
+          end;
+        end
+        else
+        begin
+          fProgress := 'websocket closed during telnet.';
+          Synchronize(@DoProgress);
+          break;
+        end;
+      end;
+
+      fpshutdown(serverCon.tnsock, 2);
+      serverCon.tnlive := false;
+      fProgress := 'Closed socket.';
+      Synchronize(@DoProgress);
     end;
+
+    // disconnect afterwards.
+    if not serverCon.Closed then
+      serverCon.Close(wsCloseNormal, 'Good bye');
+
+    fProgress := 'Finished node process for.';
+    Synchronize(@DoProgress);
+
   end;
   fProgress := 'Node Terminating.';
   Synchronize(@DoProgress);
 end;
-
 
 { *************************************************************************** }
 { TvtxWSServer }
@@ -945,9 +1410,13 @@ procedure TvtxApp.WSRead(
       aCode :   integer;
       aData :   TMemoryStream);
 var
-  i, bytes : integer;
-  str : ansistring;
-  con : TvtxWSConnection;
+  i,
+  bytes : longint;
+  con :   TvtxWSConnection;
+  buf :   array [0..1023] of byte;
+  b :     byte;
+  str :   rawbytestring;
+  ret :   integer;
 
 begin
   lastaction := now;
@@ -956,26 +1425,43 @@ begin
   // send aData to process
   con := TvtxWSConnection(aSender);
 
-	bytes := aData.Size;
-  str := '';
+  bytes := aData.Size;
+  if bytes > 1024 then
+    bytes := 1024;
+
   if bytes > 0 then
   begin
-	  for i := 0 to bytes - 1 do
-  	begin
-    	str += char(aData.ReadByte);
-    end;
-  end;
+    for i := 0 to bytes - 1 do
+      buf[i] := aData.ReadByte;
+    //aData.ReadBuffer(buf[0], bytes);
 
-  if SystemInfo.NodeType = ExtProc then
-  begin
-	  if (con.ExtProc <> nil) and con.ExtProc.Running then
-  	begin
-	    try
-   		  con.ExtProc.Input.WriteAnsiString(str);
- 	  	except
-      	app.WriteCon('', '** Error on sending data to stdin.');
-     	end;
-  	end
+    if SystemInfo.NodeType = ExtProc then
+    begin
+      if (con.ExtProc <> nil) and con.ExtProc.Running then
+      begin
+        try
+          // send with length because node process is reading ansistrings
+          // fix this!
+          con.ExtProc.Input.Write(bytes, sizeof(bytes));
+          con.ExtProc.Input.Write(buf, bytes);
+        except
+          app.WriteCon('', '** Error on sending data to stdin.');
+          con.Close(wsCloseNormal, 'Good bye');
+        end;
+      end;
+    end
+    else if SystemInfo.NodeType = Telnet then
+    begin
+      if con.tnlive then
+      begin
+        ret := con.ExtNode.SendBuffer(@buf, bytes);
+        if ret = SOCKET_ERROR then
+        begin
+          app.WriteCon('','send result: ' + GetSocketErrorMsg(WSAGetLastError));
+          con.Close(wsCloseNormal, 'Good bye');
+        end;
+      end;
+    end;
   end;
 end;
 
@@ -1015,7 +1501,7 @@ begin
     if (conn.ExtProc <> nil) and conn.ExtProc.Running then
     begin
       WriteCon(TvtxWSConnection(aConnection).Socket.GetRemoteSinIP,
-      	'Force Terminate Node Processes');
+        'Force Terminate Node Processes');
       try
         conn.ExtProc.Terminate(0);
       except
@@ -1054,36 +1540,36 @@ begin
   write(#13);
   if ip = '' then
   begin
-		HighVideo;
-	  Write(
-			format(#13'%4.2d/%2.2d/%2.2d %2.2d:%2.2d:%2.2d ',
+    HighVideo;
+    Write(
+      format(#13'%4.2d/%2.2d/%2.2d %2.2d:%2.2d:%2.2d ',
       [
-				YearOf(now),		// year
-	    	MonthOf(now),		// month
-		  	DayOf(now),			// day
-				HourOf(now), 		// 24hr
-	    	MinuteOf(now),	// min
-  	    SecondOf(Now)	// sec
+        YearOf(now),    // year
+        MonthOf(now),   // month
+        DayOf(now),     // day
+        HourOf(now),    // 24hr
+        MinuteOf(now),  // min
+        SecondOf(Now) // sec
       ]))
   end
   else
   begin
     ips := ip.split('.');
-		LowVideo;
-	  Write(
-  		format(#13'%4.2d/%2.2d/%2.2d %2.2d:%2.2d:%2.2d (%3.3d.%3.3d.%3.3d.%3.3d) ',
+    LowVideo;
+    Write(
+      format(#13'%4.2d/%2.2d/%2.2d %2.2d:%2.2d:%2.2d (%3.3d.%3.3d.%3.3d.%3.3d) ',
       [
-  			YearOf(now),		// year
-	    	MonthOf(now),		// month
-  	  	DayOf(now),			// day
-  			HourOf(now), 		// 24hr
-      	MinuteOf(now),	// min
-	      SecondOf(Now),	// sec
+        YearOf(now),    // year
+        MonthOf(now),   // month
+        DayOf(now),     // day
+        HourOf(now),    // 24hr
+        MinuteOf(now),  // min
+        SecondOf(Now),  // sec
         strtoint(ips[0]),
         strtoint(ips[1]),
         strtoint(ips[2]),
         strtoint(ips[3])
-    	]));
+      ]));
   end;
   NormVideo;
   writeln(msg);
@@ -1177,12 +1663,12 @@ begin
     con := TvtxWSConnection(serverWS.Connection[n]);
     if SystemInfo.NodeType = ExtProc then
     begin
-	    if con.ExtProc.Running then
-  	    try
-    	    con.ExtProc.Terminate(1);
-      	finally
-        	WriteCon('', 'Node Process terminated.');
-	      end;
+      if con.ExtProc.Running then
+        try
+          con.ExtProc.Terminate(1);
+        finally
+          WriteCon('', 'Node Process terminated.');
+        end;
     end;
   end;
 end;
@@ -1200,8 +1686,12 @@ var
   cp :          TCodePages;
   str :         string;
   fout :        TextFile;
-  count : integer;
-  ThreadRan : boolean;
+  count :       integer;
+  ThreadRan :   boolean;
+  WsaData :     TWSAData;
+
+const
+  WSAVersion : integer = $0202;
 
 begin
 
@@ -1222,6 +1712,9 @@ begin
   Hybernate :=      false;
 
   LoadSettings;
+
+  if SystemInfo.NodeType = Telnet then
+    WSAStartup(WSAVersion, WsaData);
 
   lastaction := now;
 
@@ -1410,7 +1903,7 @@ begin
             app.WriteCon('', '          serv = HTTP, WS, or ALL');
           end
           else
-          	app.WriteCon('', 'Unknown command.');
+            app.WriteCon('', 'Unknown command.');
       end;
     end;
 
@@ -1444,5 +1937,9 @@ begin
   app.StopHTTP;
   app.StopWS;
   sleep(2000);
+
+  if SystemInfo.NodeType = Telnet then
+    WSACleanup;
+
 end.
 
