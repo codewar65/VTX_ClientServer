@@ -338,12 +338,11 @@ begin
   {$endif}
 end;
 
-
 function InStr : string;
 var
+  i,
   bytes : integer;
-  b : byte;
-  len : integer;
+  b : 		byte;
 begin
   {$ifdef LOCAL}
     if keypressed then
@@ -352,17 +351,16 @@ begin
       result := '';
   {$else}
     result := '';
-    bytes := pin.NumBytesAvailable;
+	  bytes := pin.NumBytesAvailable;
     if bytes > 0 then
     begin
       lastaction := now;
-      len := pin.ReadByte;
-      while length(result) <> len do
-      begin
-        b := pin.ReadByte;
-        if b > 0 then
-          result += char(b);
-      end;
+  	  for i := 0 to bytes - 1 do
+	    begin
+      	b := pin.ReadByte;
+    	  if b > 0 then
+					result += char(b);
+	    end;
     end
     else
     begin

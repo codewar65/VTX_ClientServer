@@ -55,7 +55,6 @@ end;
 
 procedure Page1;
 var
-  i : integer;
   key : string;
 begin
   Print(VTXMODE + CLS + HOME + SGR(ANSI_LTCYAN, [SGR_RESET]));
@@ -102,7 +101,6 @@ end;
 
 procedure Page2;
 var
-  i : integer;
   key : string;
   cc, cs, co : integer;
   b, bg : integer;
