@@ -1,5 +1,5 @@
 VTX
-July 18, 2017
+Draft : July 23, 2017
 
 Layout
 ======
@@ -74,9 +74,30 @@ Sequences
         w : Width of sprite (in character cell widths). {1}
         h : Height of sprite (in character cell heights). {1}
         z : Z-plane. 0 = below text plane, 1 : above text plane. {0}
-    CSI s '_' : Remove sprite number s {0}
-    CSI '_' : Remove all sprites.
+    CSI 0 ; s '_' : Remove sprite number s {0}
+    CSI 0 ; '_' : Remove all sprites.
 
+    CSI 0 ; w ; h ; l ; a [ ; ... ; a ] \ : Define clickable region on screen at cursor
+            position of size w(idth) and h(eight). values a1 .. upto the _ are
+            ascii codes for what the hot spot will send if clicked. The terminal
+            can optionally mouseover highlight this region if l is 1.
+        w : width in default text size columns. {1}
+        h : height in default text size rows. {1}
+        l : highlight? 0=no, 1=yes. {0}
+        a : unicode ascii value of character in string to send.
+
+        
+    CSI 1 ; w ; h ; l ; a [ ; ... ; a ] \ : Define a HTML link that will be 
+        launched in a new window/tab if region is clicked.
+        w : width in default text size columns. {1}
+        h : height in default text size rows. {1}
+        l : highlight? 0=no, 1=yes. {0}
+        a : unicode ascii value of character in string to send.
+
+    CSI 0 \ : clear all hotspots.
+    CSI 1 \ : clear all hotspots.
+    CSI \ : clear all hotspots.
+    
     CSI '0' ; c '^' : Set cursor color. c = (0-255) {7}
     CSI '1' ; s '^' : Set cursor size. s = (0:none, 1:thin, 2:thick, 3:block) {2}
     CSI '2' ; o '^' : Set cursor orientation. o = (0:horizontal, 1:vertical) {0}
