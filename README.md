@@ -1,6 +1,6 @@
 # VTX_ClientServer
 
-updated: 23-JUL-2017
+updated: 24-JUL-2017
 
 
 ## Intro
@@ -137,3 +137,18 @@ an new page.
 Investigate ability for websocket server to accept non-'user' connections from
 other VTX servers for passing private network information like mail or echo-style
 messages.
+
+Migrate away from Synape TCP libraries to low level sockets in HTTP and WS 
+servers.
+
+
+## To Fix / Bugs
+
+Close dead telnet session on WS disconnect.
+
+VTX client font issues. More Pixel perfect at cell borders.
+
+Implement hotspot ANSI codes.
+
+Merge row size, row background, and page/cursor attributes into one ESC sequence
+group.
