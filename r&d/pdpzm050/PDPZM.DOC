@@ -1,0 +1,30 @@
+                        PDPZM 0.5
+               
+PDPZM is a public domain Zmodem program, with full source, and works
+on both DOS and OS/2.  In fact, the guts of the Zmodem is isolated
+and should be portable to any platform conforming to ISO/IEC 9899:1990.
+Currently, I only have zmodem receive implemented, send is just a
+demo.  To recompile this (and you WILL need to recompile it to use
+it, and if you are using MSDOS you will need to change the IO 
+address and IRQ), you will also need PDCOM*.ZIP and PDCRC*.ZIP, both
+of which can be obtained from 3:711/934, the author's BBS.  The
+author's name is Paul Edwards.  Those two things are a public domain
+comms library and a public domain CRC library, respectively.  And
+temporarily, you will need to get OZPD*.ZIP in order to compile the
+sendzm demo.
+
+
+The package includes the following:
+
+pdpzm.doc    - This file
+pdpgoal.txt  - Goals of the Public Domain Project
+reczm.c      - Zmodem implementation of "receive"
+reczm.mak    - Makefile for OS/2
+reczmd.mak   - Makefile for DOS
+sendzm.c     - A *demo* of the makings of "send"
+sendzm.mak   - Makefile for OS/2
+
+
+History:
+
+1995-03-15 - Version 0.5, receive but no real send.

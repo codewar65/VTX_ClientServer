@@ -269,9 +269,12 @@ var
     DO_CAPLK =          -2,
     DO_NUMLK =          -3,
     DO_SCRLK =          -4,
-    DO_FADE = -5,
+    DO_FADE =           -5,
 
     fade = false, ovl,
+
+    // ZModem
+    ZDLE = 030;         // cancel - 5 abort
     
     // special char codes and sequences
     ESC =       '\x1B',
