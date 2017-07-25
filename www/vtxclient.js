@@ -175,6 +175,7 @@ var
 
     irqCheckResize,
     irqCursor,
+    irqBlink,
     
     hex =   '0123456789ABCDEF',
     b64 =   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
@@ -203,6 +204,8 @@ var
     lastChar,               // last printable character outputed.
     lastHotSpot = null,     // last mouseover hotspot
 
+    termState,              // TERMSTATE_...
+
     pageDiv = null,         // page contents div
     textDiv = null,         // text plane
     soundBell = null,       // bell sound
@@ -221,10 +224,7 @@ var
     conRowAttr  = [],       // row attributes array of number
     conCellAttr = [],       // character attributes array of array or number
     conText = [],           // raw text - array of string
-
-    // clickable hotspots
-    conHotSpots = [],
-    
+    conHotSpots = [],       // clickable hotspots
     spriteDefs = [],        // sprite definitions
     
     // attribute masks
@@ -269,12 +269,52 @@ var
     DO_CAPLK =          -2,
     DO_NUMLK =          -3,
     DO_SCRLK =          -4,
-    DO_FADE =           -5,
 
-    fade = false, ovl,
+    // terminal states
+    TERMSTATE_NORMAL =          0, // normal terminal mode. no xfers.
+    TERMSTATE_YMUP_START =      1, // ymodem upload started. sending G's.
+    TERMSTATE_YMUP_START_1 =    2, 
+    TERMSTATE_YMUP_START_2 =    3, 
+    TERMSTATE_YMUP_START_3 =    4, 
 
-    // ZModem
-    ZDLE = 030;         // cancel - 5 abort
+    ovl,                    // overlay div for file transfers
+
+    // ASCII C0 Codes
+    _NUL     = 0x00,
+    _SOH     = 0x01,
+    _STX     = 0x02,
+    _ETX     = 0x03,
+    _EOT     = 0x04,
+    _ENQ     = 0x05,
+    _ACK     = 0x06,
+    _BEL     = 0x07,
+    _BS      = 0x08,
+    _HT      = 0x09,
+    _LF      = 0x0A,
+    _VT      = 0x0B,
+    _FF      = 0x0C,
+    _CR      = 0x0D,
+    _SO      = 0x0E,
+    _SI      = 0x0F,
+    _DLE     = 0x10,
+    _DC1     = 0x11,  //   same
+    _XON     = 0x11,  // values
+    _DC2     = 0x12,
+    _DC3     = 0x13,  //   same
+    _XOFF    = 0x13,  // values
+    _DC4     = 0x14,
+    _NAK     = 0x15,
+    _SYN     = 0x16,
+    _ETB     = 0x17,
+    _CAN     = 0x18,
+    _EM      = 0x19,
+    _SUB     = 0x1A,  //   same
+    _CPMEOF  = 0x1A,  // values
+    _ESC     = 0x1B,
+    _FS      = 0x1C,
+    _GS      = 0x1D,
+    _RS      = 0x1E,
+    _US      = 0x1F,
     
     // special char codes and sequences
     ESC =       '\x1B',
@@ -373,7 +413,7 @@ var
        109: [ '-',      0,      0,          0,      0,      0,      0,      0 ], // subtract
        110: [ '.',      0,      0,          0,      0,      0,      0,      0 ], // decimal
        111: [ '/',      0,      0,          0,      0,      0,      0,      0 ], // divide
-       112: [ ESC+'OP', DO_FADE,0,          0,      0,      0,      0,      0 ], // f1
+       112: [ ESC+'OP', 0,      0,          0,      0,      0,      0,      0 ], // f1
        113: [ ESC+'OQ', 0,      0,          0,      0,      0,      0,      0 ], // f2
        114: [ ESC+'OR', 0,      0,          0,      0,      0,      0,      0 ], // f3
        115: [ ESC+'OS', 0,      0,          0,      0,      0,      0,      0 ], // f4
@@ -416,193 +456,6 @@ var
     shiftState, ctrlState, altState,
     numState, capState, scrState;
 
-/**
- * JavaScript Client Detection
- * (C) viazenetti GmbH (Christian Ludwig)
- */
-(function (window) {
-    {
-        var unknown = '-';
-
-        // screen
-        var screenSize = '';
-        if (screen.width) {
-            width = (screen.width) ? screen.width : '';
-            height = (screen.height) ? screen.height : '';
-            screenSize += '' + width + " x " + height;
-        }
-
-        // browser
-        var nVer = navigator.appVersion;
-        var nAgt = navigator.userAgent;
-        var browser = navigator.appName;
-        var version = '' + parseFloat(navigator.appVersion);
-        var majorVersion = parseInt(navigator.appVersion, 10);
-        var nameOffset, verOffset, ix;
-
-        // Opera
-        if ((verOffset = nAgt.indexOf('Opera')) != -1) {
-            browser = 'Opera';
-            version = nAgt.substring(verOffset + 6);
-            if ((verOffset = nAgt.indexOf('Version')) != -1) {
-                version = nAgt.substring(verOffset + 8);
-            }
-        }
-        // Opera Next
-        if ((verOffset = nAgt.indexOf('OPR')) != -1) {
-            browser = 'Opera';
-            version = nAgt.substring(verOffset + 4);
-        }
-        // Edge
-        else if ((verOffset = nAgt.indexOf('Edge')) != -1) {
-            browser = 'Microsoft Edge';
-            version = nAgt.substring(verOffset + 5);
-        }
-        // MSIE
-        else if ((verOffset = nAgt.indexOf('MSIE')) != -1) {
-            browser = 'Microsoft Internet Explorer';
-            version = nAgt.substring(verOffset + 5);
-        }
-        // Chrome
-        else if ((verOffset = nAgt.indexOf('Chrome')) != -1) {
-            browser = 'Chrome';
-            version = nAgt.substring(verOffset + 7);
-        }
-        // Safari
-        else if ((verOffset = nAgt.indexOf('Safari')) != -1) {
-            browser = 'Safari';
-            version = nAgt.substring(verOffset + 7);
-            if ((verOffset = nAgt.indexOf('Version')) != -1) {
-                version = nAgt.substring(verOffset + 8);
-            }
-        }
-        // Firefox
-        else if ((verOffset = nAgt.indexOf('Firefox')) != -1) {
-            browser = 'Firefox';
-            version = nAgt.substring(verOffset + 8);
-        }
-        // MSIE 11+
-        else if (nAgt.indexOf('Trident/') != -1) {
-            browser = 'Microsoft Internet Explorer';
-            version = nAgt.substring(nAgt.indexOf('rv:') + 3);
-        }
-        // Other browsers
-        else if ((nameOffset = nAgt.lastIndexOf(' ') + 1) < (verOffset = nAgt.lastIndexOf('/'))) {
-            browser = nAgt.substring(nameOffset, verOffset);
-            version = nAgt.substring(verOffset + 1);
-            if (browser.toLowerCase() == browser.toUpperCase()) {
-                browser = navigator.appName;
-            }
-        }
-        // trim the version string
-        if ((ix = version.indexOf(';')) != -1) version = version.substring(0, ix);
-        if ((ix = version.indexOf(' ')) != -1) version = version.substring(0, ix);
-        if ((ix = version.indexOf(')')) != -1) version = version.substring(0, ix);
-
-        majorVersion = parseInt('' + version, 10);
-        if (isNaN(majorVersion)) {
-            version = '' + parseFloat(navigator.appVersion);
-            majorVersion = parseInt(navigator.appVersion, 10);
-        }
-
-        // mobile version
-        var mobile = /Mobile|mini|Fennec|Android|iP(ad|od|hone)/.test(nVer);
-
-        // cookie
-        var cookieEnabled = (navigator.cookieEnabled) ? true : false;
-
-        if (typeof navigator.cookieEnabled == 'undefined' && !cookieEnabled) {
-            document.cookie = 'testcookie';
-            cookieEnabled = (document.cookie.indexOf('testcookie') != -1) ? true : false;
-        }
-
-        // system
-        var os = unknown;
-        var clientStrings = [
-            {s:'Windows 10', r:/(Windows 10.0|Windows NT 10.0)/},
-            {s:'Windows 8.1', r:/(Windows 8.1|Windows NT 6.3)/},
-            {s:'Windows 8', r:/(Windows 8|Windows NT 6.2)/},
-            {s:'Windows 7', r:/(Windows 7|Windows NT 6.1)/},
-            {s:'Windows Vista', r:/Windows NT 6.0/},
-            {s:'Windows Server 2003', r:/Windows NT 5.2/},
-            {s:'Windows XP', r:/(Windows NT 5.1|Windows XP)/},
-            {s:'Windows 2000', r:/(Windows NT 5.0|Windows 2000)/},
-            {s:'Windows ME', r:/(Win 9x 4.90|Windows ME)/},
-            {s:'Windows 98', r:/(Windows 98|Win98)/},
-            {s:'Windows 95', r:/(Windows 95|Win95|Windows_95)/},
-            {s:'Windows NT 4.0', r:/(Windows NT 4.0|WinNT4.0|WinNT|Windows NT)/},
-            {s:'Windows CE', r:/Windows CE/},
-            {s:'Windows 3.11', r:/Win16/},
-            {s:'Android', r:/Android/},
-            {s:'Open BSD', r:/OpenBSD/},
-            {s:'Sun OS', r:/SunOS/},
-            {s:'Linux', r:/(Linux|X11)/},
-            {s:'iOS', r:/(iPhone|iPad|iPod)/},
-            {s:'Mac OS X', r:/Mac OS X/},
-            {s:'Mac OS', r:/(MacPPC|MacIntel|Mac_PowerPC|Macintosh)/},
-            {s:'QNX', r:/QNX/},
-            {s:'UNIX', r:/UNIX/},
-            {s:'BeOS', r:/BeOS/},
-            {s:'OS/2', r:/OS\/2/},
-            {s:'Search Bot', r:/(nuhk|Googlebot|Yammybot|Openbot|Slurp|MSNBot|Ask Jeeves\/Teoma|ia_archiver)/}
-        ];
-        for (var id in clientStrings) {
-            var cs = clientStrings[id];
-            if (cs.r.test(nAgt)) {
-                os = cs.s;
-                break;
-            }
-        }
-
-        var osVersion = unknown;
-
-        if (/Windows/.test(os)) {
-            osVersion = /Windows (.*)/.exec(os)[1];
-            os = 'Windows';
-        }
-
-        switch (os) {
-            case 'Mac OS X':
-                osVersion = /Mac OS X (10[\.\_\d]+)/.exec(nAgt)[1];
-                break;
-
-            case 'Android':
-                osVersion = /Android ([\.\_\d]+)/.exec(nAgt)[1];
-                break;
-
-            case 'iOS':
-                osVersion = /OS (\d+)_(\d+)_?(\d+)?/.exec(nVer);
-                osVersion = osVersion[1] + '.' + osVersion[2] + '.' + (osVersion[3] | 0);
-                break;
-        }
-
-        // flash (you'll need to include swfobject)
-        /* script src="//ajax.googleapis.com/ajax/libs/swfobject/2.2/swfobject.js" */
-        var flashVersion = 'no check';
-        if (typeof swfobject != 'undefined') {
-            var fv = swfobject.getFlashPlayerVersion();
-            if (fv.major > 0) {
-                flashVersion = fv.major + '.' + fv.minor + ' r' + fv.release;
-            }
-            else  {
-                flashVersion = unknown;
-            }
-        }
-    }
-
-    window.jscd = {
-        screen: screenSize,
-        browser: browser,
-        browserVersion: version,
-        browserMajorVersion: majorVersion,
-        mobile: mobile,
-        os: os,
-        osVersion: osVersion,
-        cookies: cookieEnabled,
-        flashVersion: flashVersion
-    };
-}(this));
-    
 // get codepoint from string
 if (!String.prototype.codePointAt) {
     String.prototype.codePointAt = function (pos) {
@@ -673,7 +526,8 @@ function getHotSpot(e) {
     var 
         i, mpos, hs;
         
-    if (mpos = getMouseCell(e)) {
+    mpos = getMouseCell(e);
+    if (mpos) {
         // adjust to base-1 ansi coords
         for (i = 0; i < conHotSpots.length; i++) {
             hs = conHotSpots[i];
@@ -717,7 +571,8 @@ function mouseMove(e) {
     altState = e.altKey;
     
     // check if over a hotspot
-    if (hs = getHotSpot(e)) {
+    hs = getHotSpot(e);
+    if (hs) {
         if (lastHotSpot != hs) {
             if (lastHotSpot) {
                 // erase old
@@ -754,7 +609,8 @@ function click(e) {
     ctrlState = e.ctrlKey;
     altState = e.altKey;
 
-    if (hs = getHotSpot(e)) {
+    hs = getHotSpot(e);
+    if (hs) {
         // clicked on hotspot.
         switch (hs.type) {
             case 0:
@@ -856,32 +712,6 @@ function keyDown(e) {
                 case DO_SCRLK:
                     scrState = !scrState;
                     setBulbs();
-                    break;
-
-                case DO_FADE:
-                    // sample fade effect for file transfer
-                    fade = !fade;
-                    if (!fade) {
-                        fadeScreen(false);
-                        // remove overlay
-                        document.body.removeChild(ovl);
-                        // enable keys / cursor
-                        setTimers(true);
-                    } else {
-                        fadeScreen(true);
-                        // add overlay
-                        ovl = document.createElement('div');
-                        ovl.style['width'] = '256px';
-                        ovl.style['height'] = '128px';
-                        ovl.style['display'] = 'block'
-                        ovl.style['background'] = 'gray';
-                        ovl.style['position'] = 'absolute';
-                        ovl.style['top'] = ((window.height - 128) / 2) + 'px'; 
-                        ovl.style['left'] = ((pageWidth - 256) / 2) + 'px';
-                        document.body.appendChild(ovl);
-                        // disable keys / cursor
-                        setTimers(false);
-                    }
                     break;
 
                 default:
@@ -988,7 +818,7 @@ function isprint(chr) {
 function colsOnRow(rownum) {
     var
         cols = crtCols,
-        size = getRowAttrSize(conRowAttr[rownum]) / 100;
+        size = getRowAttrSize(conRowAttr[rownum]) / 100,
         width = getRowAttrWidth(conRowAttr[rownum]) / 100;
 
     cols *= 1 / size;
@@ -1046,12 +876,12 @@ function conPrintChar(chr) {
 function conCharOut(chr) {
     var
         i, l,               // generic idx, length
-        r, c,               // row, col idx
+        r, c, v,            // row, col idx
         crsrrender = false, // redraw cursor?
         doCSI = false,      // execute compiled CSI at end?
         doAPC = false,      // execute compiled APC at end?
         parm,
-        div, img;           // for svg sprite creation
+        els, div, img;      // for svg sprite creation
 
     // do all normal ctrls first
     switch (chr) {
@@ -1922,10 +1752,10 @@ function getDefaultFontSize() {
     // look for font-width: in body
     var 
         cs, font, textSize, h, w,
-        x, y, d,
+        x, y, d, i,
         txtTop, txtBottom, txtLeft, txtRight,
         testString = '',
-        canvas = document.createElement('canvas'),
+        data, ctx, canvas = document.createElement('canvas'),
         bmpw = 2000,
         bmph = 64;
         
@@ -2341,7 +2171,7 @@ function adjustRow(rownum) {
 
 function redrawRow(rownum){
     var
-        row, size, width, w, h, x, y, i, l;
+        cnv, ctx, row, size, width, w, h, x, y, i, l;
         
     // redraw this entire row
     l = conText[rownum].length;
@@ -2357,15 +2187,6 @@ function redrawRow(rownum){
     cnv = row.firstChild;
     ctx = cnv.getContext('2d');
     ctx.clearRect(x, 0, cnv.width - x, cnv.height);
-}
-
-function fadeScreen(on){
-    // fade out the screen for use with progress overlays and file
-    // transfer windows
-    if (on)
-        pageDiv.classList.add('fade')
-    else
-        pageDiv.classList.remove('fade');
 }
 
 // animate blink and marquee
@@ -2399,8 +2220,12 @@ function doBlink(){
 // render an individual row, col. if forcerev, invert (twice if need be)
 function renderCell(rownum, colnum, forcerev) {
     var
-        row, size, width, w, h, x, 
+        row, size, width, w, h, x, cnv, 
         ctx, attr, ch, tfg, tbg, tbold, stroke, tmp;
+
+    // quick range check
+    if (rownum > conRowAttr.length) return;
+    if (colnum >= conText[rownum].length) return;
         
     forcerev = forcerev || false;
     size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
@@ -2605,7 +2430,7 @@ function setBulbs() {
 // setup the crt and cursor
 function initDisplay() {
     var
-        o, pos,
+        o, p, pos,
         cssel,
         fsize,
         defattrs;
@@ -2712,6 +2537,7 @@ function initDisplay() {
     crsrHome();
 
     textPos = textDiv.getBoundingClientRect();
+    termState = TERMSTATE_NORMAL; // set for standard terminal mode, not in file xfer mode
     
     // test websocket connect
     ws = new WebSocket('ws://@InternetIP@:@WSPort@', ['vtx']);
@@ -2724,8 +2550,18 @@ function initDisplay() {
         setBulbs();
     }
     ws.onmessage = function(e) { 
-        var data = e.data;
-        conStrOut(data);
+        var 
+            data = e.data;
+        
+        switch (termState) {
+            case TERMSTATE_NORMAL:
+                conStrOut(data);
+                break;
+                
+            case TERMSTATE_YMUP_START:
+                ymodemStateMachine(data);
+                break;
+        }
     }
     ws.onerror = function(error) { 
         conStrOut('\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
@@ -2820,3 +2656,158 @@ addListener(document, 'mousemove', mouseMove);
 // copy paste events
 addListener(document, 'beforepaste', beforePaste);
 addListener(document, 'paste', paste);
+
+
+
+function fadeScreen(fade) {
+    if (!fade) {
+        fadeScreen(false);
+        // remove overlay
+        if (ovl) document.body.removeChild(ovl);
+        ovl = null;
+        // enable keys / cursor
+        setTimers(true);
+    } else {
+        fadeScreen(true);
+        // add overlay
+        ovl = document.createElement('div');
+        ovl.style['width'] = '256px';
+        ovl.style['height'] = '128px';
+        ovl.style['display'] = 'block'
+        ovl.style['background'] = 'gray';
+        ovl.style['position'] = 'absolute';
+        ovl.style['top'] = ((window.height - 128) / 2) + 'px'; 
+        ovl.style['left'] = ((pageWidth - 256) / 2) + 'px';
+        document.body.appendChild(ovl);
+        // disable keys / cursor
+        setTimers(false);
+    }
+}    
+
+function fadeScreen(on){
+    // fade out the screen for use with progress overlays and file
+    // transfer windows
+    if (on)
+        pageDiv.classList.add('fade')
+    else
+        pageDiv.classList.remove('fade');
+}
+
+// YModem rigmarole
+
+var
+    ymodemTimer,            // setInterval val for ymodem functions.
+    ymodemSendCCount = 0,
+    ymodemLineNum = 0;
+
+function UTF8ToBytes(str) {
+    var 
+        c,
+        out = [], 
+        p = 0;
+    
+    for (var i = 0; i < str.length; i++) {
+        c = str.charCodeAt(i);
+        if (c < 128) {
+            out[p++] = c;
+        } else if (c < 2048) {
+            out[p++] = (c >> 6) | 192;
+            out[p++] = (c & 63) | 128;
+        } else if ( 
+                ((c & 0xFC00) == 0xD800) &&
+                (i + 1) < str.length &&
+                ((str.charCodeAt(i + 1) & 0xFC00) == 0xDC00)
+            ) {
+            // Surrogate Pair
+            c = 0x10000 + ((c & 0x03FF) << 10) + (str.charCodeAt(++i) & 0x03FF);
+            out[p++] = (c >> 18) | 240;
+            out[p++] = ((c >> 12) & 63) | 128;
+            out[p++] = ((c >> 6) & 63) | 128;
+            out[p++] = (c & 63) | 128;
+        } else {
+            out[p++] = (c >> 12) | 224;
+            out[p++] = ((c >> 6) & 63) | 128;
+            out[p++] = (c & 63) | 128;
+        }
+    }
+    return out;
+};    
+    
+function ymodemStateMachine(data){
+    var
+        i,
+        bytes = UTF8ToBytes(data);
+        
+    for (i = 0; i < bytes.length; i++) {
+        b = bytes[i];
+        switch (termState) {
+            case TERMSTATE_YMODEM_START:
+                // need SOH 00 FF foo.c NUL[123] CRC CRC
+                if (b == SOH) {
+                    termState = TERMSTATE_YMODEM_START_1;   // advance to get line num
+                    clearInterval(ymodemTimer);
+                } // else discard.
+                break;
+                
+            case TERMSTATE_YMODEM_START_1:
+                // need linenum
+                ymodemLineNum = b;
+                termState = TERMSTATE_YMODEM_START_2;       // advance to inverse linenum
+                break;
+                
+            case TERMSTATE_YMODEM_START_2:
+                if (~b == ymodemLineNum) {
+                    // correct - advance
+                    termState = TERMSTATE_YMODEM_START_3;   // get filename.
+                } else
+                    termState = TERMSTATE_NORMAL;
+                
+        }
+    }
+}    
+
+// clear this function from inside ws.onmessage once we get proper response and
+//  advance termState to next phase.
+function ymodemRecvG() {
+    ws.send('G');
+    ymodemSendCCount++;
+    if (ymodemSendCCount > 8) {
+        // abort after 8 tries.
+        termState = TERMSTATE_NORMAL;
+        clearInterval(ymodemTimer);
+        
+        // clear file xfer ui / unfade screen
+    }
+}
+
+// send file to remote. return -1 on failure or abort
+// possibly turn into webworker  - needs to talk with ws.onmessage
+// (https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)
+function ymodemRecvStart(filename) {
+    // fade terminal - build file xfer ui.
+    // button click needed for cancel.
+    
+    // send starting G's
+    termState = TERMSTATE_YMUP_START;
+    ymodemSendCCount = 0;
+    ymodemTimer = setInterval(ymodemSendC, 3000);
+}
+
+/*
+            Figure 8.  YMODEM-g Transmission Session
+
+            SENDER                                  RECEIVER
+                                                    "sb foo.*<CR>"
+            "sending in batch mode etc..."
+                                                    G (command:rb -g)
+            SOH 00 FF foo.c NUL[123] CRC CRC
+                                                    G
+            SOH 01 FE Data[128] CRC CRC
+            STX 02 FD Data[1024] CRC CRC
+            SOH 03 FC Data[128] CRC CRC
+            SOH 04 FB Data[100] CPMEOF[28] CRC CRC
+            EOT
+                                                    ACK
+                                                    G
+            SOH 00 FF NUL[128] CRC CRC
+*/
