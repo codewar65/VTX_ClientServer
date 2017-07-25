@@ -12,22 +12,42 @@ begin
     + ' VTX Server / Client / Node Demo');
   PrintLn;
   PrintLn(SGR(ANSI_LTRED) + ' Demo Menu');
-  PrintLn(SGR(ANSI_BROWN) + ' [' + SGR(ANSI_YELLOW) + '1' + SGR(ANSI_BROWN)
+
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'1')+'['
+  	+ SGR(ANSI_YELLOW) + '1' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Console Layout');
-  PrintLn(SGR(ANSI_BROWN) + ' [' + SGR(ANSI_YELLOW) + '2' + SGR(ANSI_BROWN)
+
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'2')+'['
+  	+ SGR(ANSI_YELLOW) + '2' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Cursor / Page Attributes');
-  PrintLn(SGR(ANSI_BROWN) + ' [' + SGR(ANSI_YELLOW) + '3' + SGR(ANSI_BROWN)
+
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'3')+'['
+  	+ SGR(ANSI_YELLOW) + '3' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Line Attributes');
-  PrintLn(SGR(ANSI_BROWN) + ' [' + SGR(ANSI_YELLOW) + '4' + SGR(ANSI_BROWN)
+
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'4')+'['
+  	+ SGR(ANSI_YELLOW) + '4' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Character Attributes');
-  PrintLn(SGR(ANSI_BROWN) + ' [' + SGR(ANSI_YELLOW) + '5' + SGR(ANSI_BROWN)
+
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'5')+'['
+  	+ SGR(ANSI_YELLOW) + '5' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Colors');
-  PrintLn(SGR(ANSI_BROWN) + ' [' + SGR(ANSI_YELLOW) + '6' + SGR(ANSI_BROWN)
+
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'6')+'['
+  	+ SGR(ANSI_YELLOW) + '6' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Cursor / Edit Controls');
-  PrintLn(SGR(ANSI_BROWN) + ' [' + SGR(ANSI_YELLOW) + '7' + SGR(ANSI_BROWN)
+
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'7')+'['
+  	+ SGR(ANSI_YELLOW) + '7' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Sprites');
-  PrintLn(SGR(ANSI_BROWN) + ' [' + SGR(ANSI_YELLOW) + '8' + SGR(ANSI_BROWN)
+
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'8')+'['
+  	+ SGR(ANSI_YELLOW) + '8' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Sample ANSI art.');
+
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'9')+'['
+  	+ SGR(ANSI_YELLOW) + '9' + SGR(ANSI_BROWN)
+    + ']' + SGR(ANSI_LTBLUE) + ' Clickable Hotspots.');
 
   Print(UP(9) + SGR(ANSI_LTGREEN));
   PrintLn(RIGHT(30) + 'This is a demonstration of the VTX web and');
@@ -41,14 +61,15 @@ begin
   PrintLn(RIGHT(30) + 'This demo will display the ANSI code sequences');
   PrintLn(RIGHT(30) + 'supported by the VTX client.');
 
-  Print(SGR(ANSI_GREEN) + ' Select Screen or ' + SGR(ANSI_BROWN) + '['
-    + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_BROWN) + ']' + SGR(ANSI_GREEN)
+  Print(SGR(ANSI_GREEN) + ' Select Screen or ' + SGR(ANSI_BROWN)
+  	+ HOTSPOT(3,1,0,'Q')+'[' + SGR(ANSI_YELLOW) + 'Q'
+    + SGR(ANSI_BROWN) + ']' + SGR(ANSI_GREEN)
     + 'uit : ');
 
   result := '';
   repeat
     key := upCase(GetKey);
-    if Pos(key, 'Q12345678') <> 0 then
+    if Pos(key, 'Q123456789') <> 0 then
       result := key;
   until result <> '';
 end;
@@ -91,7 +112,7 @@ begin
   PrintLn(SGR(ANSI_YELLOW) + UNICODE($2660) + SGR(ANSI_LTCYAN)
     + ' All text sent and received to and from the server, uses UTF-8 encoding.');
   PrintLn;
-  Print(SGR(ANSI_GREEN) + 'Press [' + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN)
+  Print(SGR(ANSI_GREEN) + 'Press '+HOTSPOT(3,1,0,'Q')+'[' + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN)
     + '] when done : ');
 
   repeat
@@ -140,12 +161,12 @@ begin
   PrintLn;
 
   Print(SGR(ANSI_GREEN) + 'Press '
-    + SGR(ANSI_YELLOW) + '0' + SGR(ANSI_GREEN) + ', '
-    + SGR(ANSI_YELLOW) + '1' + SGR(ANSI_GREEN) + ', '
-    + SGR(ANSI_YELLOW) + '2' + SGR(ANSI_GREEN) + ', '
-    + SGR(ANSI_YELLOW) + '3' + SGR(ANSI_GREEN) + ', '
-    + SGR(ANSI_YELLOW) + '4' + SGR(ANSI_GREEN)
-    + ' to advance attribute value, ['
+    + SGR(ANSI_YELLOW) + HOTSPOT(1,1,0,'0')+'0' + SGR(ANSI_GREEN) + ', '
+    + SGR(ANSI_YELLOW) + HOTSPOT(1,1,0,'1')+'1' + SGR(ANSI_GREEN) + ', '
+    + SGR(ANSI_YELLOW) + HOTSPOT(1,1,0,'2')+'2' + SGR(ANSI_GREEN) + ', '
+    + SGR(ANSI_YELLOW) + HOTSPOT(1,1,0,'3')+'3' + SGR(ANSI_GREEN) + ', '
+    + SGR(ANSI_YELLOW) + HOTSPOT(1,1,0,'4')+'4' + SGR(ANSI_GREEN)
+    + ' to advance attribute value, '+HOTSPOT(3,1,0,'Q')+'['
     + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN)
     + ']uit when done : ');
 
@@ -234,10 +255,10 @@ begin
   PrintLn(Down(3) + 'SAMPLE ROW OF TEXT TO ILLUSTRATE THE EFFECTS OF ROW ATTRIBUTES.');
 
   Print(Up(3) + SGR(ANSI_GREEN) + 'Press '
-    + SGR(ANSI_YELLOW) + '+/-' + SGR(ANSI_GREEN) + ' alter size, '
-    + SGR(ANSI_YELLOW) + 'B' + SGR(ANSI_GREEN) + ' random background, '
-    + SGR(ANSI_YELLOW) + 'M' + SGR(ANSI_GREEN) + ' toggle maquee, ['
-    + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
+    + SGR(ANSI_YELLOW) + HOTSPOT(1,1,0,'+')+'+/'+HOTSPOT(1,1,0,'-')+'-' + SGR(ANSI_GREEN) + ' alter size, '
+    + SGR(ANSI_YELLOW) + HOTSPOT(1,1,0,'B')+'B' + SGR(ANSI_GREEN) + ' random background, '
+    + SGR(ANSI_YELLOW) + HOTSPOT(1,1,0,'M')+'M' + SGR(ANSI_GREEN) + ' toggle maquee, '
+    + HOTSPOT(3,1,0,'Q')+'[' + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
 
   sz := 3;
   w := 1;
@@ -319,7 +340,7 @@ begin
   PrintLn(#27'[0;91m 90 - 97 '#27'[94m: Foreground color 8-15.    '#27'[91m100-107 '#27'[94m: Background color 8-15.');
   PrintLn;
 
-  Print(SGR(ANSI_GREEN) + 'Press ['
+  Print(SGR(ANSI_GREEN) + 'Press '+ HOTSPOT(3,1,0,'Q')+'['
     + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
   repeat
     key := upCase(GetKey);
@@ -372,7 +393,7 @@ begin
   PrintLn;
   PrintLn;
 
-  Print(SGR(ANSI_GREEN) + 'Press ['
+  Print(SGR(ANSI_GREEN) + 'Press ' + HOTSPOT(3,1,0,'Q') + '['
     + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
   repeat
     key := upCase(GetKey);
@@ -424,7 +445,7 @@ begin
   PrintLn(#27'[0;93mCSI 0 c '#27'[92m: Request terminal ident. Reply is '#27'[93mCSI ?50;86;84;88 c'#27'[92m.');
   PrintLn;
 
-  Print(SGR(ANSI_GREEN) + 'Press ['
+  Print(SGR(ANSI_GREEN) + 'Press '+HOTSPOT(3,1,0,'Q')+'['
     + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
   repeat
     key := upCase(GetKey);
@@ -470,8 +491,8 @@ begin
   PrintLn(#27'[93mCSI 0 _ '#27'[94m: Remove all sprites.');
   PrintLn;
 
-  Print(SGR(ANSI_GREEN) + 'Press ' + SGR(ANSI_YELLOW) + 'Space'
-    + SGR(ANSI_GREEN)+' to randomly display a sprite, ['
+  Print(SGR(ANSI_GREEN) + 'Press ' + SGR(ANSI_YELLOW) + HOTSPOT(5,1,0,' ') + 'Space'
+    + SGR(ANSI_GREEN)+' to randomly display a sprite, '+HOTSPOT(3,1,0,'Q')+'['
     + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
   repeat
     key := upCase(GetKey);
@@ -496,13 +517,50 @@ begin
 
   PrintANSI('k1-1967.utf8');
 
-  Print(#27'[0m' + SGR(ANSI_GREEN) + 'Press ['
+  Print(#27'[0m' + SGR(ANSI_GREEN) + 'Press '+HOTSPOT(3,1,0,'Q')+'['
     + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
   repeat
     key := upCase(GetKey);
   until key = 'Q';
 
   Print(CLS + VTXMODE);
+end;
+
+procedure Page9;
+var
+  key : string;
+begin
+  Print(VTXMODE + CLS + HOME + SGR(ANSI_LTCYAN, [SGR_RESET]));
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 50)
+    + ' Hotspots');
+  PrintLn;
+
+  PrintLn(#27'[94mHotspots can be defined on a screen that can be clicked by the users');
+  PrintLn('mouse. There are two types of hotspots, string and url. A string hotspot will');
+  PrintLn('send text to the terminal if clicked. These are good for menu items and such.');
+  PrintLn('The second type of hotspot are URL links. These will open in a new page if');
+  PrintLn('clicked.');
+  PrintLn;
+  PrintLn('Sprite definition sequences are as follows:');
+  PrintLn;
+  PrintLn(#27'[93mCSI '#27'[3mt ; w ; h ; l ; a ; ... ; a'#27'[23m / '#27'[94m: Define a hotspot.');
+  PrintLn('    t = type. 0 = string, 1 = url.');
+  PrintLn('    w = width in columns.');
+  PrintLn('    h = height in rows.');
+  PrintLn('    l = highlight. 0 = none, 1 = on mouseover.');
+  PrintLn('    a = unicode ascii character(s).');
+  PrintLn;
+  PrintLn('Samples:  Click ' + HOTSPOT(4,1,1,'Q') + #27'[95mTHIS'#27'[94m to return to main menu (defined as Q).');
+  PrintLn;
+  PrintLn('          Click ' + URL(4,1,1,'http://www.vtxemu.com') + #27'[95mTHIS'#27'[94m to open VTX home page.');
+  PrintLn;
+
+  Print(SGR(ANSI_GREEN) + 'Press '+HOTSPOT(3,1,0,'Q')+'['
+    + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
+
+  repeat
+    key := upCase(GetKey);
+  until key = 'Q';
 end;
 
 var
@@ -528,6 +586,7 @@ begin
       '6':  Page6;
       '7':  Page7;
       '8':  Page8;
+      '9':  Page9;
 
       'Q':
         begin

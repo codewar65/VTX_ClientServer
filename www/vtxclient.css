@@ -12,6 +12,7 @@ body {
     left:           0;
     right:          0;    
     position: relative;
+    user-select:    none;
 }
 .vtx {
     position:       relative;
@@ -21,6 +22,7 @@ body {
     vertical-align: top;
     overflow:       hidden;
     text-overflow:  clip;
+    user-select:    none;
 }
 #vtxpage {
     min-height:     95vh;
@@ -30,6 +32,7 @@ body {
     overflow:       hidden;
     text-overflow:  clip;
     z-index:        0;
+    user-select:    none;
 }
 #vtxtext {
     width:          100%;
@@ -39,6 +42,7 @@ body {
     overflow:       hidden;
     text-overflow:  clip;
     z-index:        10;
+    user-select:    none;
 }
 .fade {
     opacity:    .5;

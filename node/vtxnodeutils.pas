@@ -100,6 +100,9 @@ function MOVETO(r, c : integer) : string;
 
 function UNICODE(n : integer) : string;
 
+function URL(w, h, l : integer; urlstr : string) : string;
+function HOTSPOT(w, h, l : integer; hotstr : string) : string;
+
 function RGBToANSI(red, green, blue : byte) : integer;
 function SGR(fgcolor : integer) : string;
 function SGR(fgcolor, bgcolor : integer) : string;
@@ -474,6 +477,40 @@ function UNICODE(n : integer) : string;
 begin
   //result := UnicodeToUTF8(n);
   result := #0 + IntToHex(n, 4);
+end;
+
+function URL(w, h, l : integer; urlstr : string) : string;
+var
+  str : string;
+  i : integer;
+  c : integer;
+begin
+	str := '';
+  for i := 0 to length(urlstr)-1 do
+  begin
+    c := ord(urlstr.Chars[i]);
+  	str += ';' + inttostr(c);
+  end;
+  result := CSI + '1;' + inttostr(w)
+  	+ ';' + inttostr(h)
+  	+ ';' + inttostr(l) + str + '\';
+end;
+
+function HOTSPOT(w, h, l : integer; hotstr : string) : string;
+var
+  str : string;
+  i : integer;
+  c : integer;
+begin
+	str := '';
+  for i := 0 to length(hotstr)-1 do
+  begin
+    c := ord(hotstr.Chars[i]);
+  	str += ';' + inttostr(c);
+  end;
+  result := CSI + '0;' + inttostr(w)
+  	+ ';' + inttostr(h)
+  	+ ';' + inttostr(l) + str + '\';
 end;
 
 function VTXCtrlBreak(CtrlBreak : boolean) : boolean;

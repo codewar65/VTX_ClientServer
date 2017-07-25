@@ -33,13 +33,8 @@
     TODO :
         Client Ident
 
-        Marquee - row canvas on marquee actual width of text. rebuild row on
-            conText change and row size change. 
-
         text blink speed finialized / impolement fast blink. CSI 25 m only for
             blink off.
-
-        alternate node methods - telnet / fake com port?
 
         Remove unneeded globals.
         
@@ -206,10 +201,12 @@ var
     cellBlink,              // text blink state
     defCellAttr,            // default cell attributes.
     lastChar,               // last printable character outputed.
+    lastHotSpot = null,     // last mouseover hotspot
 
     pageDiv = null,         // page contents div
     textDiv = null,         // text plane
     soundBell = null,       // bell sound
+    textPos = null,         // ul x,y of textdiv
     
     // ansi parsing vars
     parms = '',             // parameters for CSI
@@ -225,6 +222,9 @@ var
     conCellAttr = [],       // character attributes array of array or number
     conText = [],           // raw text - array of string
 
+    // clickable hotspots
+    conHotSpots = [],
+    
     spriteDefs = [],        // sprite definitions
     
     // attribute masks
@@ -296,7 +296,7 @@ var
          8: [ '\x08',   0,      0,          0,      0,      0,      0,      0 ], // backspace
          9: [ '\x09',   0,      0,          0,      0,      0,      0,      0 ], // tab
         12: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // clear (numpad5 numlk off)
-        13: [ CRLF,     0,      0,          0,      0,      0,      0,      0 ], // enter
+        13: [ CR,       0,      0,          0,      0,      0,      0,      0 ], // enter
         16: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // shift
         17: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // ctrl
         18: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // alt
@@ -600,12 +600,33 @@ var
     };
 }(this));
     
+// get codepoint from string
+if (!String.prototype.codePointAt) {
+    String.prototype.codePointAt = function (pos) {
+        pos = isNaN(pos) ? 0 : pos;
+        var str = String(this),
+            code = str.charCodeAt(pos),
+            next = str.charCodeAt(pos + 1);
+        // If a surrogate pair
+        if (0xD800 <= code && code <= 0xDBFF && 0xDC00 <= next && next <= 0xDFFF) {
+            return ((code - 0xD800) * 0x400) + (next - 0xDC00) + 0x10000;
+        }
+        return code;
+    };
+}
 
-//if (jscd.browser.split(' ')[0] == 'Microsoft') {
-//    document.write('VTX is not compatible with Microsoft browsers.<br>');
-//    document.write('Please use a Mozilla or Chromium browser.');
-//    exit;
-//}
+// string splice - why this is not standard is beyond me.
+// ECMA-262 / 15.4.4.12 - prototype.splice
+if (!String.prototype.splice) {
+    String.prototype.splice = function (start, deleteCount, item) {
+        if (start < 0) {
+            start = this.length + start;
+            if (start < 0)
+                start = 0;
+        }
+        return this.slice(0, start) + (item || '') + this.slice(start + deleteCount);
+    }
+}
 
 // add event listener
 function addListener(obj, eventName, listener) {
@@ -615,12 +636,140 @@ function addListener(obj, eventName, listener) {
         obj.attachEvent("on" + eventName, listener);
 }
 
-function mouseAction(e) {
+// which row is the mouse on?
+function getMouseCell(e) {
+    var
+        x, y,
+        size, width, c, rh,
+        dt, i;
+
+    x = e.clientX;
+    y = e.clientY;
+    dt = textPos.top;        
+    if ((y >= dt) && (x >= textPos.left) && (x < textPos.left + crtWidth)) {
+        // on the page. find row
+        for (i = 0; i < conRowAttr.length; i++) {
+            size = getRowAttrSize(conRowAttr[i]) / 100;
+            width = getRowAttrWidth(conRowAttr[i]) / 100;
+            rh = Math.round(fontSize * size);
+            if ((y >= dt) && (y < (dt + rh))) {
+                // on this row. get col
+                c = (x - textPos.left) / Math.round(colSize * size * width);
+                return { row: i, col: Math.floor(c) };
+            }
+            dt += rh;
+        }
+    }
+    // off the console
+    return null;
+}
+
+// get the hotspot under x, y
+function getHotSpot(e) {
+    var 
+        i, mpos, hs;
+        
+    if (mpos = getMouseCell(e)) {
+        // adjust to base-1 ansi coords
+        for (i = 0; i < conHotSpots.length; i++) {
+            hs = conHotSpots[i];
+            if ((mpos.row >= hs.row)
+                && (mpos.row < hs.row + hs.height)
+                && (mpos.col >= hs.col)
+                && (mpos.col < hs.col + hs.width)) 
+                return conHotSpots[i];
+        }
+    }
+    return null;
+}
+
+function mouseUp(e) {
     // for now, just fix meta key states
     e = e || window.event;
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
     altState = e.altKey;
+    //setBulbs();
+}
+
+function mouseDown(e) {
+    // for now, just fix meta key states
+    e = e || window.event;
+    shiftState = e.shiftKey;
+    ctrlState = e.ctrlKey;
+    altState = e.altKey;
+    //setBulbs();
+}
+
+function mouseMove(e) {
+    var
+        x, y,
+        hs;
+        
+    // for now, just fix meta key states
+    e = e || window.event;
+    shiftState = e.shiftKey;
+    ctrlState = e.ctrlKey;
+    altState = e.altKey;
+    
+    // check if over a hotspot
+    if (hs = getHotSpot(e)) {
+        if (lastHotSpot != hs) {
+            if (lastHotSpot) {
+                // erase old
+                for (y = 0; y < lastHotSpot.height; y++)
+                    for (x = 0; x < lastHotSpot.width; x++)
+                        renderCell(lastHotSpot.row+y, lastHotSpot.col+x);
+            }
+            // draw this one
+            for (y = 0; y < hs.height; y++)
+                for (x = 0; x < hs.width; x++)
+                    renderCell(hs.row+y, hs.col+x, hs.hilite);
+        }
+        document.body.style['cursor'] = 'pointer'
+    } else {
+        if (lastHotSpot) {
+            // erase old
+            for (y = 0; y < lastHotSpot.height; y++)
+                for (x = 0; x < lastHotSpot.width; x++)
+                    renderCell(lastHotSpot.row+y, lastHotSpot.col+x);
+        }
+        document.body.style['cursor'] = 'default';
+    }
+    lastHotSpot = hs;
+    
+    //setBulbs();
+}
+function click(e) {
+    var
+        hs;
+        
+    // for now, just fix meta key states
+    e = e || window.event;
+    shiftState = e.shiftKey;
+    ctrlState = e.ctrlKey;
+    altState = e.altKey;
+
+    if (hs = getHotSpot(e)) {
+        // clicked on hotspot.
+        switch (hs.type) {
+            case 0:
+                // send string.
+                if (ws.readyState == 1) 
+                    ws.send(hs.val)
+                else {
+                    conStrOut(hs.val);
+                    crsrDraw();
+                }
+                break;
+            case 1:
+                // url
+                var win = window.open(hs.val, '_blank');
+                win.focus();                
+                break;
+        }
+    }
+    
     //setBulbs();
 }
 
@@ -1202,6 +1351,7 @@ function conCharOut(chr) {
                         conRowAttr = [];
                         conCellAttr = [];
                         conText = [];
+                        conHotSpots = [];
                         if (!modeRealANSI) {
                             crsrRow = crsrCol = 0   // BBS / ANSI.SYS
                             crsrrender = true;
@@ -1287,7 +1437,116 @@ function conCharOut(chr) {
                 }
                 crsrrender = true;
                 break;
+
+            /* special VTX sequences start */
+            case 0x5B:  // [ - Row Size
+                parm = fixParams(parm, [3,1]);
+                parm[0] = minMax(parm[0], 0, 7, 3);
+                parm[1] = minMax(parm[1], 0, 3, 1);
+                conRowAttr[crsrRow] = setRowAttrSize(conRowAttr[crsrRow],
+                    (parm[0] + 1) * 25);
+                conRowAttr[crsrRow] = setRowAttrWidth(conRowAttr[crsrRow],
+                    (parm[1] + 1) * 50);
+                adjustRow(crsrRow);
+                crsrrender = true;
+                break;
+
+            case 0x5C:  // \ - hotspots
+                if (l < 2) {
+                    // reset all hotspots
+                    conHotSpots = [];
+                } else {
+                    switch (parm[0]) {
+                        case 0: // string binds
+                        case 1: // url binds
+                            if (l >= 4) { 
+                                // need all the parts.
+                                var hs = {
+                                    type:   parm[0],
+                                    row:    crsrRow,
+                                    col:    crsrCol,
+                                    width:  parm[1],
+                                    height: parm[2],
+                                    hilite: parm[3],
+                                    val:    ''
+                                };
+                                for (i = 4; i < l; i++)
+                                    hs.val += String.fromCharCode(parm[i]);
+                                conHotSpots.push(hs);
+                            }
+                            break;
+                    }
+                }
+                break;
                 
+            case 0x5D:  // ] - Row Modes / background
+                parm = fixParams(parm, [0,0,0]);
+                parm[0] = minMax(parm[0], 0, 255, 0);
+                parm[1] = minMax(parm[1], 0, 255, 0);
+                parm[2] = minMax(parm[2], 0, 3, 0);
+                conRowAttr[crsrRow] = setRowAttrColor1(conRowAttr[crsrRow], parm[0]);
+                conRowAttr[crsrRow] = setRowAttrColor2(conRowAttr[crsrRow], parm[1]);
+                conRowAttr[crsrRow] = setRowAttrPattern(conRowAttr[crsrRow], parm[2] << 16);
+
+                // set row attrs here
+                var row = getRowElement(crsrRow);
+                var c1 = clut[parm[0]];
+                var c2 = clut[parm[1]];
+                switch (parm[2] << 16) {
+                    case A_ROW_SOLID:
+                        row.style['background'] = c1;
+                        break;
+
+                    case A_ROW_HORZ:
+                        row.style['background'] = 'linear-gradient(to bottom,' + c1 + ',' + c2 + ')';
+                        break;
+
+                    case A_ROW_VERT:
+                        row.style['background'] = 'linear-gradient(to right,' + c1 + ',' + c2 + ')';
+                        break;
+                }
+                break;
+
+            case 0x5E:  // ^ - Cursor / Page Modes
+                if (parm.length == 0){
+                    // no paremeters - reset cursor to default
+                } else {
+                    switch (parm[0]) {
+                        case 0:// cursor color
+                            i = (parm[1] & 0xFF);
+                            crsrAttr = setCrsrAttrColor(crsrAttr, i);
+                            newCrsr();
+                            break;
+                            
+                        case 1:// cursor size
+                            i = (parm[1] & 0x03);
+                            crsrAttr = setCrsrAttrSize(crsrAttr, i);
+                            newCrsr();
+                            break;
+                            
+                        case 2:// cursor orientation
+                            i = (parm[1] ? A_CRSR_ORIENTATION : 0);
+                            crsrAttr = setCrsrAttrOrientation(crsrAttr, i);
+                            newCrsr();
+                            break;
+                            
+                        case 3:// page border color
+                            i = (parm[1] & 0xFF);
+                            pageAttr = setPageAttrBorder(pageAttr, i);
+                            p = pageDiv.parentNode;
+                            p.style['background-color'] = clut[(pageAttr >> 8) & 0xFF];
+                            break;
+                            
+                        case 4:// page background color
+                            i = (parm[1] & 0xFF);
+                            pageAttr = setPageAttrBackground(pageAttr, i);
+                            pageDiv.style['background-color'] = clut[pageAttr & 0xFF];
+                            break;
+                    }
+                }
+                crsrrender = true;
+                break;
+
             case 0x5F:  // _ - Display/Hide Sprite | CSI '0'; s ; n ; w ; h ; z _
                 parm = fixParams(parm, [ 0, 1, 1, 1, 1, 0 ]);
                 parm[1] = minMax(parm[1], 1, 64, 1);    // sprint #
@@ -1346,87 +1605,8 @@ function conCharOut(chr) {
                     }
                 }
                 break;
+            /* special VTX sequences end */
                 
-            case 0x5E:  // ^ - Cursor / Page Modes
-                if (parm.length == 0){
-                    // no paremeters - reset cursor to default
-                } else {
-                    switch (parm[0]) {
-                        case 0:// cursor color
-                            i = (parm[1] & 0xFF);
-                            crsrAttr = setCrsrAttrColor(crsrAttr, i);
-                            newCrsr();
-                            break;
-                            
-                        case 1:// cursor size
-                            i = (parm[1] & 0x03);
-                            crsrAttr = setCrsrAttrSize(crsrAttr, i);
-                            newCrsr();
-                            break;
-                            
-                        case 2:// cursor orientation
-                            i = (parm[1] ? A_CRSR_ORIENTATION : 0);
-                            crsrAttr = setCrsrAttrOrientation(crsrAttr, i);
-                            newCrsr();
-                            break;
-                            
-                        case 3:// page border color
-                            i = (parm[1] & 0xFF);
-                            pageAttr = setPageAttrBorder(pageAttr, i);
-                            p = pageDiv.parentNode;
-                            p.style['background-color'] = clut[(pageAttr >> 8) & 0xFF];
-                            break;
-                            
-                        case 4:// page background color
-                            i = (parm[1] & 0xFF);
-                            pageAttr = setPageAttrBackground(pageAttr, i);
-                            pageDiv.style['background-color'] = clut[pageAttr & 0xFF];
-                            break;
-                    }
-                }
-                crsrrender = true;
-                break;
-
-            case 0x5B:  // [ - Row Size
-                parm = fixParams(parm, [3,1]);
-                parm[0] = minMax(parm[0], 0, 7, 3);
-                parm[1] = minMax(parm[1], 0, 3, 1);
-                conRowAttr[crsrRow] = setRowAttrSize(conRowAttr[crsrRow],
-                    (parm[0] + 1) * 25);
-                conRowAttr[crsrRow] = setRowAttrWidth(conRowAttr[crsrRow],
-                    (parm[1] + 1) * 50);
-                adjustRow(crsrRow);
-                crsrrender = true;
-                break;
-
-            case 0x5D:  // ] - Row Modes / background
-                parm = fixParams(parm, [0,0,0]);
-                parm[0] = minMax(parm[0], 0, 255, 0);
-                parm[1] = minMax(parm[1], 0, 255, 0);
-                parm[2] = minMax(parm[2], 0, 3, 0);
-                conRowAttr[crsrRow] = setRowAttrColor1(conRowAttr[crsrRow], parm[0]);
-                conRowAttr[crsrRow] = setRowAttrColor2(conRowAttr[crsrRow], parm[1]);
-                conRowAttr[crsrRow] = setRowAttrPattern(conRowAttr[crsrRow], parm[2] << 16);
-
-                // set row attrs here
-                var row = getRowElement(crsrRow);
-                var c1 = clut[parm[0]];
-                var c2 = clut[parm[1]];
-                switch (parm[2] << 16) {
-                    case A_ROW_SOLID:
-                        row.style['background'] = c1;
-                        break;
-
-                    case A_ROW_HORZ:
-                        row.style['background'] = 'linear-gradient(to bottom,' + c1 + ',' + c2 + ')';
-                        break;
-
-                    case A_ROW_VERT:
-                        row.style['background'] = 'linear-gradient(to right,' + c1 + ',' + c2 + ')';
-                        break;
-                }
-                break;
-
             case 0x62:  // b - repeat last char
                 parm = fixParams(parm, [1]);
                 parm[0] = minMax(parm[0], 1, 999);
@@ -1683,7 +1863,6 @@ function getElementPosition(obj) {
         lpos += obj.offsetLeft;
         tpos += obj.offsetTop;
     }
-
     return { left: lpos, top: tpos };
 }
 
@@ -1698,6 +1877,7 @@ function crsrDraw(force) {
     
 //    if ((new Date().getTime() > crsrSkipTime + 5) && !force)
 //        return;
+// speed this up
 
     expandToRow(crsrRow);
     row = getRowElement(crsrRow);
@@ -1935,13 +2115,7 @@ function htoi(h) {
 }
 
 // create row attribute
-function makeRowAttr(
-    c1,
-    c2,
-    bp,
-    size,
-    width,
-    marquee) {
+function makeRowAttr(c1, c2, bp, size, width, marquee) {
 
     bp = bp || 0;
     size = size || 100;
@@ -2018,16 +2192,7 @@ function getRowAttrWidth(attr) { return (((attr & A_ROW_WIDTH_MASK) >> 21) + 1) 
 function getRowAttrMarquee(attr) { return (attr & A_ROW_MARQUEE) != 0; }
 
 // create cell attribute
-function makeCellAttr(
-    fg,             // foreground color
-    bg,             // background color
-    bold,
-    italics,
-    underline,
-    blink,
-    shadow,
-    strikethrough,
-    outline) {
+function makeCellAttr(fg, bg, bold, italics, underline, blink, shadow, strikethrough, outline) {
 
     fg = fg || 7;
     bg = bg || 0;
@@ -2104,10 +2269,7 @@ function getCellAttrReverse(attr) { return (attr & A_CELL_REVERSE) != 0; }
 function getCellAttrConceal(attr) { return (attr & A_CELL_CONCEAL) != 0; }
 
 // create cursor attributes
-function makeCrsrAttr(
-    color,          // 0-255
-    size,           // 0-3
-    orientation){   // 0-1
+function makeCrsrAttr(color, size, orientation){  
 
     color = color || 7;
     size = size || 2;
@@ -2228,12 +2390,13 @@ function doBlink(){
     cellBlink = !cellBlink;
 }
 
-// render an individual row, col
-function renderCell(rownum, colnum) {
+// render an individual row, col. if forcerev, invert (twice if need be)
+function renderCell(rownum, colnum, forcerev) {
     var
         row, size, width, w, h, x, 
         ctx, attr, ch, tfg, tbg, tbold, stroke, tmp;
         
+    forcerev = forcerev || false;
     size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
     width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
     w = colSize * size * width;     // width of char
@@ -2277,12 +2440,18 @@ function renderCell(rownum, colnum) {
         tbold = false;
     }
     
+    // forec reverse (for mouse selections)
+    if (forcerev) {
+        tbg = 4;
+        tfg = 15;
+    }
+
     if (tbg > 0) {
         ctx.fillStyle = clut[tbg];
         ctx.fillRect(x, 0, w, h);
-    } else
+    } else  
         ctx.clearRect(x, 0, w, h);
-
+    
     if (!(attr & A_CELL_CONCEAL) && !((attr & A_CELL_BLINK) && cellBlink)) {
         // not concealed or in blink state
         ctx.fillStyle = clut[tfg];
@@ -2337,34 +2506,6 @@ function renderCell(rownum, colnum) {
         if (attr & A_CELL_STRIKETHROUGH) {
             ctx.fillRect(x, (h + stroke) / 2, w, stroke);
         }
-    }
-}
-
-// get codepoint from string
-if (!String.prototype.codePointAt) {
-    String.prototype.codePointAt = function (pos) {
-        pos = isNaN(pos) ? 0 : pos;
-        var str = String(this),
-            code = str.charCodeAt(pos),
-            next = str.charCodeAt(pos + 1);
-        // If a surrogate pair
-        if (0xD800 <= code && code <= 0xDBFF && 0xDC00 <= next && next <= 0xDFFF) {
-            return ((code - 0xD800) * 0x400) + (next - 0xDC00) + 0x10000;
-        }
-        return code;
-    };
-}
-
-// string splice - why this is not standard is beyond me.
-// ECMA-262 / 15.4.4.12 - prototype.splice
-if (!String.prototype.splice) {
-    String.prototype.splice = function (start, deleteCount, item) {
-        if (start < 0) {
-            start = this.length + start;
-            if (start < 0)
-                start = 0;
-        }
-        return this.slice(0, start) + (item || '') + this.slice(start + deleteCount);
     }
 }
 
@@ -2557,6 +2698,8 @@ function initDisplay() {
 
     // one time refresh
     crsrHome();
+
+    textPos = textDiv.getBoundingClientRect();
     
     // test websocket connect
     ws = new WebSocket('ws://@InternetIP@:@WSPort@', ['vtx']);
@@ -2590,16 +2733,6 @@ function setTimers(onoff) {
         clearInterval(irqBlink);
     }
 }
-
-addListener(window, 'load', initDisplay);
-addListener(document, 'keydown', keyDown);
-addListener(document, 'keyup', keyUp);
-addListener(document, 'keypress', keyPress);
-addListener(document, 'mouseup', mouseAction);
-addListener(document, 'mousedown', mouseAction);
-addListener(document, 'mouseclick', mouseAction);
-addListener(document, 'beforepaste', beforePaste);
-addListener(document, 'paste', paste);
 
 // event functions for ctrl+v text to console
 function beforePaste(e) {
@@ -2660,15 +2793,17 @@ function newCrsr() {
     o.style['background-color'] = clut[c];
 }
 
-/*
-alert(
-    'OS: ' + jscd.os +' '+ jscd.osVersion + '\n' +
-    'Browser: ' + jscd.browser +' '+ jscd.browserMajorVersion +
-      ' (' + jscd.browserVersion + ')\n' + 
-    'Mobile: ' + jscd.mobile + '\n' +
-    'Flash: ' + jscd.flashVersion + '\n' +
-    'Cookies: ' + jscd.cookies + '\n' +
-    'Screen Size: ' + jscd.screen + '\n\n' +
-    'Full User Agent: ' + navigator.userAgent
-);
-*/
+// light it up
+addListener(window, 'load', initDisplay);
+// key events
+addListener(document, 'keydown', keyDown);
+addListener(document, 'keyup', keyUp);
+addListener(document, 'keypress', keyPress);
+// mouse events
+addListener(document, 'mouseup', mouseUp);
+addListener(document, 'mousedown', mouseDown);
+addListener(document, 'click', click);
+addListener(document, 'mousemove', mouseMove);
+// copy paste events
+addListener(document, 'beforepaste', beforePaste);
+addListener(document, 'paste', paste);
