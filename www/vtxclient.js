@@ -641,10 +641,11 @@ function getMouseCell(e) {
     var
         x, y,
         size, width, c, rh,
-        dt, i;
+        ty, dt, i;
 
+    ty = document.documentElement.scrollTop || document.body.scrollTop;
     x = e.clientX;
-    y = e.clientY;
+    y = e.clientY + ty;
     dt = textPos.top;        
     if ((y >= dt) && (x >= textPos.left) && (x < textPos.left + crtWidth)) {
         // on the page. find row
@@ -1352,6 +1353,7 @@ function conCharOut(chr) {
                         conCellAttr = [];
                         conText = [];
                         conHotSpots = [];
+                        lastHotSpot = null;
                         document.body.style['cursor'] = 'default';
                         if (!modeRealANSI) {
                             crsrRow = crsrCol = 0   // BBS / ANSI.SYS
@@ -2447,6 +2449,11 @@ function renderCell(rownum, colnum, forcerev) {
         tfg = 15;
     }
 
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, 0, w+1, h+1);
+    ctx.clip();
+    
     if (tbg > 0) {
         ctx.fillStyle = clut[tbg];
         ctx.fillRect(x, 0, w, h);
@@ -2508,6 +2515,7 @@ function renderCell(rownum, colnum, forcerev) {
             ctx.fillRect(x, (h + stroke) / 2, w, stroke);
         }
     }
+    ctx.restore();
 }
 
 // massage string to make HTML friendly

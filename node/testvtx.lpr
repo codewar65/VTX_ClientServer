@@ -517,7 +517,7 @@ begin
 
   PrintANSI('k1-1967.utf8');
 
-  Print(#27'[0m' + SGR(ANSI_GREEN) + 'Press '+HOTSPOT(3,1,0,'Q')+'['
+  Print(#27'[0m' + SGR(ANSI_GREEN) + 'Press '+ HOTSPOT(3,1,0,'Q') + '['
     + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
   repeat
     key := upCase(GetKey);
