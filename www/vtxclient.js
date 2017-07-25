@@ -1352,6 +1352,7 @@ function conCharOut(chr) {
                         conCellAttr = [];
                         conText = [];
                         conHotSpots = [];
+                        document.body.style['cursor'] = 'default';
                         if (!modeRealANSI) {
                             crsrRow = crsrCol = 0   // BBS / ANSI.SYS
                             crsrrender = true;
@@ -2708,6 +2709,7 @@ function initDisplay() {
     }
     ws.onclose = function() { 
         conStrOut('\r\n\r\n\x1b[#9\x1b[0;91mDisconnected from server.\r\n');
+        document.body.style['cursor'] = 'default';
         setBulbs();
     }
     ws.onmessage = function(e) { 
