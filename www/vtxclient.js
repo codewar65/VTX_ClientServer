@@ -81,20 +81,22 @@
     CELLATTRS - numbers stored in conCellAttr[row][col]
 
         00000000 00000000 00000000 00000000 - bits
-        ------cr gotdkuib BBBBBBBB FFFFFFFF
+        ----fKcr gotdkuib BBBBBBBB FFFFFFFF
 
         F : Foreground Color (0-255) using aixterm palette
         B : Background Color (0-255)  -''-
         b : bold (0-1)
         i : italics (0-1)
         u : underline (0-1)
-        k : blink (0-1)
+        k : blink slow (0-1)
         d : drop shadow (0-1)
         t : strikethrough (0-1)
         o : outlined (0-1)
         g : glow (0-1)
         r : reversed
         c : concealed
+        K : blink fast
+        f : faint
         - : unused
     
 
@@ -199,7 +201,8 @@ var
     crsrBlink,              // cursor blink state
     crsrSkipTime,           // skip cursor draws on heavy character output
     cellAttr,               // current active attributes
-    cellBlink,              // text blink state
+    cellBlinkSlow,          // text blink states
+    cellBlinkFast,          
     defCellAttr,            // default cell attributes.
     lastChar,               // last printable character outputed.
     lastHotSpot = null,     // last mouseover hotspot
@@ -241,16 +244,18 @@ var
     A_CRSR_STYLE_MASK =     0x000300,
 
     // attribute flags
-    A_CELL_BOLD =           0x010000,
-    A_CELL_ITALICS =        0x020000,
-    A_CELL_UNDERLINE =      0x040000,
-    A_CELL_STRIKETHROUGH =  0x080000,
-    A_CELL_BLINK =          0x100000,
-    A_CELL_SHADOW =         0x200000,
-    A_CELL_OUTLINE =        0x400000,
-    A_CELL_GLOW =           0x800000,
-    A_CELL_REVERSE =        0x1000000,
-    A_CELL_CONCEAL =        0x2000000,
+    A_CELL_BOLD =           0x00010000,
+    A_CELL_ITALICS =        0x00020000,
+    A_CELL_UNDERLINE =      0x00040000,
+    A_CELL_STRIKETHROUGH =  0x00080000,
+    A_CELL_BLINKSLOW =      0x00100000,
+    A_CELL_SHADOW =         0x00200000,
+    A_CELL_OUTLINE =        0x00400000,
+    A_CELL_GLOW =           0x00800000,
+    A_CELL_REVERSE =        0x01000000,
+    A_CELL_CONCEAL =        0x02000000,
+    A_CELL_BLINKFAST =      0x04000000,
+    A_CELL_FAINT =          0x08000000,
 
     A_ROW_NONE =            0x000000,
     A_ROW_SOLID =           0x010000,
@@ -265,7 +270,6 @@ var
     A_CRSR_ORIENTATION =    0x000400,
 
     // key commands
-    DO_POPUP =          -1,
     DO_CAPLK =          -2,
     DO_NUMLK =          -3,
     DO_SCRLK =          -4,
@@ -1498,63 +1502,76 @@ function conCharOut(chr) {
                         case 1:     // bold on / off
                         case 21:
                             cellAttr =
-                                setCellAttrBold(cellAttr, (parm[i] == 1));
+                                setCellAttrBold(cellAttr, (parm[i] < 20));
+                            break;
+
+                        case 2:     // faint on / off
+                        case 22:
+                            cellAttr =
+                                setCellAttrFaint(cellAttr, (parm[i] < 20));
                             break;
 
                         case 3:     // italics on/off
                         case 23:
                             cellAttr =
-                                setCellAttrItalics(cellAttr, (parm[i] == 3));
+                                setCellAttrItalics(cellAttr, (parm[i] < 20));
                             break;
 
                         case 4:     // underline
                         case 24:
                             cellAttr =
-                                setCellAttrUnderline(cellAttr, (parm[i] == 4));
+                                setCellAttrUnderline(cellAttr, (parm[i] < 20));
                             break;
 
-                        case 5:     // blink
-                        case 6:     // blink
-                        case 25:
-                        case 26:
-                            cellAttr =
-                                setCellAttrBlink(cellAttr, (parm[i] < 20));
+                        case 5:     // blink slow
+                            cellAttr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
+                            cellAttr |= A_CELL_BLINKSLOW;
+                            break;
+
+                        case 6:     // blink fast
+                            cellAttr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
+                            cellAttr |= A_CELL_BLINKFAST;
+                            break;
+
+                        case 25:    // all blink off
+                        case 26:    // all blink off (reserved but unblink)
+                            cellAttr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
                             break;
 
                         case 7:     // reverse video
                         case 27:
                             cellAttr =
-                                setCellAttrReverse(cellAttr, (parm[i] == 7));
+                                setCellAttrReverse(cellAttr, (parm[i] < 20));
                             break;
 
                         case 8:     // conceal
                         case 28:
                             cellAttr =
-                                setCellAttrConceal(cellAttr, (parm[i] == 8));
+                                setCellAttrConceal(cellAttr, (parm[i] < 20));
                             break;
 
                         case 9:     // strikethrough
                         case 29:
                             cellAttr =
-                                setCellAttrStrikethrough(cellAttr, (parm[i] == 9));
+                                setCellAttrStrikethrough(cellAttr, (parm[i] < 20));
                             break;
 
                         case 50:    // glow
                         case 70:
                             cellAttr =
-                                setCellAttrGlow(cellAttr, (parm[i] == 50));
+                                setCellAttrGlow(cellAttr, (parm[i] < 70));
                             break;
 
                         case 56:    // outline
                         case 76:
                             cellAttr =
-                                setCellAttrOutline(cellAttr, (parm[i] == 56));
+                                setCellAttrOutline(cellAttr, (parm[i] < 70));
                             break;
 
                         case 57:    // shadow
                         case 77:
                             cellAttr =
-                                setCellAttrShadow(cellAttr, (parm[i] == 57));
+                                setCellAttrShadow(cellAttr, (parm[i] < 70));
                             break;
 
                         // text foreground colors
@@ -1892,6 +1909,31 @@ function doCursor() {
         (crsrBlink = !crsrBlink) ? 'transparent' : clut[getCrsrAttrColor(crsrAttr)];
 }
 
+// animate blink (533ms)
+function doBlink(){
+    var
+        r, c, y, rh;
+
+    // y of first row.
+    y = textDiv.getBoundingClientRect().top;
+    for (r = 0; r < conRowAttr.length; r++) {
+        // check if row is visible
+        rh = rowSize * getRowAttrSize(conRowAttr[r]) / 100;
+        if ((y + rh > 0) && (y < window.innerHeight)) {
+            // look for blink
+            // refresh blinkable text.
+            for (c = 0; c < conCellAttr[r].length; c++) {
+                if (conCellAttr[r][c] & (A_CELL_BLINKSLOW | A_CELL_BLINKFAST)) 
+                    renderCell(r, c);
+            }
+        }
+        y += rh;
+    }
+    cellBlinkFast = !cellBlinkFast;
+    if (cellBlinkFast)
+        cellBlinkSlow = !cellBlinkSlow;
+}
+
 // compute font size (width) for row - figure in scale (row is dom element)
 function getRowFontSize(rownum) {
     var
@@ -2028,27 +2070,31 @@ function getRowAttrWidth(attr) { return (((attr & A_ROW_WIDTH_MASK) >> 21) + 1) 
 function getRowAttrMarquee(attr) { return (attr & A_ROW_MARQUEE) != 0; }
 
 // create cell attribute
-function makeCellAttr(fg, bg, bold, italics, underline, blink, shadow, strikethrough, outline) {
+function makeCellAttr(fg, bg, bold, italics, underline, blinkslow, shadow, 
+    strikethrough, outline, blinkfast, faint) {
 
     fg = fg || 7;
     bg = bg || 0;
     bold = bold || false;
     italics = italics || false;
     underline = underline || false;
-    blink = blink || false;
+    blinkslow = blinkslow || false;
     shadow = shadow || false;
     strikethrough = strikethrough || false;
     outline = outline || false;
-
+    blinkfast = blinkfast || false;
+    faint = faint || false;
     return (fg & 0xFF)
         | ((bg & 0xFF) << 8)
         | (bold ? A_CELL_BOLD : 0)
         | (italics ? A_CELL_ITALICS : 0)
         | (underline ? A_CELL_UNDERLINE : 0)
-        | (blink ? A_CELL_BLINK : 0)
+        | (blinkslow ? A_CELL_BLINKSLOW : 0)
         | (shadow ? A_CELL_SHADOW : 0)
         | (strikethrough ? A_CELL_STRIKETHROUGH : 0)
         | (outline ? A_CELL_OUTLINE : 0)
+        | (blinkfast ? A_CELL_BLINKFAST : 0)
+        | (faint ? A_CELL_FAINT : 0)
         ;
 }
 
@@ -2068,8 +2114,11 @@ function setCellAttrItalics(attr, italics) {
 function setCellAttrUnderline(attr, underline) {
     return (attr & ~A_CELL_UNDERLINE) | (underline? A_CELL_UNDERLINE : 0);
 }
-function setCellAttrBlink(attr, blink) {
-    return (attr & ~A_CELL_BLINK) | (blink ? A_CELL_BLINK : 0);
+function setCellAttrBlinkSlow(attr, blink) {
+    return (attr & ~A_CELL_BLINKSLOW) | (blink ? A_CELL_BLINKSLOW : 0);
+}
+function setCellAttrBlinkFast(attr, blink) {
+    return (attr & ~A_CELL_BLINKFAST) | (blink ? A_CELL_BLINKFAST : 0);
 }
 function setCellAttrShadow(attr, shadow) {
     return (attr & ~A_CELL_SHADOW) | (shadow ? A_CELL_SHADOW : 0);
@@ -2089,6 +2138,9 @@ function setCellAttrReverse(attr, reverse) {
 function setCellAttrConceal(attr, conceal) {
     return (attr & ~A_CELL_CONCEAL) | (conceal ? A_CELL_CONCEAL : 0);
 }
+function setCellAttrFaint(attr, faint) {
+    return (attr & ~A_CELL_FAINT) | (faint ? A_CELL_FAINT : 0);
+}
 
 // get cell attribute parts
 function getCellAttrFG(attr) { return attr & 0xFF; }
@@ -2096,13 +2148,15 @@ function getCellAttrBG(attr) { return (attr >> 8) & 0xFF; }
 function getCellAttrBold(attr) { return (attr & A_CELL_BOLD) != 0; }
 function getCellAttrItalics(attr) { return (attr & A_CELL_ITALICS) != 0; }
 function getCellAttrUnderline(attr) { return (attr & A_CELL_UNDERLINE) != 0; }
-function getCellAttrBlink(attr) { return (attr & A_CELL_BLINK) != 0; }
+function getCellAttrBlinkSlow(attr) { return (attr & A_CELL_BLINKSLOW) != 0; }
+function getCellAttrBlinkFast(attr) { return (attr & A_CELL_BLINKFAST) != 0; }
 function getCellAttrShadow(attr) { return (attr & A_CELL_SHADOW) != 0; }
 function getCellAttrStrikethrough(attr) { return (attr & A_CELL_STRIKETHROUGH) != 0; }
 function getCellAttrOutline(attr) { return (attr & A_CELL_OUTLINE) != 0;}
 function getCellAttrGlow(attr) { return (attr & A_CELL_GLOW) != 0; }
 function getCellAttrReverse(attr) { return (attr & A_CELL_REVERSE) != 0; }
 function getCellAttrConceal(attr) { return (attr & A_CELL_CONCEAL) != 0; }
+function getCellAttrFaint(attr) { return (attr & A_CELL_FAINT) != 0; }
 
 // create cursor attributes
 function makeCrsrAttr(color, size, orientation){  
@@ -2189,34 +2243,6 @@ function redrawRow(rownum){
     ctx.clearRect(x, 0, cnv.width - x, cnv.height);
 }
 
-// animate blink and marquee
-function doBlink(){
-    var
-        r, c, y, rh;
-
-    // y of first row.
-    y = textDiv.getBoundingClientRect().top;
-    for (r = 0; r < conRowAttr.length; r++) {
-        // check if row is visible
-        rh = rowSize * getRowAttrSize(conRowAttr[r]) / 100;
-        if ((y + rh > 0) && (y < window.innerHeight)) {
-
-            // look for blink
-            // refresh blinkable text.
-            for (c = 0; c < conCellAttr[r].length; c++) 
-                if (conCellAttr[r][c] & A_CELL_BLINK) 
-                    renderCell(r, c);
-        
-            // look for marquee
-            if (conRowAttr[r] & A_ROW_MARQUEE) {
-                // marquee this row
-            }
-        }
-        y += rh;
-    }
-    cellBlink = !cellBlink;
-}
-
 // render an individual row, col. if forcerev, invert (twice if need be)
 function renderCell(rownum, colnum, forcerev) {
     var
@@ -2224,9 +2250,9 @@ function renderCell(rownum, colnum, forcerev) {
         ctx, attr, ch, tfg, tbg, tbold, stroke, tmp;
 
     // quick range check
-    if (rownum > conRowAttr.length) return;
-    if (colnum >= conText[rownum].length) return;
-        
+    if (rownum > conRowAttr.length)         return;
+    if (colnum >= conText[rownum].length)   return;
+
     forcerev = forcerev || false;
     size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
     width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
@@ -2279,7 +2305,7 @@ function renderCell(rownum, colnum, forcerev) {
 
     ctx.save();
     ctx.beginPath();
-    ctx.rect(x, 0, w+1, h+1);
+    ctx.rect(x, 0, w + 1, h + 1);
     ctx.clip();
     
     if (tbg > 0) {
@@ -2288,18 +2314,23 @@ function renderCell(rownum, colnum, forcerev) {
     } else  
         ctx.clearRect(x, 0, w, h);
     
-    if (!(attr & A_CELL_CONCEAL) && !((attr & A_CELL_BLINK) && cellBlink)) {
+    if (!(attr & A_CELL_CONCEAL) && 
+        !((attr & A_CELL_BLINKSLOW) && cellBlinkSlow) &&
+        !((attr & A_CELL_BLINKFAST) && cellBlinkFast)) {
+
         // not concealed or in blink state
-        ctx.fillStyle = clut[tfg];
-        ctx.font = ((attr & A_CELL_ITALICS) ? 'italic ' : '') 
-            + (tbold ? 'bold ' : '') 
-            + fontSize + 'px ' + fontName;
+        if (attr & A_CELL_FAINT) 
+            ctx.fillStyle = brightenRGB(clut[tfg], -0.33);
+        else
+            ctx.fillStyle = clut[tfg];
+        
+        ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + fontName;
         ctx.textAlign = 'start';
         ctx.textBaseline = 'top';
         
         if (attr & A_CELL_GLOW) {
             // how does this work on scaled? test
-            ctx.shadowColor = '#' + brightenRGB(clut[tfg], 0.25);
+            ctx.shadowColor = brightenRGB(clut[tfg], 0.25);
             ctx.shadowOffsetX = 0;
             ctx.shadowOffsetY = 0;
             ctx.shadowBlur = 7;
@@ -2312,27 +2343,27 @@ function renderCell(rownum, colnum, forcerev) {
         } else {
             ctx.shadowBlur = 0;
         }
-        
-        if ((size != 1) || (width != 1)) {
-            ctx.save();
-            ctx.scale(size * width, size);
-            ctx.translate(x / (size * width), 0);
-            if (attr & A_CELL_OUTLINE) {
-                ctx.strokeStyle = clut[tfg];
-                ctx.lineWidth = 1;
-                ctx.strokeText(ch, 0, 0);
-            } else {
-                ctx.fillText(ch, 0, 0);
-            }
-            ctx.restore();
+
+        // use less of a skew on italics due to character clipping
+        var xskew = 0;
+        var xadj = 0;
+        if (attr & A_CELL_ITALICS) {
+            xskew = -0.125;
+            xadj  = 1;
+        }
+        ctx.setTransform(
+            size * width,               // x scale
+            0,                          // y skew
+            xskew,                      // x skew
+            size,                       // y scale
+            x / (size * width) + xadj,  // x adj
+            0);                         // y adj
+        if (attr & A_CELL_OUTLINE) {
+            ctx.strokeStyle = clut[tfg];
+            ctx.lineWidth = 1;
+            ctx.strokeText(ch, 0, 0);
         } else {
-            if (attr & A_CELL_OUTLINE) {
-                ctx.strokeStyle = clut[tfg];
-                ctx.lineWidth = 1;
-                ctx.strokeText(ch, x, 0);
-            } else {
-                ctx.fillText(ch, x, 0);
-            }
+            ctx.fillText(ch, 0, 0);
         }
     
         // draw underline / strikethough manually
@@ -2355,12 +2386,16 @@ function htmlEncode(s) {
     return el.innerHTML;
 }
 
-// brighten / darken a color. color is a 24bit value (0xRRGGBB)
+// brighten / darken a color. color is a 24bit value (#RRGGBB)
 function brightenRGB(colorstr, factor) {
     var
-        r, g, b,
-        rgb = htoi(colorstr);
-
+        r, g, b, rgb;
+    
+    // catch transparent
+    if (colorstr == 'transparent')
+        return colorstr;
+    
+    rgb = htoi(colorstr.substring(1));
     r = (rgb >> 16) & 0xFF;
     g = (rgb >>  8) & 0xFF;
     b =  rgb        & 0xFF;
@@ -2377,7 +2412,7 @@ function brightenRGB(colorstr, factor) {
     r = Math.floor(r) & 0xFF;
     g = Math.floor(g) & 0xFF;
     b = Math.floor(b) & 0xFF;
-    return  itoh((r << 16) + (g << 8) + b, 6);
+    return  '#' + itoh((r << 16) + (g << 8) + b, 6);
 }
 
 // grow this row to col
@@ -2525,7 +2560,8 @@ function initDisplay() {
     shiftState = ctrlState = altState 
         = capState = numState = scrState = false;
     crsrBlink = false;  // cursor blink state for intervaltimer
-    cellBlink = true;
+    cellBlinkSlow = true;
+    cellBlinkFast = true;
     crsrRow = crsrCol = 0;
     crsrDraw();
 

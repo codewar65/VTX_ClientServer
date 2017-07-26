@@ -331,6 +331,7 @@ begin
   PrintLn(#27'[0;91m  3 / 23 '#27'[94m: '#27'[3mItalics'#27'[23m on / off.');
   PrintLn(#27'[0;91m  4 / 24 '#27'[94m: '#27'[4mUnderline'#27'[24m on / off.       '#27'[91m 9 / 29 '#27'[94m: '#27'[9mStrikethrough'#27'[29m on / off.');
   PrintLn(#27'[0;91m  5 / 25 '#27'[94m: '#27'[5mBlink'#27'[25m on / off.           '#27'[91m50 / 70 '#27'[94m: '#27'[50mGlow'#27'[70m on / off.');
+  PrintLn(#27'[0;91m  6 / 26 '#27'[94m: '#27'[6mBlink'#27'[26m on / off.           '#27'[91m 2 / 22 '#27'[94m: '#27'[2mFaint'#27'[22m on / off.');
   PrintLn(#27'[0;91m  7 / 27 '#27'[94m: '#27'[7mReverse video'#27'[27m on / off.   '#27'[91m56 / 76 '#27'[94m: '#27'[56mOutline'#27'[76m on / off.');
   PrintLn(#27'[0;91m  8 / 28 '#27'[94m: Concealed on / off.       '#27'[91m57 / 77 '#27'[94m: '#27'[100;57mShadow'#27'[40;77m on / off.');
   PrintLn;
