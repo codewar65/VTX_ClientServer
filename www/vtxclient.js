@@ -33,11 +33,6 @@
     TODO :
         Client Ident
 
-        text blink speed finialized / impolement fast blink. CSI 25 m only for
-            blink off.
-
-        Remove unneeded globals.
-        
         codes for restore cursor attr, restore page attr
 
 
@@ -275,11 +270,9 @@ var
     DO_SCRLK =          -4,
 
     // terminal states
-    TERMSTATE_NORMAL =          0, // normal terminal mode. no xfers.
-    TERMSTATE_YMUP_START =      1, // ymodem upload started. sending G's.
-    TERMSTATE_YMUP_START_1 =    2, 
-    TERMSTATE_YMUP_START_2 =    3, 
-    TERMSTATE_YMUP_START_3 =    4, 
+    TS_NORMAL =          0, // normal terminal mode. no xfers.
+    TS_YMR_START =       1, // ymodem download started. sending G's.
+    TS_YMR_GETPACKET =   2, // ymodem download packet
 
     ovl,                    // overlay div for file transfers
 
@@ -551,7 +544,6 @@ function mouseUp(e) {
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
     altState = e.altKey;
-    //setBulbs();
 }
 
 function mouseDown(e) {
@@ -560,7 +552,6 @@ function mouseDown(e) {
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
     altState = e.altKey;
-    //setBulbs();
 }
 
 function mouseMove(e) {
@@ -600,9 +591,8 @@ function mouseMove(e) {
         document.body.style['cursor'] = 'default';
     }
     lastHotSpot = hs;
-    
-    //setBulbs();
 }
+
 function click(e) {
     var
         hs;
@@ -633,8 +623,6 @@ function click(e) {
                 break;
         }
     }
-    
-    //setBulbs();
 }
 
 // process keyups (function, arrows, etc)
@@ -649,7 +637,6 @@ function keyUp(e) {
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
     altState = e.altKey;
-    //setBulbs();
 }
 
 // process keydowns (function, arrows, etc)
@@ -665,7 +652,6 @@ function keyDown(e) {
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
     altState = e.altKey;
-    //setBulbs();
 
     stateIdx = (shiftState ? 1 : 0) + (ctrlState ? 2 : 0) + (altState ? 4 : 0);
 
@@ -688,8 +674,6 @@ function keyDown(e) {
             conStrOut(ka);
             crsrDraw();
         }
-
-        e.keyCode = 0;
         e.preventDefault();
         return (e.returnValue = false); // true
 
@@ -756,7 +740,6 @@ function keyPress(e) {
 
     capState = (((cc >= 65) && (cc <= 90) && !shiftState)
             || ((cc >= 97) && (cc <= 112) && shiftState));
-    //setBulbs();
 }
 
 // delete row from storage and element from html
@@ -2456,10 +2439,10 @@ function fitSVGToDiv(e) {
 
 // set indicators
 function setBulbs() {
-    document.getElementById('osbulb').src = ((ws.readyState == 1) ? 'os':'off') + '.png';
-    document.getElementById('clbulb').src = (capState ? 'cl':'off') + '.png';
-    document.getElementById('nlbulb').src = (numState ? 'nl':'off') + '.png';
-    document.getElementById('slbulb').src = (scrState ? 'sl':'off') + '.png';
+    document.getElementById('osbulb').src = ((ws.readyState == 1) ? 'os1':'os0') + '.png';
+    document.getElementById('clbulb').src = (capState ? 'cl1':'cl0') + '.png';
+    document.getElementById('nlbulb').src = (numState ? 'nl1':'nl0') + '.png';
+    document.getElementById('slbulb').src = (scrState ? 'sl1':'sl0') + '.png';
 }
 
 // setup the crt and cursor
@@ -2484,37 +2467,62 @@ function initDisplay() {
 
     pageDiv.style['width'] = crtWidth + 'px';
     
-    // add indicators for online/capslk/numlk/scrlk
+    // add indicators / buttons 
     pos = 0;
     o = document.createElement('img');
-    o.src = 'off.png';   o.id = 'osbulb';
-    o.width = 16;       o.height = 28;
+    o.src = 'os0.png';   o.id = 'osbulb';
+    o.title = 'Connected Indicator';
+    o.width = 24;       o.height = 24;
     o.style['position'] = 'absolute';
-    o.style['top'] = (2 + (pos++ * 30))+'px';
-    o.style['right'] = '2px';
-    document.body.appendChild(o);
-    o = document.createElement('img');
-    o.src = 'off.png';  o.id = 'clbulb';
-    o.width = 16;       o.height = 28;
-    o.style['position'] = 'absolute';
-    o.style['top'] = (2 + (pos++ * 30))+'px';
-    o.style['right'] = '2px';
-    document.body.appendChild(o);
-    o = document.createElement('img');
-    o.src = 'off.png';  o.id = 'nlbulb';
-    o.width = 16;       o.height = 28;
-    o.style['position'] = 'absolute';
-    o.style['top'] = (2 + (pos++ * 30))+'px';
-    o.style['right'] = '2px';
-    document.body.appendChild(o);
-    o = document.createElement('img');
-    o.src = 'off.png';  o.id = 'slbulb';
-    o.width = 16;       o.height = 28;
-    o.style['position'] = 'absolute';
-    o.style['top'] = (2 + (pos++ * 30))+'px';
+    o.style['top'] = (2 + (pos++ * 26))+'px';
     o.style['right'] = '2px';
     document.body.appendChild(o);
 
+    o = document.createElement('img');
+    o.src = 'cl0.png';  o.id = 'clbulb';
+    o.title = 'CapsLock Indicator';
+    o.width = 24;       o.height = 24;
+    o.style['position'] = 'absolute';
+    o.style['top'] = (2 + (pos++ * 26))+'px';
+    o.style['right'] = '2px';
+    document.body.appendChild(o);
+
+    o = document.createElement('img');
+    o.src = 'cl0.png';  o.id = 'nlbulb';
+    o.title = 'NumLock Indicator';
+    o.width = 24;       o.height = 24;
+    o.style['position'] = 'absolute';
+    o.style['top'] = (2 + (pos++ * 26))+'px';
+    o.style['right'] = '2px';
+    document.body.appendChild(o);
+
+    o = document.createElement('img');
+    o.src = 'sl0.png';  o.id = 'slbulb';
+    o.title = 'ShiftLock Indicator';
+    o.width = 24;       o.height = 24;
+    o.style['position'] = 'absolute';
+    o.style['top'] = (2 + (pos++ * 26))+'px';
+    o.style['right'] = '2px';
+    document.body.appendChild(o);
+
+    o = document.createElement('img');
+    o.src = 'ul.png';  o.id = 'ulbtn';
+    o.title = 'YModem Upload';
+    o.width = 24;       o.height = 24;
+    o.style['position'] = 'absolute';
+    o.style['top'] = (2 + (pos++ * 26))+'px';
+    o.style['right'] = '2px';
+    document.body.appendChild(o);
+    o = document.createElement('img');
+    o.src = 'dl.png';  o.id = 'dlbtn';
+    o.title = 'YModem Download';
+    o.width = 24;       o.height = 24;
+    o.style['position'] = 'absolute';
+    o.style['top'] = (2 + (pos++ * 26))+'px';
+    o.style['right'] = '2px';
+    document.body.appendChild(o);
+    
+    
     // build marquee CSS
     var style = document.createElement('style');
     style.type = 'text/css';
@@ -2573,7 +2581,7 @@ function initDisplay() {
     crsrHome();
 
     textPos = textDiv.getBoundingClientRect();
-    termState = TERMSTATE_NORMAL; // set for standard terminal mode, not in file xfer mode
+    termState = TS_NORMAL; // set for standard terminal mode, not in file xfer mode
     
     // test websocket connect
     ws = new WebSocket('ws://@InternetIP@:@WSPort@', ['vtx']);
@@ -2590,11 +2598,11 @@ function initDisplay() {
             data = e.data;
         
         switch (termState) {
-            case TERMSTATE_NORMAL:
+            case TS_NORMAL:
                 conStrOut(data);
                 break;
                 
-            case TERMSTATE_YMUP_START:
+            case TM_YMR_START:
                 ymodemStateMachine(data);
                 break;
         }
@@ -2769,48 +2777,133 @@ function UTF8ToBytes(str) {
     return out;
 };    
     
-function ymodemStateMachine(data){
+var 
+    ymTimer,
+    ymCCount,
+    ymPacketSize,
+    ymPacketPos,
+    ymPacketBuff = [],
+	crc16ccitt = new Uint16Array([
+		0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
+		0x8108, 0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF,
+		0x1231, 0x0210, 0x3273, 0x2252, 0x52B5, 0x4294, 0x72F7, 0x62D6,
+		0x9339, 0x8318, 0xB37B, 0xA35A, 0xD3BD, 0xC39C, 0xF3FF, 0xE3DE,
+		0x2462, 0x3443, 0x0420, 0x1401, 0x64E6, 0x74C7, 0x44A4, 0x5485,
+		0xA56A, 0xB54B, 0x8528, 0x9509, 0xE5EE, 0xF5CF, 0xC5AC, 0xD58D,
+		0x3653, 0x2672, 0x1611, 0x0630, 0x76D7, 0x66F6, 0x5695, 0x46B4,
+		0xB75B, 0xA77A, 0x9719, 0x8738, 0xF7DF, 0xE7FE, 0xD79D, 0xC7BC,
+		0x48C4, 0x58E5, 0x6886, 0x78A7, 0x0840, 0x1861, 0x2802, 0x3823,
+		0xC9CC, 0xD9ED, 0xE98E, 0xF9AF, 0x8948, 0x9969, 0xA90A, 0xB92B,
+		0x5AF5, 0x4AD4, 0x7AB7, 0x6A96, 0x1A71, 0x0A50, 0x3A33, 0x2A12,
+		0xDBFD, 0xCBDC, 0xFBBF, 0xEB9E, 0x9B79, 0x8B58, 0xBB3B, 0xAB1A,
+		0x6CA6, 0x7C87, 0x4CE4, 0x5CC5, 0x2C22, 0x3C03, 0x0C60, 0x1C41,
+		0xEDAE, 0xFD8F, 0xCDEC, 0xDDCD, 0xAD2A, 0xBD0B, 0x8D68, 0x9D49,
+		0x7E97, 0x6EB6, 0x5ED5, 0x4EF4, 0x3E13, 0x2E32, 0x1E51, 0x0E70,
+		0xFF9F, 0xEFBE, 0xDFDD, 0xCFFC, 0xBF1B, 0xAF3A, 0x9F59, 0x8F78,
+		0x9188, 0x81A9, 0xB1CA, 0xA1EB, 0xD10C, 0xC12D, 0xF14E, 0xE16F,
+		0x1080, 0x00A1, 0x30C2, 0x20E3, 0x5004, 0x4025, 0x7046, 0x6067,
+		0x83B9, 0x9398, 0xA3FB, 0xB3DA, 0xC33D, 0xD31C, 0xE37F, 0xF35E,
+		0x02B1, 0x1290, 0x22F3, 0x32D2, 0x4235, 0x5214, 0x6277, 0x7256,
+		0xB5EA, 0xA5CB, 0x95A8, 0x8589, 0xF56E, 0xE54F, 0xD52C, 0xC50D,
+		0x34E2, 0x24C3, 0x14A0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405,
+		0xA7DB, 0xB7FA, 0x8799, 0x97B8, 0xE75F, 0xF77E, 0xC71D, 0xD73C,
+		0x26D3, 0x36F2, 0x0691, 0x16B0, 0x6657, 0x7676, 0x4615, 0x5634,
+		0xD94C, 0xC96D, 0xF90E, 0xE92F, 0x99C8, 0x89E9, 0xB98A, 0xA9AB,
+		0x5844, 0x4865, 0x7806, 0x6827, 0x18C0, 0x08E1, 0x3882, 0x28A3,
+		0xCB7D, 0xDB5C, 0xEB3F, 0xFB1E, 0x8BF9, 0x9BD8, 0xABBB, 0xBB9A,
+		0x4A75, 0x5A54, 0x6A37, 0x7A16, 0x0AF1, 0x1AD0, 0x2AB3, 0x3A92,
+		0xFD2E, 0xED0F, 0xDD6C, 0xCD4D, 0xBDAA, 0xAD8B, 0x9DE8, 0x8DC9,
+		0x7C26, 0x6C07, 0x5C64, 0x4C45, 0x3CA2, 0x2C83, 0x1CE0, 0x0CC1,
+		0xEF1F, 0xFF3E, 0xCF5D, 0xDF7C, 0xAF9B, 0xBFBA, 0x8FD9, 0x9FF8,
+		0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0 ]);
+
+// compute crc16    
+function ymCRC16Calc(bytes, start, len) {
+    var 
+        crc = new Uint16Array([0]),
+		i = start;
+
+    while (len--)
+        crc[0] = crc16ccitt[bytes[i++] ^ (crc[0] >> 8)] ^ (crc[0] << 8);
+	return crc[0];
+}
+
+function ymStateMachine(data){
     var
         i,
+        block, block2, crc16
         bytes = UTF8ToBytes(data);
         
     for (i = 0; i < bytes.length; i++) {
         b = bytes[i];
         switch (termState) {
-            case TERMSTATE_YMODEM_START:
+            case TS_YMR_START:
+                // start recieving packets. if SOH, get 128. if STX then 1024
                 // need SOH 00 FF foo.c NUL[123] CRC CRC
-                if (b == SOH) {
-                    termState = TERMSTATE_YMODEM_START_1;   // advance to get line num
-                    clearInterval(ymodemTimer);
-                } // else discard.
+                ymPacketPos = 0;
+                switch (b) {
+                    case SOH:
+                        termState = TS_YMR_GETPACKET;   // advance to get line num
+                        ymPacketSize = 128 + 4;         // 128 bytes + line, line inv + crc16
+                        clearInterval(ymTimer);
+                        break;
+                    
+                    case STX:
+                        termState = TS_YMR_GETPACKET;   // advance to get line num
+                        ymPacketSize = 1024 + 4;        // 128 bytes + line, line inv + crc16
+                        clearInterval(ymTimer);
+                        break;
+                        
+                    case EOT:
+                        // end of transmittion. save file.
+                        break;
+                }
                 break;
                 
-            case TERMSTATE_YMODEM_START_1:
-                // need linenum
-                ymodemLineNum = b;
-                termState = TERMSTATE_YMODEM_START_2;       // advance to inverse linenum
+            case TS_YMR_GETPACKET:
+                // read ymPacketSize bytes for packet
+                ymPacketBuff[ymPacketPos++] = b;
+                if (ymPacketPos == ymPacketSize) {
+                    // entire packet recieved. test lines and crc16
+                    block =     ymPacketBuff[0];
+                    block2 =    ymPacketBuff[1];
+                    // uncertain the order for crc16 - swap if needed.
+                    crc16 =    (ymPacketBuff[ymPacketPos - 2] << 8) +
+                                ymPacketBuff[ymPacketPos - 2];
+                    // check block number
+                    if (block != (~block2 & 0xFF)) {
+                        ws.send(String.fromCharCode(NAK));
+                        termState = TM_YMR_START;
+                        break;
+                    }
+                    // check crc16
+                    if (ymCRC16Calc(ymPacketBuf, 2, ymPacketSize - 4) != crc16) {
+                        ws.send(String.fromCharCode(NAK));
+                        termState = TM_YMR_START;
+                        break;
+                    }
+                    if (block == 0){
+                        // first packet. get filename and optional filesize
+                        // send ACK + C
+                    } else {
+                        // append data to blob
+                        // send ACK
+                    }
+                }
                 break;
-                
-            case TERMSTATE_YMODEM_START_2:
-                if (~b == ymodemLineNum) {
-                    // correct - advance
-                    termState = TERMSTATE_YMODEM_START_3;   // get filename.
-                } else
-                    termState = TERMSTATE_NORMAL;
-                
         }
     }
 }    
 
 // clear this function from inside ws.onmessage once we get proper response and
 //  advance termState to next phase.
-function ymodemRecvG() {
-    ws.send('G');
-    ymodemSendCCount++;
-    if (ymodemSendCCount > 8) {
+function ymRecvC() {
+    ws.send('C');
+    ymCCount++;
+    if (ymGCount > 8) {
         // abort after 8 tries.
-        termState = TERMSTATE_NORMAL;
-        clearInterval(ymodemTimer);
+        termState = TS_NORMAL;
+        clearInterval(ymTimer);
         
         // clear file xfer ui / unfade screen
     }
@@ -2819,31 +2912,35 @@ function ymodemRecvG() {
 // send file to remote. return -1 on failure or abort
 // possibly turn into webworker  - needs to talk with ws.onmessage
 // (https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)
-function ymodemRecvStart(filename) {
+function ymRecvStart(filename) {
     // fade terminal - build file xfer ui.
     // button click needed for cancel.
     
     // send starting G's
-    termState = TERMSTATE_YMUP_START;
-    ymodemSendCCount = 0;
-    ymodemTimer = setInterval(ymodemSendC, 3000);
+    termState = TS_YMR_START;
+    ymCCount = 0;
+    ymTimer = setInterval(ymodemSendC, 3000);
 }
 
 /*
-            Figure 8.  YMODEM-g Transmission Session
-
-            SENDER                                  RECEIVER
-                                                    "sb foo.*<CR>"
-            "sending in batch mode etc..."
-                                                    G (command:rb -g)
-            SOH 00 FF foo.c NUL[123] CRC CRC
-                                                    G
-            SOH 01 FE Data[128] CRC CRC
-            STX 02 FD Data[1024] CRC CRC
-            SOH 03 FC Data[128] CRC CRC
-            SOH 04 FB Data[100] CPMEOF[28] CRC CRC
-            EOT
-                                                    ACK
-                                                    G
-            SOH 00 FF NUL[128] CRC CRC
+              SENDER                                  RECEIVER
+                                                      "sb foo.*<CR>"
+              "sending in batch mode etc."
+                                                      C (command:rb)
+              SOH 00 FF foo.c NUL[123] CRC CRC
+                                                      ACK
+                                                      C
+              SOH 01 FE Data[128] CRC CRC
+                                                      ACK
+              SOH 02 FC Data[128] CRC CRC
+                                                      ACK
+              SOH 03 FB Data[100] CPMEOF[28] CRC CRC
+                                                      ACK
+              EOT
+                                                      NAK
+              EOT
+                                                      ACK
+                                                      C
+              SOH 00 FF NUL[128] CRC CRC
+                                                      ACK
 */
