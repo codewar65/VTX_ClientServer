@@ -50,6 +50,9 @@ Larazus : http://www.lazarus-ide.org/
 
 Free Pascal : https://www.freepascal.org/
 
+You will need the Synapse package (synapse40) to compile at this time until I
+get around to replacing them with my own routines.
+
 
 ## Setup
 
@@ -142,13 +145,11 @@ Migrate away from Synape TCP libraries to low level sockets in HTTP and WS
 servers.
 
 
-## To Fix / Bugs
+## To Do / To Fix / Bugs
 
-Close dead telnet session on WS disconnect.
-
-VTX client font issues. More Pixel perfect at cell borders.
-
-Implement hotspot ANSI codes.
+Testing YModem download. Write YModem upload.
 
 Merge row size, row background, and page/cursor attributes into one ESC sequence
 group.
+
+Add codes to reset page and cursor attributes to default.
