@@ -12,7 +12,6 @@ body {
     left:           0;
     right:          0;    
     position: relative;
-    user-select:    none;
 }
 .vtx {
     position:       relative;
@@ -22,7 +21,6 @@ body {
     vertical-align: top;
     overflow:       hidden;
     text-overflow:  clip;
-    user-select:    none;
 }
 #vtxpage {
     min-height:     95vh;
@@ -32,7 +30,6 @@ body {
     overflow:       hidden;
     text-overflow:  clip;
     z-index:        0;
-    user-select:    none;
 }
 #vtxtext {
     width:          100%;
@@ -47,4 +44,13 @@ body {
 .fade {
     opacity:    .5;
     background: #000055;
+}
+.noselect {
+  -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+     -khtml-user-select: none; /* Konqueror HTML */
+       -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
 }

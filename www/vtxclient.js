@@ -274,7 +274,7 @@ var
     TS_YMR_START =       1, // ymodem download started. sending G's.
     TS_YMR_GETPACKET =   2, // ymodem download packet
 
-    ovl,                    // overlay div for file transfers
+    ovl = {},               // overlay dialog stuff for file transfers
 
     // ASCII C0 Codes
     _NUL     = 0x00,
@@ -489,6 +489,46 @@ function addListener(obj, eventName, listener) {
         obj.attachEvent("on" + eventName, listener);
 }
 
+// create an element
+function domElement(type, options, styles, txt) {
+    var 
+        e = document.createElement(type),
+		i;
+        
+	if (options)
+        for (i in options)
+            e[i] = options[i];
+	if (styles)
+		for (i in styles)
+            e.style[i] = styles[i];
+	if (txt)
+        e.appendChild(document.createTextNode(txt));
+    return e;
+}
+
+// send data to remote (or echo local if not connected)
+function sendData(data) {
+    var
+        str;
+
+    if (!data)                              
+        str = '';
+    else if (typeof data == 'function')     
+        str = data();
+    else if (typeof data == 'string')       
+        str = data;
+    else if (typeof ka == 'number')         
+        str = String.fromCharCode(data);
+        
+    // convert data to string
+    if (ws && (ws.readyState == 1))
+        ws.send(str)
+    else {
+        conStrOut(str);
+        crsrDraw();
+    }
+}
+
 // which row is the mouse on?
 function getMouseCell(e) {
     var
@@ -496,7 +536,8 @@ function getMouseCell(e) {
         size, width, c, rh,
         ty, dt, i;
 
-    ty = document.documentElement.scrollTop || document.body.scrollTop;
+    //ty = document.documentElement.scrollTop || document.body.scrollTop;
+    ty = 0;
     x = e.clientX;
     y = e.clientY + ty;
     dt = textPos.top;        
@@ -565,6 +606,8 @@ function mouseMove(e) {
     ctrlState = e.ctrlKey;
     altState = e.altKey;
     
+    if (termState != TS_NORMAL) return;
+    
     // check if over a hotspot
     hs = getHotSpot(e);
     if (hs) {
@@ -603,19 +646,16 @@ function click(e) {
     ctrlState = e.ctrlKey;
     altState = e.altKey;
 
+    if (termState != TS_NORMAL) return;
+
     hs = getHotSpot(e);
     if (hs) {
         // clicked on hotspot.
         switch (hs.type) {
             case 0:
-                // send string.
-                if (ws.readyState == 1) 
-                    ws.send(hs.val)
-                else {
-                    conStrOut(hs.val);
-                    crsrDraw();
-                }
+                sendData(hs.val);
                 break;
+                
             case 1:
                 // url
                 var win = window.open(hs.val, '_blank');
@@ -653,8 +693,10 @@ function keyDown(e) {
     ctrlState = e.ctrlKey;
     altState = e.altKey;
 
-    stateIdx = (shiftState ? 1 : 0) + (ctrlState ? 2 : 0) + (altState ? 4 : 0);
+    if (termState != TS_NORMAL) return;
 
+    stateIdx = (shiftState ? 1 : 0) + (ctrlState ? 2 : 0) + (altState ? 4 : 0);
+    
     // translate for capslock
     if ((kc >= 65) && (kc <= 90) && (stateIdx < 2) && capState)
         stateIdx ^= 1;
@@ -668,12 +710,7 @@ function keyDown(e) {
         ka();
     } else if (typeof ka == 'string') {
         // send string to console.
-        if (ws.readyState == 1) 
-            ws.send(ka)
-        else {
-            conStrOut(ka);
-            crsrDraw();
-        }
+        sendData(ka);
         e.preventDefault();
         return (e.returnValue = false); // true
 
@@ -711,13 +748,7 @@ function keyDown(e) {
 
         } else if (ka > 0) {
             // send ascii if online, send to server. if offline, localecho
-            if (ws.readyState == 1) 
-                ws.send(ka)
-            else {
-                conCharOut(ka);
-                crsrDraw();
-            }
-            
+            sendData(ka);
             e.keyCode = 0;
             e.preventDefault();
             return (e.returnValue = false);
@@ -787,10 +818,7 @@ function insChar(rownum, colnum, chr) {
 
 // create blank HTML row
 function createNewRow() {
-    var
-        row = document.createElement('div');
-    row.setAttribute('class', 'vtx');
-    return row;
+    return domElement('div', { className: 'vtx' });
 }
 
 // is this character a printable? (add )
@@ -862,6 +890,7 @@ function conPrintChar(chr) {
 // the big function - ansi sequence state machine.
 function conCharOut(chr) {
     var
+        def,
         i, l,               // generic idx, length
         r, c, v,            // row, col idx
         crsrrender = false, // redraw cursor?
@@ -1396,30 +1425,31 @@ function conCharOut(chr) {
                         if (div != null) 
                             div.parentNode.removeChild(div);
 
-                        // make a new one.
-                        div = document.createElement('div');
-                        img = document.createElement('img');
-                        div.className = 'sprite';
-                        div.id = 'sprite' + parm[1];    // sprite number
-
                         var rpos = getElementPosition(getRowElement(crsrRow));
                         var csize = getRowFontSize(crsrRow);
                         var spriteTop = rpos.top;
                         var spriteLeft = rpos.left + (crsrCol * csize.width)
 
-                        div.style['position'] = 'absolute';
-                        div.style['left'] = spriteLeft + 'px';
-                        div.style['top'] = spriteTop + 'px';
-                        div.style['width'] = (colSize * parm[3]) + 'px';
-                        div.style['height'] = (rowSize * parm[4]) * 'px';
-                        div.style['overflow'] = 'hidden';
+                        // make a new one.
+                        div = domElement(
+                            'div',
+                            {   className:  'sprite',
+                                id :        'sprite' + parm[1] },
+                            {   position:   'absolute',
+                                left:       spriteLeft + 'px',
+                                top:        spriteTop + 'px',
+                                width:      (colSize * parm[3]) + 'px',
+                                height:     (rowSize * parm[4]) * 'px',
+                                overflow:   'hidden'});
 
-                        img.onload = fitSVGToDiv;
-                        img.style['visibility'] = 'hidden';
-                        img.style['width'] = (colSize * parm[3]) + 'px';
-                        img.style['height'] = (rowSize * parm[4]) * 'px';
-
-                        img['src'] = spriteDefs[parm[2]];
+                        img = domElement(
+                            'img',
+                            {   onload: fitSVGToDiv,
+                                src:    spriteDefs[parm[2]] },
+                            {   visibility: 'hidden',
+                                width: (colSize * parm[3]) + 'px',
+                                height: (rowSize * parm[4]) * 'px' });
+                                
                         div.appendChild(img);
                         if (parm[5] == 0)
                             pageDiv.insertBefore(div, textDiv)
@@ -1444,7 +1474,7 @@ function conCharOut(chr) {
                 parm[0] = minMax(parm[0], 0, 999);
                 if (parm[0] == 0) {
                     // request device
-                    ws.send(CSI + '?50;86;84;88c'); // reply for VTX
+                    sendData(CSI + '?50;86;84;88c'); // reply for VTX
                 }
                 break;
                 
@@ -1623,8 +1653,7 @@ function conCharOut(chr) {
                 parm[0] = minMax(parm[0], 1, 999);
                 if (parm[0] == 6) {
                     // request cursor position
-                    var reply = CSI + (crsrRow+1) + ';' + (crsrCol+1) + 'R';
-                    ws.send(reply);
+                    sendData(CSI + (crsrRow+1) + ';' + (crsrCol+1) + 'R');
                 }
                 break;
                 
@@ -1682,10 +1711,12 @@ function conStrOut(str) {
         l = str.length,
         i;
 
-    setTimers(false);
+    if (termState == TS_NORMAL)
+        setTimers(false);
     for (i = 0; i < l; i++)
         conCharOut(str.charCodeAt(i));
-    setTimers(true);
+    if (termState == TS_NORMAL)
+        setTimers(true);
 }
 
 // get actual document position of element
@@ -1755,7 +1786,7 @@ function getDefaultFontSize() {
         x, y, d, i,
         txtTop, txtBottom, txtLeft, txtRight,
         testString = '',
-        data, ctx, canvas = document.createElement('canvas'),
+        data, ctx, canvas,
         bmpw = 2000,
         bmph = 64;
         
@@ -1770,13 +1801,18 @@ function getDefaultFontSize() {
     font = fontSize + 'px ' + fontName;
     
     // interrogate font
-    canvas.width = bmpw;
-    canvas.height = bmph;
+    canvas = domElement(
+        'canvas',
+        {   width:  bmpw,
+            height: bmph });
+//    canvas = document.createElement('canvas'),
+//    canvas.width = bmpw;
+//    canvas.height = bmph;
     ctx = canvas.getContext('2d');
     ctx.font = font;
     ctx.textBaseline = 'top';
-    ctx.textAlign='left';
-    ctx.fillStyle = '#FFFFFF';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#FFF';
     ctx.fillText(testString, 0, 0);
 
     data = ctx.getImageData(0, 0, bmpw, bmph).data;
@@ -2252,11 +2288,12 @@ function renderCell(rownum, colnum, forcerev) {
     cnv = row.firstChild;           // get canvas
     if (!cnv) {
         // create new canvas if nonexistant
-        cnv = document.createElement('canvas');
-        cnv.style['z-index'] = '50';
+        cnv = domElement(
+            'canvas',
+            {   width:  80*w,
+                height: (h+16) },
+            {   zIndex: '50' });
         row.appendChild(cnv);
-        cnv.width = 80 * w;
-        cnv.height = (h + 16);
     }
     ctx = cnv.getContext('2d');
     
@@ -2361,15 +2398,6 @@ function renderCell(rownum, colnum, forcerev) {
     ctx.restore();
 }
 
-// massage string to make HTML friendly
-function htmlEncode(s) {
-    var
-        el = document.createElement("div");
-
-    el.innerText = el.textContent = s;
-    return el.innerHTML;
-}
-
 // brighten / darken a color. color is a 24bit value (#RRGGBB)
 function brightenRGB(colorstr, factor) {
     var
@@ -2440,10 +2468,21 @@ function fitSVGToDiv(e) {
 
 // set indicators
 function setBulbs() {
-    document.getElementById('osbulb').src = ((ws.readyState == 1) ? 'os1':'os0') + '.png';
-    document.getElementById('clbulb').src = (capState ? 'cl1':'cl0') + '.png';
-    document.getElementById('nlbulb').src = (numState ? 'nl1':'nl0') + '.png';
-    document.getElementById('slbulb').src = (scrState ? 'sl1':'sl0') + '.png';
+    var 
+        el;
+    if (termState == TS_NORMAL){
+        document.getElementById('osbulb').src = ((ws.readyState == 1) ? 'os1':'os0') + '.png';
+        document.getElementById('clbulb').src = (capState ? 'cl1':'cl0') + '.png';
+        document.getElementById('nlbulb').src = (numState ? 'nl1':'nl0') + '.png';
+        document.getElementById('slbulb').src = (scrState ? 'sl1':'sl0') + '.png';
+
+        document.getElementById('ulbtn').style['visibility'] = 'visible';
+        document.getElementById('dlbtn').style['visibility'] = 'visible';
+    } else {
+        // buttons not visible in file transfer mode.
+        document.getElementById('ulbtn').style['visibility'] = 'hidden';
+        document.getElementById('dlbtn').style['visibility'] = 'hidden';
+    }
 }
 
 // setup the crt and cursor
@@ -2470,59 +2509,73 @@ function initDisplay() {
     
     // add indicators / buttons 
     pos = 0;
-    o = document.createElement('img');
-    o.src = 'os0.png';   o.id = 'osbulb';
-    o.title = 'Connected Indicator';
-    o.width = 24;       o.height = 24;
-    o.style['position'] = 'absolute';
-    o.style['top'] = (2 + (pos++ * 26))+'px';
-    o.style['right'] = '2px';
-    document.body.appendChild(o);
-
-    o = document.createElement('img');
-    o.src = 'cl0.png';  o.id = 'clbulb';
-    o.title = 'CapsLock Indicator';
-    o.width = 24;       o.height = 24;
-    o.style['position'] = 'absolute';
-    o.style['top'] = (2 + (pos++ * 26))+'px';
-    o.style['right'] = '2px';
-    document.body.appendChild(o);
-
-    o = document.createElement('img');
-    o.src = 'cl0.png';  o.id = 'nlbulb';
-    o.title = 'NumLock Indicator';
-    o.width = 24;       o.height = 24;
-    o.style['position'] = 'absolute';
-    o.style['top'] = (2 + (pos++ * 26))+'px';
-    o.style['right'] = '2px';
-    document.body.appendChild(o);
-
-    o = document.createElement('img');
-    o.src = 'sl0.png';  o.id = 'slbulb';
-    o.title = 'ShiftLock Indicator';
-    o.width = 24;       o.height = 24;
-    o.style['position'] = 'absolute';
-    o.style['top'] = (2 + (pos++ * 26))+'px';
-    o.style['right'] = '2px';
-    document.body.appendChild(o);
-
-    o = document.createElement('img');
-    o.src = 'ul.png';  o.id = 'ulbtn';
-    o.title = 'YModem Upload';
-    o.width = 24;       o.height = 24;
-    o.style['position'] = 'absolute';
-    o.style['top'] = (2 + (pos++ * 26))+'px';
-    o.style['right'] = '2px';
-    document.body.appendChild(o);
-    o = document.createElement('img');
-    o.src = 'dl.png';  o.id = 'dlbtn';
-    o.title = 'YModem Download';
-    o.width = 24;       o.height = 24;
-    o.style['position'] = 'absolute';
-    o.style['top'] = (2 + (pos++ * 26))+'px';
-    o.style['right'] = '2px';
-    document.body.appendChild(o);
     
+    pageDiv.appendChild(domElement(
+        'img',
+        {   src:        'os0.png',
+            id:         'osbulb',
+            width:      24,
+            height:     24,
+            title:      'Online Status' },
+        {   position:   'fixed',
+            top:        (2 + (pos++ * 26))+'px',
+            right:      '2px'}));
+
+    pageDiv.appendChild(domElement(
+        'img',
+        {   src:        'cl0.png',
+            id:         'clbulb',
+            width:      24,
+            height:     24,
+            title:      'CapsLk' },
+        {   position:   'fixed',
+            top:        (2 + (pos++ * 26))+'px',
+            right:      '2px'}));
+
+    pageDiv.appendChild(domElement(
+        'img',
+        {   src:        'nl0.png',
+            id:         'nlbulb',
+            width:      24,
+            height:     24,
+            title:      'NumLk' },
+        {   position:   'fixed',
+            top:        (2 + (pos++ * 26))+'px',
+            right:      '2px'}));
+
+    pageDiv.appendChild(domElement(
+        'img',
+        {   src:        'sl0.png',
+            id:         'slbulb',
+            width:      24,
+            height:     24,
+            title:      'ScrLk' },
+        {   position:   'fixed',
+            top:        (2 + (pos++ * 26))+'px',
+            right:      '2px'}));
+            
+    pageDiv.appendChild(domElement(
+        'img',
+        {   src:        'ul.png',
+            id:         'ulbtn',
+            width:      24,
+            height:     24,
+            title:      'YModem Upload' },
+        {   position:   'fixed',
+            top:        (2 + (pos++ * 26))+'px',
+            right:      '2px'}));
+
+    pageDiv.appendChild(domElement(
+        'img',
+        {   src:        'dl.png',
+            id:         'dlbtn',
+            onclick:    ymRecvStart,
+            width:      24,
+            height:     24,
+            title:      'YModem Download' },
+        {   position:   'fixed',
+            top:        (2 + (pos++ * 26))+'px',
+            right:      '2px'}));
     
     // build marquee CSS
     var style = document.createElement('style');
@@ -2603,7 +2656,7 @@ function initDisplay() {
                 conStrOut(data);
                 break;
                 
-            case TM_YMR_START:
+            case TS_YMR_START:
                 ymodemStateMachine(data);
                 break;
         }
@@ -2656,16 +2709,21 @@ function newCrsr() {
         o, c, z, sz, ax1, ax2;
 
     if (crsr == null) {
-        crsr = document.createElement('div');
-        crsr.style['position'] = 'absolute';
-        crsr.style['display'] = 'block';
-        crsr.style['z-index'] = '999';
-        o = document.createElement('div');
-        o.id = 'crsr';
-        o.style['position'] = 'absolute';
-        o.style['display'] = 'block';
-        o.style['bottom'] = '0px';
-        o.style['left'] = '0px';
+        
+        crsr = domElement(
+            'div', {},
+            {   position:   'absolute',
+                display:    'block',
+                zIndex:     '999' })
+        
+        o = domElement(
+            'div',
+            {   id:         'crsr' },
+            {   position:   'absolute',
+                display:    'block',
+                bottom:     '0px',
+                left:       '0px' });
+    
         crsr.appendChild(o);
         textDiv.appendChild(crsr);
     } else 
@@ -2702,48 +2760,142 @@ addListener(document, 'mousemove', mouseMove);
 addListener(document, 'beforepaste', beforePaste);
 addListener(document, 'paste', paste);
 
-
-
 function fadeScreen(fade) {
+    var
+        el, fntfm, cs;
+        
     if (!fade) {
-        fadeScreen(false);
-        // remove overlay
-        if (ovl) document.body.removeChild(ovl);
-        ovl = null;
+        pageDiv.classList.remove('fade');
+        if (ovl['dialog'])
+            document.body.removeChild(ovl['dialog']);
+        ovl = {};
+
         // enable keys / cursor
+        setBulbs();
         setTimers(true);
+        document.body.style['cursor'] = 'default';
     } else {
-        fadeScreen(true);
-        // add overlay
-        ovl = document.createElement('div');
-        ovl.style['width'] = '256px';
-        ovl.style['height'] = '128px';
-        ovl.style['display'] = 'block'
-        ovl.style['background'] = 'gray';
-        ovl.style['position'] = 'absolute';
-        ovl.style['top'] = ((window.height - 128) / 2) + 'px'; 
-        ovl.style['left'] = ((pageWidth - 256) / 2) + 'px';
-        document.body.appendChild(ovl);
+        pageDiv.classList.add('fade')
+
+
+        //cs = window.getComputedStyle(el) || el.currentStyle;
+        fntfm = 'san-serif'; //cs['font-family'];
+        
+        // add control overlay
+        ovl['dialog'] = domElement(
+            'div',
+            {   className:  'noselect' },
+            {   width:      '256px',
+                height:     '128px',
+                display:    'block',
+                background: '#CCC',
+                color:      '#000',
+                border:     '2px outset #888',
+                position:   'fixed',
+                top:        ((window.innerHeight - 128) / 2) + 'px',
+                left:       ((pageWidth - 256) / 2) + 'px',
+                cursor:     'default',
+                fontFamily: fntfm,
+                fontSize:   '12px' });
+        document.body.appendChild(ovl['dialog']);
+        
+        // add cancel button
+        ovl['dialog'].appendChild(domElement(
+            'input',
+            {   type:       'button',
+                value:      'Cancel' },
+            {   width:      '96px',
+                height:     '24px',
+                position:   'absolute',
+                bottom:     '8px',
+                right:      '8px' }));
+
+        // dialog label
+        ovl['title'] = domElement(
+            'span',
+            {   className:  'noselect' },
+            {   width:      '228px',
+                height:     '20px',
+                background: '#039',
+                border:     '1px inset #888',
+                position:   'absolute',
+                top:        '4px',
+                left:       '4px',
+                padding:    '0px 8px',
+                fontSize:   '14px',
+                fontWieght: 'bold',
+                color:      'white' },
+            'YModem Download' );
+        ovl['dialog'].appendChild(ovl['title']);
+
+        // filename
+        ovl['dialog'].appendChild(domElement(
+            'span',
+            {   className:  'noselect' },
+            {   position:   'absolute',
+                top:        '32px',
+                left:       '12px' },
+            "File:" ));
+        ovl['filename'] = domElement(
+            'span', {},
+            {   position:       'absolute',
+                top:            '32px',
+                left:           '80px',
+                width:          '172px',
+                overflow:       'hidden',
+                textOverflow:   'ellipsis'
+            },
+            '{filename}' );
+        ovl['dialog'].appendChild(ovl['filename']);
+
+        // filesize
+        ovl['dialog'].appendChild(domElement(
+            'span',
+            {   className:  'noselect' },
+            {   position:   'absolute',
+                top:        '52px',
+                left:       '12px' },
+            "Size:" ));
+        ovl['filesize'] = domElement(
+            'span', {},
+            {   position:       'absolute',
+                top:            '52px',
+                left:           '80px',
+                width:          '172px',
+                overflow:       'hidden',
+                textOverflow:   'ellipsis'
+            },
+            '{filename}' );
+        ovl['dialog'].appendChild(ovl['filesize']);
+
+        // filesize
+        ovl['dialog'].appendChild(domElement(
+            'span',
+            {   className:  'noselect' },
+            {   position:   'absolute',
+                top:        '72px',
+                left:       '12px' },
+            "Transferred:" ));
+        ovl['transferred'] = domElement(
+            'span', {},
+            {   position:       'absolute',
+                top:            '72px',
+                left:           '80px',
+                width:          '172px',
+                overflow:       'hidden',
+                textOverflow:   'ellipsis'
+            },
+            '{transferred}' );
+        ovl['dialog'].appendChild(ovl['transferred']);
+        
         // disable keys / cursor
+        setBulbs();
         setTimers(false);
+        document.body.style['cursor'] = 'wait';
     }
 }    
 
-function fadeScreen(on){
-    // fade out the screen for use with progress overlays and file
-    // transfer windows
-    if (on)
-        pageDiv.classList.add('fade')
-    else
-        pageDiv.classList.remove('fade');
-}
-
 // YModem rigmarole
-
-var
-    ymodemTimer,            // setInterval val for ymodem functions.
-    ymodemSendCCount = 0,
-    ymodemLineNum = 0;
 
 function UTF8ToBytes(str) {
     var 
@@ -2857,6 +3009,8 @@ function ymStateMachine(data){
                         
                     case EOT:
                         // end of transmittion. save file.
+                        termState = TS_NORMAL;
+                        fadeScreen(false);        
                         break;
                 }
                 break;
@@ -2873,13 +3027,13 @@ function ymStateMachine(data){
                                 ymPacketBuff[ymPacketPos - 2];
                     // check block number
                     if (block != (~block2 & 0xFF)) {
-                        ws.send(String.fromCharCode(NAK));
+                        sendData(NAK);
                         termState = TM_YMR_START;
                         break;
                     }
                     // check crc16
                     if (ymCRC16Calc(ymPacketBuf, 2, ymPacketSize - 4) != crc16) {
-                        ws.send(String.fromCharCode(NAK));
+                        sendData(NAK);
                         termState = TM_YMR_START;
                         break;
                     }
@@ -2898,15 +3052,14 @@ function ymStateMachine(data){
 
 // clear this function from inside ws.onmessage once we get proper response and
 //  advance termState to next phase.
-function ymRecvC() {
-    ws.send('C');
+function ymSendC() {
+    sendData('C');
     ymCCount++;
-    if (ymGCount > 8) {
+    if (ymCCount > 8) {
         // abort after 8 tries.
         termState = TS_NORMAL;
         clearInterval(ymTimer);
-        
-        // clear file xfer ui / unfade screen
+        fadeScreen(false);        
     }
 }
 
@@ -2914,13 +3067,16 @@ function ymRecvC() {
 // possibly turn into webworker  - needs to talk with ws.onmessage
 // (https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)
 function ymRecvStart(filename) {
-    // fade terminal - build file xfer ui.
-    // button click needed for cancel.
-    
     // send starting G's
     termState = TS_YMR_START;
+    
+    // fade terminal - build file xfer ui.
+    fadeScreen(true);        
+
     ymCCount = 0;
-    ymTimer = setInterval(ymodemSendC, 3000);
+    ymSendC();
+    if (termState != TS_NORMAL)
+        ymTimer = setInterval(ymSendC, 3000);
 }
 
 /*
