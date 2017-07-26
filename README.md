@@ -1,6 +1,6 @@
 # VTX_ClientServer
 
-updated: 24-JUL-2017
+updated: 26-JUL-2017
 
 
 ## Intro

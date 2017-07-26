@@ -116,8 +116,10 @@
 
 */
 
-// ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
+// globals
+{
 var
+    // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     clut = [
         // VGA 0-15 - transparent will switch to #000000 when appropriate
         'transparent',  '#AA0000',      '#00AA00',      '#AA5500',
@@ -452,6 +454,7 @@ var
     },
     shiftState, ctrlState, altState,
     numState, capState, scrState;
+}
 
 // get codepoint from string
 if (!String.prototype.codePointAt) {
@@ -1708,9 +1711,10 @@ function conCharOut(chr) {
 // write string using current attributes at cursor position
 function conStrOut(str) {
     var
-        l = str.length,
-        i;
+        l, i;
 
+    str = str || '';
+    l = str.length;
     if (termState == TS_NORMAL)
         setTimers(false);
     for (i = 0; i < l; i++)
@@ -2573,7 +2577,8 @@ function initDisplay() {
             width:      24,
             height:     24,
             title:      'YModem Download' },
-        {   position:   'fixed',
+        {   cursor:     'pointer',
+            position:   'fixed',
             top:        (2 + (pos++ * 26))+'px',
             right:      '2px'}));
     
@@ -2649,6 +2654,7 @@ function initDisplay() {
     }
     ws.onmessage = function(e) { 
         var 
+            str,
             data = e.data;
         
         switch (termState) {
@@ -2657,7 +2663,11 @@ function initDisplay() {
                 break;
                 
             case TS_YMR_START:
-                ymodemStateMachine(data);
+                str = ymodemStateMachine(data);
+                if (str.length > 0) {
+                    // transfer ended mid string. print the rest.
+                    conStrOut(str);
+                }
                 break;
         }
     }
@@ -2803,6 +2813,7 @@ function fadeScreen(fade) {
         ovl['dialog'].appendChild(domElement(
             'input',
             {   type:       'button',
+                onclick:    ymCancel,
                 value:      'Cancel' },
             {   width:      '96px',
                 height:     '24px',
@@ -2865,7 +2876,7 @@ function fadeScreen(fade) {
                 overflow:       'hidden',
                 textOverflow:   'ellipsis'
             },
-            '{filename}' );
+            '{filesize}' );
         ovl['dialog'].appendChild(ovl['filesize']);
 
         // filesize
@@ -2895,47 +2906,19 @@ function fadeScreen(fade) {
     }
 }    
 
+
+
 // YModem rigmarole
 
-function UTF8ToBytes(str) {
-    var 
-        c,
-        out = [], 
-        p = 0;
-    
-    for (var i = 0; i < str.length; i++) {
-        c = str.charCodeAt(i);
-        if (c < 128) {
-            out[p++] = c;
-        } else if (c < 2048) {
-            out[p++] = (c >> 6) | 192;
-            out[p++] = (c & 63) | 128;
-        } else if ( 
-                ((c & 0xFC00) == 0xD800) &&
-                (i + 1) < str.length &&
-                ((str.charCodeAt(i + 1) & 0xFC00) == 0xDC00)
-            ) {
-            // Surrogate Pair
-            c = 0x10000 + ((c & 0x03FF) << 10) + (str.charCodeAt(++i) & 0x03FF);
-            out[p++] = (c >> 18) | 240;
-            out[p++] = ((c >> 12) & 63) | 128;
-            out[p++] = ((c >> 6) & 63) | 128;
-            out[p++] = (c & 63) | 128;
-        } else {
-            out[p++] = (c >> 12) | 224;
-            out[p++] = ((c >> 6) & 63) | 128;
-            out[p++] = (c & 63) | 128;
-        }
-    }
-    return out;
-};    
-    
 var 
     ymTimer,
     ymCCount,
-    ymPacketSize,
-    ymPacketPos,
-    ymPacketBuff = [],
+    ymPacketSize,               // current size of packet.
+    ymPacketPos,                // current position in buffer.
+    ymPacketBuff = [],          // buffer for send / receive.
+    ymFileName,
+    ymFileSize,                 // file size. -1 if unknown.
+    ymFileData = new Uint8Array(),  // file data.
 	crc16ccitt = new Uint16Array([
 		0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
 		0x8108, 0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF,
@@ -2970,6 +2953,39 @@ var
 		0xEF1F, 0xFF3E, 0xCF5D, 0xDF7C, 0xAF9B, 0xBFBA, 0x8FD9, 0x9FF8,
 		0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0 ]);
 
+function UTF8ToBytes(str) {
+    var 
+        c,
+        out = [], 
+        p = 0;
+    
+    for (var i = 0; i < str.length; i++) {
+        c = str.charCodeAt(i);
+        if (c < 128) {
+            out[p++] = c;
+        } else if (c < 2048) {
+            out[p++] = (c >> 6) | 192;
+            out[p++] = (c & 63) | 128;
+        } else if ( 
+                ((c & 0xFC00) == 0xD800) &&
+                (i + 1) < str.length &&
+                ((str.charCodeAt(i + 1) & 0xFC00) == 0xDC00)
+            ) {
+            // Surrogate Pair
+            c = 0x10000 + ((c & 0x03FF) << 10) + (str.charCodeAt(++i) & 0x03FF);
+            out[p++] = (c >> 18) | 240;
+            out[p++] = ((c >> 12) & 63) | 128;
+            out[p++] = ((c >> 6) & 63) | 128;
+            out[p++] = (c & 63) | 128;
+        } else {
+            out[p++] = (c >> 12) | 224;
+            out[p++] = ((c >> 6) & 63) | 128;
+            out[p++] = (c & 63) | 128;
+        }
+    }
+    return out;
+};    
+    
 // compute crc16    
 function ymCRC16Calc(bytes, start, len) {
     var 
@@ -2981,10 +2997,25 @@ function ymCRC16Calc(bytes, start, len) {
 	return crc[0];
 }
 
+function combineArrays(first, second) {
+    var 
+        firstLength = first.length,
+        result = new Uint8Array(firstLength + second.length);
+
+    result.set(first);
+    result.set(second, firstLength);
+
+    return result;
+}
+
+// the idea is to process one byte at a time. pass in chunks of string data
+// and process all of it until done. return any remaining string data if 
+// terminates before end of string.
 function ymStateMachine(data){
     var
-        i,
+        i, j,
         block, block2, crc16
+        tmp,    // temp Uint8Array for a single packet.
         bytes = UTF8ToBytes(data);
         
     for (i = 0; i < bytes.length; i++) {
@@ -2995,22 +3026,32 @@ function ymStateMachine(data){
                 // need SOH 00 FF foo.c NUL[123] CRC CRC
                 ymPacketPos = 0;
                 switch (b) {
-                    case SOH:
+                    case _SOH:
                         termState = TS_YMR_GETPACKET;   // advance to get line num
                         ymPacketSize = 128 + 4;         // 128 bytes + line, line inv + crc16
                         clearInterval(ymTimer);
                         break;
                     
-                    case STX:
+                    case _STX:
                         termState = TS_YMR_GETPACKET;   // advance to get line num
                         ymPacketSize = 1024 + 4;        // 128 bytes + line, line inv + crc16
                         clearInterval(ymTimer);
                         break;
                         
-                    case EOT:
+                    case _EOT:
                         // end of transmittion. save file.
                         termState = TS_NORMAL;
+                        fadeScreen(false);
+                        // save. see here...
+                        // https://stackoverflow.com/questions/23451726/saving-binary-data-as-file-using-javascript-from-a-browser
+                        break;
+                        
+                    case _CAN:
+                        // cancel from remote.
+                        termState = TS_NORMAL;
                         fadeScreen(false);        
+                        // dump data.
+                        ymFileData = new Uint8Array();
                         break;
                 }
                 break;
@@ -3027,22 +3068,55 @@ function ymStateMachine(data){
                                 ymPacketBuff[ymPacketPos - 2];
                     // check block number
                     if (block != (~block2 & 0xFF)) {
-                        sendData(NAK);
+                        sendData(_NAK);
                         termState = TM_YMR_START;
                         break;
                     }
                     // check crc16
                     if (ymCRC16Calc(ymPacketBuf, 2, ymPacketSize - 4) != crc16) {
-                        sendData(NAK);
+                        sendData(_NAK);
                         termState = TM_YMR_START;
                         break;
                     }
                     if (block == 0){
                         // first packet. get filename and optional filesize
+                        ymFileName = '';
+                        j = 2;
+                        while (ymPacketBuf[j])
+                            ymFileName += String.fromCharCode(ymPacketBuf[j++]);
+                        ovl['filename'].innerHTML = ymFileName;
+                        
+                        j++; // skip over null.
+                        
+                        // check for filesize
+                        if (ymPacketBuffer[j]) {
+                            str = '';
+                            while (ymPacketBuf[j])
+                                str += String.fromCharCode(ymPacketBuf[j++]);
+                            ymFileSize = parseInt(str); // known size
+                            ovl['filesize'].innerHTML = ymFileSIze;
+                        } else {
+                            ymFileSize = -1;            // unknown size
+                            ovl['filesize'].innerHTML = 'Unknown';
+                        }
+                        
+                        // initialize blob to empty
+                        ymFileData = new Uint8Array();
+                        ovl['transferred'].innerHTML = '0 b';
+
                         // send ACK + C
+                        sendData(_ACK);
+                        sendData('C');
+                        
                     } else {
                         // append data to blob
+                        tmp = new Uint8Array(ymPacketSize - 4);
+                        for (j = 0; j < ymPacketSize - 4; j++)
+                            tmp[j] = ymPacketBuf[2 + j];
+                        ymFileData = combineArrays(ymFileData, tmp);
+                        
                         // send ACK
+                        sendData(_ACK);
                     }
                 }
                 break;
@@ -3050,8 +3124,22 @@ function ymStateMachine(data){
     }
 }    
 
-// clear this function from inside ws.onmessage once we get proper response and
-//  advance termState to next phase.
+// cancel ymodem transfer
+function ymCancel() {
+    sendData(_CAN);
+    sendData(_CAN);
+    sendData(_CAN);
+    sendData(_CAN);
+    sendData(_CAN);
+    sendData(_CAN);
+    sendData(_CAN);
+    sendData(_CAN);
+    termState = TS_NORMAL;
+    clearInterval(ymTimer);
+    fadeScreen(false);
+}
+
+// send C's to remote to start download.
 function ymSendC() {
     sendData('C');
     ymCCount++;
@@ -3063,15 +3151,16 @@ function ymSendC() {
     }
 }
 
-// send file to remote. return -1 on failure or abort
-// possibly turn into webworker  - needs to talk with ws.onmessage
-// (https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers)
-function ymRecvStart(filename) {
-    // send starting G's
+// receive file from remote.
+function ymRecvStart() {
+    // send starting C's
     termState = TS_YMR_START;
     
     // fade terminal - build file xfer ui.
     fadeScreen(true);        
+    ovl['filename'].innerHTML = 'Waiting for Remote...';
+    ovl['filesize'].innerHTML = '';
+    ovl['transferred'].innerHTML = '';
 
     ymCCount = 0;
     ymSendC();
