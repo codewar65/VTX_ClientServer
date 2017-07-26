@@ -1880,6 +1880,7 @@ function getRowElement(row) {
 // called often to fix cursor on zoom / page resize
 function doCheckResize() {
     // page resize?
+    textPos = textDiv.getBoundingClientRect();
     if (elPage.clientWidth != pageWidth) {
         pageWidth = elPage.clientWidth;
         crsrDraw(true);
