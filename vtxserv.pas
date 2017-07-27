@@ -98,6 +98,7 @@ type
     MaxConnections :  integer;
 
     NodeType :        TvtxNodeType;
+    CodePage :				TCodePages;		// phase TelnetCP out.
 
     // string to launch node preocess
     ExtProc :         string;
@@ -497,6 +498,10 @@ begin
   SystemInfo.NodeType :=    TvtxNodeType(InList(
                               iin.ReadString(sect, 'NodeType', 'ExtProc'),
                               ProcessType));
+  SystemInfo.CodePage :=    TCodePages(
+                              InList(
+                                iin.ReadString(sect, 'CodePage', 'CP437'),
+                                CodePageNames));
 
   SystemInfo.ExtProc :=     iin.ReadString(sect, 'ExtProc',     'cscript.exe //Nologo //I test.js @UserIP@');
 
@@ -585,6 +590,19 @@ begin
     end;
   end;
 end;
+
+{ replace @codes@ with system values }
+function ReplaceAtCodes(str : string) : string;
+begin
+  str := str.Replace('@SystemName@', SystemInfo.SystemName);
+  str := str.Replace('@SystemIP@', SystemInfo.SystemIP);
+  str := str.Replace('@InternetIP@', SystemInfo.InternetIP);
+  str := str.Replace('@HTTPPort@', SystemInfo.HTTPPort);
+  str := str.Replace('@WSPort@', SystemInfo.WSPort);
+  str := str.Replace('@CodePage@', CodePageNames[SystemInfo.CodePage]);
+  result := str;
+end;
+
 {$endregion}
 
 { *************************************************************************** }
@@ -720,12 +738,8 @@ begin
     while not eof(fin) do
     begin
       readln(fin, instr);
+			instr := ReplaceAtCodes(instr);
       instr := instr.Replace('@UserIP@', ASocket.GetRemoteSinIP);
-      instr := instr.Replace('@SystemIP@', SystemInfo.SystemIP);
-      instr := instr.Replace('@InternetIP@', SystemInfo.InternetIP);
-      instr := instr.Replace('@SystemName@', SystemInfo.SystemName);
-      instr := instr.Replace('@HTTPPort@', SystemInfo.HTTPPort);
-      instr := instr.Replace('@WSPort@', SystemInfo.WSPort);
       str += instr + CRLF;
     end;
     closefile(fin);
@@ -830,7 +844,8 @@ begin
         str += char(b);
       end;
     end;
-    serverCon.SendText(str);
+    //serverCon.SendText(str);
+    serverCon.SendBinary(TStringStream.Create(str));
   end;
 end;
 
@@ -887,6 +902,28 @@ begin
   end;
 end;
 
+function BufferDump(buf : pbyte; len : integer) : string;
+var
+  i : integer;
+  str : string;
+begin
+  str := '';
+  for i := 0 to len-1 do
+  	str += ' ' + IntToHex(buf[i], 2);
+  result := str.substring(1);
+end;
+
+function BufferDump(strin : rawbytestring) : string;
+var
+  i : integer;
+  str : string;
+begin
+  str := '';
+  for i := 1 to length(strin) do
+  	str += ' ' + IntToHex(byte(strin[i]), 2);
+  result := str.substring(1);
+end;
+
 // send data to node process
 function TvtxNodeProcess.SendBuffer(buf : pbyte; len : longint) : integer;
 begin
@@ -894,12 +931,18 @@ begin
   case SystemInfo.NodeType of
 
     ExtProc:
-   		if (serverCon.ExtProc <> nil) and serverCon.ExtProc.Running then
-	  		result := serverCon.ExtProc.Input.Write(buf[0], len);
+      begin
+	   		if (serverCon.ExtProc <> nil) and serverCon.ExtProc.Running then
+		  		result := serverCon.ExtProc.Input.Write(buf[0], len);
+      end;
 
     Telnet:
-	    if serverCon.tnlive then
-  	    result := fpsend(serverCon.tnsock, buf, len, 0);
+			begin
+        fProgress := 'SEND: ' + BufferDump(buf, len);
+        Synchronize(@DoProgress);
+	  	  if serverCon.tnlive then
+  	  	  result := fpsend(serverCon.tnsock, buf, len, 0);
+      end;
   end;
 end;
 
@@ -1186,14 +1229,8 @@ begin
 
           parms := SystemInfo.ExtProc.Split(' ');
           for i := 0 to length(parms) - 1 do
-          begin
-            parms[i] := parms[i].Replace('@UserIP@', serverCon.Socket.GetRemoteSinIP);
-            parms[i] := parms[i].Replace('@SystemIP@', SystemInfo.SystemIP);
-            parms[i] := parms[i].Replace('@InternetIP@', SystemInfo.InternetIP);
-            parms[i] := parms[i].Replace('@SystemName@', SystemInfo.SystemName);
-            parms[i] := parms[i].Replace('@HTTPPort@', SystemInfo.HTTPPort);
-            parms[i] := parms[i].Replace('@WSPort@', SystemInfo.WSPort);
-          end;
+            parms[i] := ReplaceAtCodes(parms[i]);
+          parms[i] := parms[i].Replace('@UserIP@', serverCon.Socket.GetRemoteSinIP);
 
           serverCon.ExtProc := TProcess.Create(nil);
           serverCon.ExtProc.CurrentDirectory:= 'node';
@@ -1342,7 +1379,13 @@ begin
                 str := negotiate(serverCon.tnbuf, rv);
                 if length(str) > 0 then
                 begin
-                  serverCon.SendText(ConvertFromCP(Systeminfo.TelnetCP, str));
+                  //serverCon.SendText(ConvertFromCP(Systeminfo.TelnetCP, str));
+
+                  fProgress := 'RECV: ' + BufferDump(str);
+                  Synchronize(@DoProgress);
+
+                  //serverCon.SendText(str);
+                  serverCon.SendBinary(TStringStream.Create(str));
                 end;
               end;
             end
@@ -1707,6 +1750,7 @@ end;
 
 {$R *.res}
 
+{$region Main}
 var
   linein :      string;
   word :        TStringArray;
@@ -1974,4 +2018,5 @@ begin
     WSACleanup;
 
 end.
+{$endregion}
 
