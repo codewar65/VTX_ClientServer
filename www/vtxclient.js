@@ -331,7 +331,6 @@ var
 
     // tables for converting byte to UTF16 (unicode)
     
-    {//REGION codePageData
     codePageData = {
         CP437: new Uint16Array([    // CP437
             0x0000, 0x263A, 0x263B, 0x2665, 0x2666, _ENQ,   0x2660, _BEL, 
@@ -1446,7 +1445,7 @@ var
             0x03B1, 0x00DF, 0x0393, 0x03C0, 0x03A3, 0x03C3, 0x00B5, 0x03C4, 
             0x03A6, 0x0398, 0x03A9, 0x03B4, 0x221E, 0x03C6, 0x03B5, 0x2229, 
             0x2261, 0x00B1, 0x2265, 0x2264, 0x2320, 0x2321, 0x00F7, 0x2248, 
-            0x00B0, 0x2219, 0x00B7, 0x221A, 0x207F, 0x00B2, 0x25A0, 0x00A0])
+            0x00B0, 0x2219, 0x00B7, 0x221A, 0x207F, 0x00B2, 0x25A0, 0x00A0]),
         WIN1250: new Uint16Array([    // WIN1250
             0x0000, 0x263A, 0x263B, 0x2665, 0x2666, _ENQ,   0x2660, _BEL, 
             _BS,    _HT,    _LF,    _VT,    _FF,    _CR,    0x266B, 0x263C, 
@@ -1613,7 +1612,6 @@ var
             0x0161, 0x0144, 0x0146, 0x00F3, 0x014D, 0x00F5, 0x00F6, 0x00F7, 
             0x0173, 0x0142, 0x015B, 0x016B, 0x00FC, 0x017C, 0x017E, 0x02D9])
     },
-    }
     
     // http://invisible-island.net/xterm/xterm-function-keys.html
     // http://ansi-bbs.org/ansi-bbs2/index.ssjs
@@ -4283,39 +4281,6 @@ var
 		0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0 ]);
 
         
-function UTF8ToBytes(str) {
-    var 
-        c,
-        out = [], 
-        p = 0;
-    
-    for (var i = 0; i < str.length; i++) {
-        c = str.charCodeAt(i);
-        if (c < 128) {
-            out[p++] = c;
-        } else if (c < 2048) {
-            out[p++] = (c >> 6) | 192;
-            out[p++] = (c & 63) | 128;
-        } else if ( 
-                ((c & 0xFC00) == 0xD800) &&
-                (i + 1) < str.length &&
-                ((str.charCodeAt(i + 1) & 0xFC00) == 0xDC00)
-            ) {
-            // Surrogate Pair
-            c = 0x10000 + ((c & 0x03FF) << 10) + (str.charCodeAt(++i) & 0x03FF);
-            out[p++] = (c >> 18) | 240;
-            out[p++] = ((c >> 12) & 63) | 128;
-            out[p++] = ((c >> 6) & 63) | 128;
-            out[p++] = (c & 63) | 128;
-        } else {
-            out[p++] = (c >> 12) | 224;
-            out[p++] = ((c >> 6) & 63) | 128;
-            out[p++] = (c & 63) | 128;
-        }
-    }
-    return out;
-};    
-
 // compute crc16    
 function ymCRC16Calc(bytes, start, len) {
     var 
@@ -4362,6 +4327,7 @@ function saveAs(blob, fileName) {
     }, 1000);
 }
 
+// data in / out is Uint8Array
 // the idea is to process one byte at a time. pass in chunks of string data
 // and process all of it until done. return any remaining string data if 
 // terminates before end of string.
@@ -4369,13 +4335,13 @@ function ymStateMachine(data){
     var
         i, j,
         block, block2, crc16,
-        tmp,    // temp Uint8Array for a single packet.
-        bytes = [];
+        tmp, bytes = [];
 
-    bytes = UTF8ToBytes(data);
-    bytes = UTF8ToBin(bytes);
+    //bytes = UTF8ToBytes(data);
+    //bytes = UTF8ToBin(bytes);
     
-    if (!bytes) return '';
+    if (!bytes) return new Uint8Array();
+    result = [];
     
     for (i = 0; i < bytes.length; i++) {
         b = bytes[i];
@@ -4424,6 +4390,7 @@ function ymStateMachine(data){
                             new Blob([ymFileData], 
                                 { type: 'application/octet-stream' }), 
                             ymFileName);
+                        result = data.slice(i+1);
                         break;
                         
                     case _CAN:
@@ -4434,6 +4401,7 @@ function ymStateMachine(data){
                         fadeScreen(false);        
                         // dump data.
                         ymFileData = new Uint8Array();
+                        result = data.slice(i+1);
                         break;
                 }
                 break;
@@ -4519,7 +4487,7 @@ function ymStateMachine(data){
         if (termState == TS_NORMAL)
             break;
     }
-    return data.substring(i);
+    return result;
 }    
 
 // cancel ymodem transfer
@@ -4590,141 +4558,6 @@ function ymRecvStart() {
                                                       ACK
 */
 
-var
-    // send this with the initial load - matching table
-    // for matching target system
-    // characters 128 - 255 of current codepage as UTF8
-    CPBin = [
-        [ 195, 135 ],       // #128
-        [ 195, 188 ],       // #129
-        [ 195, 169 ],       // #130
-        [ 195, 162 ],       // #131
-        [ 195, 164 ],       // #132
-        [ 195, 160 ],       // #133
-        [ 195, 165 ],       // #134
-        [ 195, 167 ],       // #135
-        [ 195, 170 ],       // #136
-        [ 195, 171 ],       // #137
-        [ 195, 168 ],       // #138
-        [ 195, 175 ],       // #139
-        [ 195, 174 ],       // #140
-        [ 195, 172 ],       // #141
-        [ 195, 132 ],       // #142
-        [ 195, 133 ],       // #143
-        [ 195, 137 ],       // #144
-        [ 195, 166 ],       // #145
-        [ 195, 134 ],       // #146
-        [ 195, 180 ],       // #147
-        [ 195, 182 ],       // #148
-        [ 195, 178 ],       // #149
-        [ 195, 187 ],       // #150
-        [ 195, 185 ],       // #151
-        [ 195, 191 ],       // #152
-        [ 195, 150 ],       // #153
-        [ 195, 156 ],       // #154
-        [ 194, 162 ],       // #155
-        [ 194, 163 ],       // #156
-        [ 194, 165 ],       // #157
-        [ 226, 130, 167 ],  // #158
-        [ 198, 146 ],       // #159
-        [ 195, 161 ],       // #160
-        [ 195, 173 ],       // #161
-        [ 195, 179 ],       // #162
-        [ 195, 186 ],       // #163
-        [ 195, 177 ],       // #164
-        [ 195, 145 ],       // #165
-        [ 194, 170 ],       // #166
-        [ 194, 186 ],       // #167
-        [ 194, 191 ],       // #168
-        [ 226, 140, 144 ],  // #169
-        [ 194, 172 ],       // #170
-        [ 194, 189 ],       // #171
-        [ 194, 188 ],       // #172
-        [ 194, 161 ],       // #173
-        [ 194, 171 ],       // #174
-        [ 194, 187 ],       // #175
-        [ 226, 150, 145 ],  // #176
-        [ 226, 150, 146 ],  // #177
-        [ 226, 150, 147 ],  // #178
-        [ 226, 148, 130 ],  // #179
-        [ 226, 148, 164 ],  // #180
-        [ 226, 149, 161 ],  // #181
-        [ 226, 149, 162 ],  // #182
-        [ 226, 149, 150 ],  // #183
-        [ 226, 149, 149 ],  // #184
-        [ 226, 149, 163 ],  // #185
-        [ 226, 149, 145 ],  // #186
-        [ 226, 149, 151 ],  // #187
-        [ 226, 149, 157 ],  // #188
-        [ 226, 149, 156 ],  // #189
-        [ 226, 149, 155 ],  // #190
-        [ 226, 148, 144 ],  // #191
-        [ 226, 148, 148 ],  // #192
-        [ 226, 148, 180 ],  // #193
-        [ 226, 148, 172 ],  // #194
-        [ 226, 148, 156 ],  // #195
-        [ 226, 148, 128 ],  // #196
-        [ 226, 148, 188 ],  // #197
-        [ 226, 149, 158 ],  // #198
-        [ 226, 149, 159 ],  // #199
-        [ 226, 149, 154 ],  // #200
-        [ 226, 149, 148 ],  // #201
-        [ 226, 149, 169 ],  // #202
-        [ 226, 149, 166 ],  // #203
-        [ 226, 149, 160 ],  // #204
-        [ 226, 149, 144 ],  // #205
-        [ 226, 149, 172 ],  // #206
-        [ 226, 149, 167 ],  // #207
-        [ 226, 149, 168 ],  // #208
-        [ 226, 149, 164 ],  // #209
-        [ 226, 149, 165 ],  // #210
-        [ 226, 149, 153 ],  // #211
-        [ 226, 149, 152 ],  // #212
-        [ 226, 149, 146 ],  // #213
-        [ 226, 149, 147 ],  // #214
-        [ 226, 149, 171 ],  // #215
-        [ 226, 149, 170 ],  // #216
-        [ 226, 148, 152 ],  // #217
-        [ 226, 148, 140 ],  // #218
-        [ 226, 150, 136 ],  // #219
-        [ 226, 150, 132 ],  // #220
-        [ 226, 150, 140 ],  // #221
-        [ 226, 150, 144 ],  // #222
-        [ 226, 150, 128 ],  // #223
-        [ 206, 177 ],       // #224
-        [ 195, 159 ],       // #225
-        [ 206, 147 ],       // #226
-        [ 207, 128 ],       // #227
-        [ 206, 163 ],       // #228
-        [ 207, 131 ],       // #229
-        [ 194, 181 ],       // #230
-        [ 207, 132 ],       // #231
-        [ 206, 166 ],       // #232
-        [ 206, 152 ],       // #233
-        [ 206, 169 ],       // #234
-        [ 206, 180 ],       // #235
-        [ 226, 136, 158 ],  // #236
-        [ 207, 134 ],       // #237
-        [ 206, 181 ],       // #238
-        [ 226, 136, 169 ],  // #239
-        [ 226, 137, 161 ],  // #240
-        [ 194, 177 ],       // #241
-        [ 226, 137, 165 ],  // #242
-        [ 226, 137, 164 ],  // #243
-        [ 226, 140, 160 ],  // #244
-        [ 226, 140, 161 ],  // #245
-        [ 195, 183 ],       // #246
-        [ 226, 137, 136 ],  // #247
-        [ 194, 176 ],       // #248
-        [ 226, 136, 153 ],  // #249
-        [ 194, 183 ],       // #250
-        [ 226, 136, 154 ],  // #251
-        [ 226, 129, 191 ],  // #252
-        [ 194, 178 ],       // #253
-        [ 226, 150, 160 ],  // #254
-        [ 194, 160 ]        // #255
-  ];
-  
 function UTF8ToBin(data) {
     var
         i, j,       // search indexes
@@ -4767,3 +4600,37 @@ function UTF8ToBin(data) {
     }
     return bytes;
 }
+
+function UTF8ToBytes(str) {
+    var 
+        c,
+        out = [], 
+        p = 0;
+    
+    for (var i = 0; i < str.length; i++) {
+        c = str.charCodeAt(i);
+        if (c < 128) {
+            out[p++] = c;
+        } else if (c < 2048) {
+            out[p++] = (c >> 6) | 192;
+            out[p++] = (c & 63) | 128;
+        } else if ( 
+                ((c & 0xFC00) == 0xD800) &&
+                (i + 1) < str.length &&
+                ((str.charCodeAt(i + 1) & 0xFC00) == 0xDC00)
+            ) {
+            // Surrogate Pair
+            c = 0x10000 + ((c & 0x03FF) << 10) + (str.charCodeAt(++i) & 0x03FF);
+            out[p++] = (c >> 18) | 240;
+            out[p++] = ((c >> 12) & 63) | 128;
+            out[p++] = ((c >> 6) & 63) | 128;
+            out[p++] = (c & 63) | 128;
+        } else {
+            out[p++] = (c >> 12) | 224;
+            out[p++] = ((c >> 6) & 63) | 128;
+            out[p++] = (c & 63) | 128;
+        }
+    }
+    return out;
+};    
+

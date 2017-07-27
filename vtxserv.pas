@@ -938,8 +938,8 @@ begin
 
     Telnet:
 			begin
-        fProgress := 'SEND: ' + BufferDump(buf, len);
-        Synchronize(@DoProgress);
+//        fProgress := 'SEND: ' + BufferDump(buf, len);
+//        Synchronize(@DoProgress);
 	  	  if serverCon.tnlive then
   	  	  result := fpsend(serverCon.tnsock, buf, len, 0);
       end;
@@ -1381,8 +1381,8 @@ begin
                 begin
                   //serverCon.SendText(ConvertFromCP(Systeminfo.TelnetCP, str));
 
-                  fProgress := 'RECV: ' + BufferDump(str);
-                  Synchronize(@DoProgress);
+//                  fProgress := 'RECV: ' + BufferDump(str);
+//                  Synchronize(@DoProgress);
 
                   //serverCon.SendText(str);
                   serverCon.SendBinary(TStringStream.Create(str));
