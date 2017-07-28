@@ -1834,12 +1834,12 @@ function sendData(data) {
         // string to aray buffer
         str = data;
         l = str.length;
-        data = new Uint16Array(l);
+        data = new Uint8Array(l);
         for (i = 0; i < l; i++) 
             data[i] = str.charCodeAt(i);
-    } else if (typeof data === 'number') {
-        data = new Uint8Array([data]);
-    } else if (!(data instanceof Uint8Array)) 
+    } else if (typeof data === 'number') 
+        data = new Uint8Array([data])
+    else if (!(data instanceof Uint8Array)) 
         throw 'Invalid data in sendData().';
     
     // convert data to string
@@ -2072,7 +2072,6 @@ function keyDown(e) {
         } else if (ka > 0) {
             // send ascii if online, send to server. if offline, localecho
             sendData(ka);
-            e.keyCode = 0;
             e.preventDefault();
             return (e.returnValue = false);
         }
@@ -3971,12 +3970,7 @@ function initDisplay() {
         var 
             i, j, str, data;
 
-        // test type
-//        if (typeof e.data === 'string')
-//            throw 'WTF'
-//        else (e.data instanceof ArrayBuffer)
         data = new Uint8Array(e.data);
-
         switch (termState) {
             case TS_NORMAL:
                 // convert from codepage
@@ -3987,7 +3981,7 @@ function initDisplay() {
             case TS_YMR_START:
             case TS_YMR_GETPACKET:
                 data = ymStateMachine(data);
-                if (str.length > 0) {
+                if (data.length > 0) {
                     // transfer ended midway. output the rest.
                     str = toUTF16(data);
                     conStrOut(str);
@@ -4242,54 +4236,38 @@ var
     ymPacketBuff = [],          // buffer for send / receive.
     ymFileName,
     ymFileSize,                 // file size. -1 if unknown.
-    ymFileData = new Uint8Array(),  // file data.
+    ymFileData = new Blob([], {type: 'application/octet-stream'}),
     ymEOTCount,
     ymNextBlock,
-    CRC_POLY = 0x1021,
-	crc16ccitt = new Uint16Array([
-		0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7,
-		0x8108, 0x9129, 0xA14A, 0xB16B, 0xC18C, 0xD1AD, 0xE1CE, 0xF1EF,
-		0x1231, 0x0210, 0x3273, 0x2252, 0x52B5, 0x4294, 0x72F7, 0x62D6,
-		0x9339, 0x8318, 0xB37B, 0xA35A, 0xD3BD, 0xC39C, 0xF3FF, 0xE3DE,
-		0x2462, 0x3443, 0x0420, 0x1401, 0x64E6, 0x74C7, 0x44A4, 0x5485,
-		0xA56A, 0xB54B, 0x8528, 0x9509, 0xE5EE, 0xF5CF, 0xC5AC, 0xD58D,
-		0x3653, 0x2672, 0x1611, 0x0630, 0x76D7, 0x66F6, 0x5695, 0x46B4,
-		0xB75B, 0xA77A, 0x9719, 0x8738, 0xF7DF, 0xE7FE, 0xD79D, 0xC7BC,
-		0x48C4, 0x58E5, 0x6886, 0x78A7, 0x0840, 0x1861, 0x2802, 0x3823,
-		0xC9CC, 0xD9ED, 0xE98E, 0xF9AF, 0x8948, 0x9969, 0xA90A, 0xB92B,
-		0x5AF5, 0x4AD4, 0x7AB7, 0x6A96, 0x1A71, 0x0A50, 0x3A33, 0x2A12,
-		0xDBFD, 0xCBDC, 0xFBBF, 0xEB9E, 0x9B79, 0x8B58, 0xBB3B, 0xAB1A,
-		0x6CA6, 0x7C87, 0x4CE4, 0x5CC5, 0x2C22, 0x3C03, 0x0C60, 0x1C41,
-		0xEDAE, 0xFD8F, 0xCDEC, 0xDDCD, 0xAD2A, 0xBD0B, 0x8D68, 0x9D49,
-		0x7E97, 0x6EB6, 0x5ED5, 0x4EF4, 0x3E13, 0x2E32, 0x1E51, 0x0E70,
-		0xFF9F, 0xEFBE, 0xDFDD, 0xCFFC, 0xBF1B, 0xAF3A, 0x9F59, 0x8F78,
-		0x9188, 0x81A9, 0xB1CA, 0xA1EB, 0xD10C, 0xC12D, 0xF14E, 0xE16F,
-		0x1080, 0x00A1, 0x30C2, 0x20E3, 0x5004, 0x4025, 0x7046, 0x6067,
-		0x83B9, 0x9398, 0xA3FB, 0xB3DA, 0xC33D, 0xD31C, 0xE37F, 0xF35E,
-		0x02B1, 0x1290, 0x22F3, 0x32D2, 0x4235, 0x5214, 0x6277, 0x7256,
-		0xB5EA, 0xA5CB, 0x95A8, 0x8589, 0xF56E, 0xE54F, 0xD52C, 0xC50D,
-		0x34E2, 0x24C3, 0x14A0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405,
-		0xA7DB, 0xB7FA, 0x8799, 0x97B8, 0xE75F, 0xF77E, 0xC71D, 0xD73C,
-		0x26D3, 0x36F2, 0x0691, 0x16B0, 0x6657, 0x7676, 0x4615, 0x5634,
-		0xD94C, 0xC96D, 0xF90E, 0xE92F, 0x99C8, 0x89E9, 0xB98A, 0xA9AB,
-		0x5844, 0x4865, 0x7806, 0x6827, 0x18C0, 0x08E1, 0x3882, 0x28A3,
-		0xCB7D, 0xDB5C, 0xEB3F, 0xFB1E, 0x8BF9, 0x9BD8, 0xABBB, 0xBB9A,
-		0x4A75, 0x5A54, 0x6A37, 0x7A16, 0x0AF1, 0x1AD0, 0x2AB3, 0x3A92,
-		0xFD2E, 0xED0F, 0xDD6C, 0xCD4D, 0xBDAA, 0xAD8B, 0x9DE8, 0x8DC9,
-		0x7C26, 0x6C07, 0x5C64, 0x4C45, 0x3CA2, 0x2C83, 0x1CE0, 0x0CC1,
-		0xEF1F, 0xFF3E, 0xCF5D, 0xDF7C, 0xAF9B, 0xBFBA, 0x8FD9, 0x9FF8,
-		0x6E17, 0x7E36, 0x4E55, 0x5E74, 0x2E93, 0x3EB2, 0x0ED1, 0x1EF0 ]);
+    CRC_POLY = 0x1021;
 
+function updateCRC16(crcIn, byteIn) {
+    var
+        crc = crcIn, 
+        b = byteIn | 0x100;
         
-// compute crc16    
-function ymCRC16Calc(bytes, start, len) {
-    var 
-        crc = new Uint16Array([0]),
-		i = start;
+    do {
+        crc <<= 1;
+        b <<= 1;
+        if (b & 0x100)
+            crc++;
+        if (crc & 0x10000)
+            crc ^= CRC_POLY;
+    } while (!(b & 0x10000));
+    return crc & 0xFFFF;
+}
 
-    while (len--)
-        crc[0] =   (crc[0] << 8) ^ crc16ccitt[((crc[0] >> 8) ^ bytes[i++])&0xFF];
-	return crc[0];
+function calcCRC16(data, start, size) {
+    var
+        pos, end
+        crc = 0;
+    pos = start;
+    end = start + size;
+    for (; pos < end; pos++) 
+        crc = updateCRC16(crc, data[pos]);
+    crc = updateCRC16(crc, 0);
+    crc = updateCRC16(crc, 0);
+    return crc & 0xFFFF;
 }
 
 // concatinate two bytearrays
@@ -4333,18 +4311,15 @@ function saveAs(blob, fileName) {
 // terminates before end of string.
 function ymStateMachine(data){
     var
-        i, j,
-        block, block2, crc16,
-        tmp, bytes = [];
+        i, j, result = [],
+        block, block2, 
+        crc16A, crc16B,
+        str, b, tmp, bytes = [];
 
-    //bytes = UTF8ToBytes(data);
-    //bytes = UTF8ToBin(bytes);
+    if (!data) return result;
     
-    if (!bytes) return new Uint8Array();
-    result = [];
-    
-    for (i = 0; i < bytes.length; i++) {
-        b = bytes[i];
+    for (i = 0; i < data.length; i++) {
+        b = data[i];
         switch (termState) {
             case TS_YMR_START:
                 // start recieving packets. if SOH, get 128. if STX then 1024
@@ -4380,19 +4355,17 @@ function ymStateMachine(data){
                         if (ymFileSize > -1) {
                             ymFileData = ymFileData.slice(0, ymFileSize);
                         } else {
-                            // count CMPEOFs on end
-                            j = ymFileData.length - 1;
-                            while ((ymFileData[j] == _CMPEOF) && (j > 0))
-                                j--;
-                            ymFileData = ymFileData.slice(0, j + 1);
+                            // count CMPEOFs on end (work on this)
+                            throw 'EOT look for CMPEOF';
+//                            j = ymFileData.size - 1;
+//                            while ((ymFileData[j] == _CMPEOF) && (j > 0))
+//                                j--;
+//                            ymFileData = ymFileData.slice(0, j + 1);
                         }
-                        saveAs(
-                            new Blob([ymFileData], 
-                                { type: 'application/octet-stream' }), 
-                            ymFileName);
-                        result = data.slice(i+1);
+                        saveAs(ymFileData, ymFileName);
+                        result = data.slice(i + 1);
                         break;
-                        
+
                     case _CAN:
                         // cancel from remote.
                         ymEOTCount = 0;
@@ -4400,7 +4373,8 @@ function ymStateMachine(data){
                         termState = TS_NORMAL;
                         fadeScreen(false);        
                         // dump data.
-                        ymFileData = new Uint8Array();
+                        
+                        ymFileData = new Blob([], {type: 'application/octet-stream'});
                         result = data.slice(i+1);
                         break;
                 }
@@ -4416,14 +4390,15 @@ function ymStateMachine(data){
 
                     // out of sequence                    
                     if (block != ymNextBlock) {
-                        sendData(_NAK);
+                        if (block == (ymNextBlock - 1))
+                            // resending last block.
+                            sendData(_ACK)
+                        else
+                            sendData(_NAK);
                         termState = TS_YMR_START;
                         break;
                     }
                         
-                    // uncertain the order for crc16 - swap if needed.
-                    crc16 =    (ymPacketBuff[ymPacketPos - 2] << 8) +
-                                ymPacketBuff[ymPacketPos - 1];
                     // check block number
                     if (block != (~block2 & 0xFF)) {
                         sendData(_NAK);
@@ -4431,12 +4406,18 @@ function ymStateMachine(data){
                         break;
                     }
                     // check crc16
-                    if (ymCRC16Calc(ymPacketBuff, 2, ymPacketSize - 4) != crc16) {
+                    // uncertain the order for crc16 - swap if needed.
+                    crc16A = ymPacketBuff[ymPacketPos - 1] |
+                            (ymPacketBuff[ymPacketPos - 2] << 8);
+                    crc16B = calcCRC16(ymPacketBuff, 2, ymPacketSize - 4);
+                    
+                    if (crc16A != crc16B) {
+                        //dump(ymPacketBuff, 2, ymPacketSize - 4);
                         sendData(_NAK);
                         termState = TS_YMR_START;
                         break;
                     }
-                    if (block == 0){
+                    if ((block == 0) && (ymFileData.size == 0)) {
                         // first packet. get filename and optional filesize
                         ymFileName = '';
                         j = 2;
@@ -4452,14 +4433,14 @@ function ymStateMachine(data){
                             while ((ymPacketBuff[j] != _SPACE) && (ymPacketBuff[j] != _NUL))
                                 str += String.fromCharCode(ymPacketBuff[j++]);
                             ymFileSize = parseInt(str); // known size
-                            ovl['filesize'].innerHTML = ymFileSize + ' bytes';
+                            ovl['filesize'].innerHTML = formatSize(ymFileSize);
                         } else {
                             ymFileSize = -1;            // unknown size
                             ovl['filesize'].innerHTML = 'Unknown';
                         }
                         
                         // initialize blob to empty
-                        ymFileData = new Uint8Array();
+                        ymFileData =  new Blob([], {type: 'application/octet-stream'});
                         ovl['transferred'].innerHTML = '0 bytes';
 
                         // send ACK + C
@@ -4473,9 +4454,10 @@ function ymStateMachine(data){
                         for (j = 0; j < ymPacketSize - 4; j++)
                             tmp[j] = ymPacketBuff[2 + j];
                         ymPacketBuff = [];
-                        ymFileData = combineArrays(ymFileData, tmp);
-                        ovl['transferred'].innerHTML = ymFileData.length + ' bytes';
-                        
+                        var tmpblob = new Blob([ymFileData, tmp]);
+                        ymFileData = tmpblob;
+                        ovl['transferred'].innerHTML = formatSize(ymFileData.size);
+
                         // send ACK
                         sendData(_ACK);
                         termState = TS_YMR_START;
@@ -4488,7 +4470,17 @@ function ymStateMachine(data){
             break;
     }
     return result;
-}    
+}
+
+// return human readable text for filesize
+function formatSize(size) {
+    var 
+        mag, 
+        mags = [ 'B','KB','MB','GB' ];
+        
+    for (mag = 0; size >= 1000; size /= 1000, mag++);
+    return size.toFixed(2) + ' ' + mags[mag];
+}
 
 // cancel ymodem transfer
 function ymCancel() {
@@ -4557,6 +4549,9 @@ function ymRecvStart() {
               SOH 00 FF NUL[128] CRC CRC
                                                       ACK
 */
+
+
+// old functions...
 
 function UTF8ToBin(data) {
     var
@@ -4634,3 +4629,17 @@ function UTF8ToBytes(str) {
     return out;
 };    
 
+function dump(buff, start, len){
+    var 
+        i, 
+        str = '', 
+        count;
+    
+    count = 0;
+    for (i = start; i < start + len; i++) {
+        str += ' ' + itoh(buff[i], 2);
+        count = (count + 1) & 0xf;
+        if (!count) str += '\r\n';
+    }
+    console.log(str);
+}

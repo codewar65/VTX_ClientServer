@@ -1011,7 +1011,10 @@ begin
         begin
           case b of
             TN_IAC:   // escaped $FF
-              strout := strout + char(b);
+              begin
+              	strout := strout + char(b);
+                serverCon.tnstate := 0;
+              end;
 
             // ignore for now.
             TN_SE,    // subneg end
