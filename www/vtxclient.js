@@ -277,9 +277,11 @@ var
     DO_SCRLK =          -4,
 
     // terminal states
-    TS_NORMAL =          0, // normal terminal mode. no xfers.
-    TS_YMR_START =       1, // ymodem download started. sending G's.
-    TS_YMR_GETPACKET =   2, // ymodem download packet
+    TS_NORMAL =         0,  // normal terminal mode. no xfers.
+    TS_YMR_START =      1,  // ymodem download started. sending G's.
+    TS_YMR_GETPACKET =  2,  // ymodem download packet
+    TS_YMS_START =      3,  // send header of file.
+    TS_YMS_PUTPACKET =  4,
 
     ovl = {},               // overlay dialog stuff for file transfers
 
@@ -3791,8 +3793,7 @@ function fitSVGToDiv(e) {
 
 // set indicators
 function setBulbs() {
-    var 
-        el;
+    if (!ws) return;
     if (termState == TS_NORMAL){
         document.getElementById('osbulb').src = ((ws.readyState == 1) ? 'os1':'os0') + '.png';
         document.getElementById('clbulb').src = (capState ? 'cl1':'cl0') + '.png';
@@ -3881,10 +3882,12 @@ function initDisplay() {
         'img',
         {   src:        'ul.png',
             id:         'ulbtn',
+            onclick:    ymSendStart,
             width:      24,
             height:     24,
             title:      'YModem Upload' },
-        {   position:   'fixed',
+        {   cursor:     'pointer',
+            position:   'fixed',
             top:        (2 + (pos++ * 26))+'px',
             right:      '2px'}));
 
@@ -3956,6 +3959,7 @@ function initDisplay() {
     termState = TS_NORMAL; // set for standard terminal mode, not in file xfer mode
     
     // test websocket connect
+    /*
     ws = new WebSocket(tnConnect, ['vtx']);
     ws.binaryType = "arraybuffer";
     ws.onopen = function() { 
@@ -3980,7 +3984,7 @@ function initDisplay() {
                 
             case TS_YMR_START:
             case TS_YMR_GETPACKET:
-                data = ymStateMachine(data);
+                data = ymRStateMachine(data);
                 if (data.length > 0) {
                     // transfer ended midway. output the rest.
                     str = toUTF16(data);
@@ -3993,6 +3997,7 @@ function initDisplay() {
         conStrOut('\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
         setBulbs();
     }
+    */
     return;
 }
 
@@ -4309,7 +4314,7 @@ function saveAs(blob, fileName) {
 // the idea is to process one byte at a time. pass in chunks of string data
 // and process all of it until done. return any remaining string data if 
 // terminates before end of string.
-function ymStateMachine(data){
+function ymRStateMachine(data){
     var
         i, j, result = [],
         block, block2, 
@@ -4407,8 +4412,8 @@ function ymStateMachine(data){
                     }
                     // check crc16
                     // uncertain the order for crc16 - swap if needed.
-                    crc16A = ymPacketBuff[ymPacketPos - 1] |
-                            (ymPacketBuff[ymPacketPos - 2] << 8);
+                    crc16A = (ymPacketBuff[ymPacketPos - 2] << 8) |
+                              ymPacketBuff[ymPacketPos - 1];
                     crc16B = calcCRC16(ymPacketBuff, 2, ymPacketSize - 4);
                     
                     if (crc16A != crc16B) {
@@ -4516,6 +4521,7 @@ function ymRecvStart() {
     
     // fade terminal - build file xfer ui.
     fadeScreen(true);        
+    ovl['title'].innerHTML = 'YModem Download';
     ovl['filename'].innerHTML = 'Waiting for Remote...';
     ovl['filesize'].innerHTML = '';
     ovl['transferred'].innerHTML = '';
@@ -4525,6 +4531,82 @@ function ymRecvStart() {
     ymSendC();
     if (termState != TS_NORMAL)
         ymTimer = setInterval(ymSendC, 3000);
+}
+
+// state machine for sending.
+// entire file in ymFileData blob
+// current 
+function ymSStateMachine(){
+}
+
+// file loaded. commence upload.
+function ymFileLoaded(e) {
+    var
+        str,
+        i, pos;
+        
+    ymFileData = e.target.result;
+    termState = TS_YMS_START;       // wait for 'C'.
+    
+    
+    // build header packet
+    ymPacketBuff = [];
+    ymPacketBuff.push(0x00);    // block number 0
+    ymPacketBuff.push(0xFF);    // inverse block number
+    data = new array(128);      // area for file info
+    data.fill(_NUL);
+    ymPacketBuff.push(data);
+    for (pos = 2, i = 0; i < ymFileName.length; i++, pos++)
+        ymPacketBuff[pos] = ymFileName.charCodeAt(i);
+    ymPacketBuff[pos++] = _SPACE;
+    str = ymFileData.size.toString;
+    for (i = 0; i < str.length; i++, pos++)
+        ymPacketBuff[pos] = str.charCodeAt(i);
+    crc16 = calcCRC16(ymPacketBuff, 2, 128);
+    ymPacketBuff.push((crc16 >> 8) & 0xFF); // crc16
+    ymPacketBuff.push( crc16       & 0xFF);
+
+}
+
+// file selected. load it up.
+function ymFileLoad(e) { 
+    var 
+        file = e.target.files[0],
+        reader = new FileReader();
+        
+    i = file.name.lastIndexOf('/');
+    if (i == -1) i = file.name.lastIndexOf('\\');
+    ymFileName = file.name.substring(i+1);
+    reader.onload = ymFileLoaded;
+    reader.readAsBinaryString(file);
+}
+
+// send file to remove
+function ymSendStart() {
+    var
+        el;
+
+    // fade terminal - build file xfer ui.
+    fadeScreen(true);        
+    ovl['title'].innerHTML = 'YModem Upload';
+    ovl['filename'].innerHTML = '';
+    ovl['filesize'].innerHTML = '';
+    ovl['transferred'].innerHTML = '';
+        
+    // fetch file.
+    el = domElement(
+        'input',
+        {   type:       'file',
+            onchange:   ymFileLoad },
+        {   position:   'relative',
+            left:       '1px',
+            top:        '1px',
+            width:      '1px',
+            height:     '1px'
+        });
+    ovl['dialog'].appendChild(el);
+    el.click();
+    ovl['dialog'].removeChild(el);
 }
 
 /*
@@ -4549,85 +4631,6 @@ function ymRecvStart() {
               SOH 00 FF NUL[128] CRC CRC
                                                       ACK
 */
-
-
-// old functions...
-
-function UTF8ToBin(data) {
-    var
-        i, j,       // search indexes
-        dpos,       // position in data
-        pos,        // position of bytes
-        bytes = []; // array of binary data
-
-    dpos = 0;
-    pos = 0;
-    while (dpos < data.length) {
-        b = data[dpos];
-        if (b < 128) {
-            bytes[pos++] = b;
-            dpos++;
-        } else {
-            for (i = 0; i < 128; i++){
-                match = true;
-                for (j = 0; j < CPBin[i].length; j++) {
-                    if (i == 127) {
-                        j = j;
-                    }
-                        
-                    b = data[dpos + j];
-                    if (b != CPBin[i][j]) {
-                        match = false;
-                        break;
-                    }
-                }
-                if (match)
-                    break;
-            }
-            if (match) {
-                bytes[pos++] = i + 128;
-                dpos += CPBin[i].length;
-            } else {
-                // no match!!!
-                return null;
-            }
-        }
-    }
-    return bytes;
-}
-
-function UTF8ToBytes(str) {
-    var 
-        c,
-        out = [], 
-        p = 0;
-    
-    for (var i = 0; i < str.length; i++) {
-        c = str.charCodeAt(i);
-        if (c < 128) {
-            out[p++] = c;
-        } else if (c < 2048) {
-            out[p++] = (c >> 6) | 192;
-            out[p++] = (c & 63) | 128;
-        } else if ( 
-                ((c & 0xFC00) == 0xD800) &&
-                (i + 1) < str.length &&
-                ((str.charCodeAt(i + 1) & 0xFC00) == 0xDC00)
-            ) {
-            // Surrogate Pair
-            c = 0x10000 + ((c & 0x03FF) << 10) + (str.charCodeAt(++i) & 0x03FF);
-            out[p++] = (c >> 18) | 240;
-            out[p++] = ((c >> 12) & 63) | 128;
-            out[p++] = ((c >> 6) & 63) | 128;
-            out[p++] = (c & 63) | 128;
-        } else {
-            out[p++] = (c >> 12) | 224;
-            out[p++] = ((c >> 6) & 63) | 128;
-            out[p++] = (c & 63) | 128;
-        }
-    }
-    return out;
-};    
 
 function dump(buff, start, len){
     var 
