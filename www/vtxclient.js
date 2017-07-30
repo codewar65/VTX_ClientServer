@@ -185,54 +185,60 @@ var
 
     hex =   '0123456789ABCDEF',
     b64 =   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
-    fontName,               // font used
-    fontSize,               // font size to use
-    rowSize,                // character size
-    colSize,                // cell width in pixels
-    crtWidth,               // crt width in pixels
-    crtCols = 80,           // columns side of row on crt.
-    pageWidth,              // with of html in pixels
+    fontName,                   // font used
+    fontSize,                   // font size to use
+    rowSize,                    // character size
+    colSize,                    // cell width in pixels
+    crtWidth,                   // crt width in pixels
+    crtCols = 80,               // columns side of row on crt.
+    pageWidth,                  // with of html in pixels
     elPage = document.getElementsByTagName('html')[0],
-    crsr,                   // cursor element
-    crsrRow,                // cursor position
+    crsr,                       // cursor element
+    crsrRow,                    // cursor position
     crsrCol,
-    crsrSaveRow = 0,        // saved position
+    crsrSaveRow = 0,            // saved position
     crsrSaveCol = 0,
     lastCrsrRow,
     lastCrsrCol,
-    pageAttr,               // current page attributes
-    crsrAttr,               // color of cursor (only fg used)
-    crsrBlink,              // cursor blink state
-    crsrSkipTime,           // skip cursor draws on heavy character output
-    cellAttr,               // current active attributes
-    cellBlinkSlow,          // text blink states
+    pageAttr,                   // current page attributes
+    crsrAttr,                   // color of cursor (only fg used)
+    crsrBlink,                  // cursor blink state
+    crsrSkipTime,               // skip cursor draws on heavy character output
+    cellAttr,                   // current active attributes
+    cellBlinkSlow,              // text blink states
     cellBlinkFast,
-    defCellAttr,            // default cell attributes.
-    lastChar,               // last printable character outputed.
-    lastHotSpot = null,     // last mouseover hotspot
+    defCellAttr,                // default cell attributes.
+    lastChar,                   // last printable character outputed.
+    lastHotSpot = null,         // last mouseover hotspot
 
-    termState,              // TERMSTATE_...
+    termState,                  // TERMSTATE_...
 
-    pageDiv = null,         // page contents div
-    textDiv = null,         // text plane
-    soundBell = null,       // bell sound
-    textPos = null,         // ul x,y of textdiv
+    pageDiv = null,             // page contents div
+    textDiv = null,             // text plane
+    soundBell = null,           // bell sound
+    textPos = null,             // ul x,y of textdiv
 
     // ansi parsing vars
-    parms = '',             // parameters for CSI
-    interm = '',            // intermediate for CSI
-    apcstr = '',            // string data for APC
+    parms = '',                 // parameters for CSI
+    interm = '',                // intermediate for CSI
+    apcstr = '',                // string data for APC
     ansiState = 0,
 
     // mode switches
-    modeRealANSI = false,   // CSI ?50 h / CSI ?50 l to switch out of old ANSI.SYS mode
+    modeVTXANSI = false,        // CSI ?50 h/l to switch out of old ANSI.SYS mode.
+    modeBlinkBright = false,    // CSI ?33 h/l to switch blink for bright background.
+    modeCursor = true,          // CSI ?25 h/l to turn cursor on / off.
+    modeBoldFont = false,       // CSI ?31 h/l to use font 1 for bold.
+    modeNoBold = true,          // CSI ?32 h/l to disallow bold.
+    modeBlinkFont = false,      // CSI ?34 h/l to use font 2 for blink.
+    modeNoBlink = false,        // CSI ?35 h/l to disallow blink.
 
     // Attrs are integer arrays, base 0 (i.e.: row 1 = index 0)
-    conRowAttr  = [],       // row attributes array of number
-    conCellAttr = [],       // character attributes array of array or number
-    conText = [],           // raw text - array of string
-    conHotSpots = [],       // clickable hotspots
-    spriteDefs = [],        // sprite definitions
+    conRowAttr  = [],           // row attributes array of number
+    conCellAttr = [],           // character attributes array of array or number
+    conText = [],               // raw text - array of string
+    conHotSpots = [],           // clickable hotspots
+    spriteDefs = [],            // sprite definitions
 
     // attribute masks
     A_CELL_FG_NASK =        0x000000FF,
@@ -2275,7 +2281,7 @@ function conCharOut(chr) {
             break;
 
         case 10:    // linefeed
-            if (!modeRealANSI)  // LF dont CR!  lol
+            if (!modeVTXANSI)  // LF dont CR!  lol
                 crsrCol = 0;    // for BBS/ANSI.SYS mode
             crsrRow++;
             crsrrender = true;
@@ -2555,7 +2561,7 @@ function conCharOut(chr) {
                         conHotSpots = [];
                         lastHotSpot = null;
                         document.body.style['cursor'] = 'default';
-                        if (!modeRealANSI) {
+                        if (!modeVTXANSI) {
                             crsrRow = crsrCol = 0   // BBS / ANSI.SYS
                             crsrrender = true;
                         }
@@ -2563,7 +2569,7 @@ function conCharOut(chr) {
                             expandToRow(crsrRow);   // ECMA-048 complient
                             expandToCol(crsrRow, crsrCol);
                         }
-                        if (modeRealANSI)
+                        if (modeVTXANSI)
                             cellAttr = defCellAttr;
                         break;
                 }
@@ -2848,9 +2854,39 @@ function conCharOut(chr) {
                 parm[0] = parm[0].toString();
                 switch (parm[0]) {
                     case '?50':
-                        modeRealANSI = (chr == 0x68);
+                        // VTX / ANSIBBS mode flip
+                        modeVTXANSI = (chr == 0x68);
                         break;
-                    // else ignore
+                        
+                    case '?25':
+                        // hide / show cursor
+                        modeCursor = (chr == 0x68);
+                        break;
+                        
+                    case '?31':
+                        // bright as font 1
+                        modeBoldFont = (chr == 0x68);
+                        break;
+                        
+                    case '?32':
+                        // bright enable/disable
+                        modeNoBold = (chr == 0x68);
+                        break;
+                        
+                    case '?33':
+                        // blink to high intensity background
+                        modeBlinkBright = (chr == 0x68);
+                        break;
+
+                    case '?34':
+                        //  blink as font 2
+                        modeBlinkFont = (chr == 0x68);
+                        break;
+                        
+                    case '?35':
+                        // '?35' : blink disabled
+                        modeNoBlink = (chr == 0x68);
+                        break;
                 }
                 break;
 
@@ -3169,9 +3205,6 @@ function getDefaultFontSize() {
         'canvas',
         {   width:  bmpw,
             height: bmph });
-//    canvas = document.createElement('canvas'),
-//    canvas.width = bmpw;
-//    canvas.height = bmph;
     ctx = canvas.getContext('2d');
     ctx.font = font;
     ctx.textBaseline = 'top';
@@ -3290,7 +3323,9 @@ function doCheckResize() {
 // blink cursor (533ms is cursor blink speed based on DOS VGA).
 function doCursor() {
     crsr.firstChild.style['background-color'] =
-        (crsrBlink = !crsrBlink) ? 'transparent' : clut[getCrsrAttrColor(crsrAttr)];
+        ((crsrBlink = !crsrBlink) || (!modeCursor)) ? 
+        'transparent' : 
+        clut[getCrsrAttrColor(crsrAttr)];
 }
 
 // animate blink (533ms)
@@ -3298,20 +3333,22 @@ function doBlink(){
     var
         r, c, y, rh;
 
-    // y of first row.
-    y = textDiv.getBoundingClientRect().top;
-    for (r = 0; r < conRowAttr.length; r++) {
-        // check if row is visible
-        rh = rowSize * getRowAttrSize(conRowAttr[r]) / 100;
-        if ((y + rh > 0) && (y < window.innerHeight)) {
-            // look for blink
-            // refresh blinkable text.
-            for (c = 0; c < conCellAttr[r].length; c++) {
-                if (conCellAttr[r][c] & (A_CELL_BLINKSLOW | A_CELL_BLINKFAST))
-                    renderCell(r, c);
+    if (!modeNoBlink) {
+        // y of first row.
+        y = textDiv.getBoundingClientRect().top;
+        for (r = 0; r < conRowAttr.length; r++) {
+            // check if row is visible
+            rh = rowSize * getRowAttrSize(conRowAttr[r]) / 100;
+            if ((y + rh > 0) && (y < window.innerHeight)) {
+                // look for blink
+                // refresh blinkable text.
+                for (c = 0; c < conCellAttr[r].length; c++) {
+                    if (conCellAttr[r][c] & (A_CELL_BLINKSLOW | A_CELL_BLINKFAST))
+                        renderCell(r, c);
+                }
             }
+            y += rh;
         }
-        y += rh;
     }
     cellBlinkFast = !cellBlinkFast;
     if (cellBlinkFast)
@@ -3642,7 +3679,7 @@ function redrawRow(rownum){
 // render an individual row, col. if forcerev, invert (twice if need be)
 function renderCell(rownum, colnum, forcerev) {
     var
-        row, size, width, w, h, x, cnv,
+        row, size, width, w, h, x, cnv, drawtxt,
         ctx, attr, ch, tfg, tbg, tbold, stroke, tmp;
 
     // quick range check
@@ -3678,6 +3715,8 @@ function renderCell(rownum, colnum, forcerev) {
     tfg = (attr & 0xFF);
     tbg = (attr >> 8) & 0xff;
     tbold  = attr & A_CELL_BOLD;
+    if (modeNoBold) // CSI ?32 h / l
+        tbold = 0;
     stroke = h * 0.1;  // underline/strikethrough size
 
     if (attr & A_CELL_REVERSE) {
@@ -3687,7 +3726,7 @@ function renderCell(rownum, colnum, forcerev) {
         if (tfg == 0)
             tfg = 16;
     }
-    if (!modeRealANSI) {
+    if (!modeVTXANSI) {
         if (tbold && (tfg < 8)) {
             tfg += 8;
         }
@@ -3705,17 +3744,31 @@ function renderCell(rownum, colnum, forcerev) {
     ctx.rect(x, 0, w + 1, h + 1);
     ctx.clip();
 
+    // fix iCE colors
+    if (modeBlinkBright && (tbg < 8) 
+        && (attr & (A_CELL_BLINKSLOW | A_CELL_BLINKFAST))) {
+        // high intensity background / force blink off
+        tbg += 8;
+        attr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
+    }
+    
     if (tbg > 0) {
         ctx.fillStyle = clut[tbg];
         ctx.fillRect(x, 0, w, h);
     } else
         ctx.clearRect(x, 0, w, h);
 
-    if (!(attr & A_CELL_CONCEAL) &&
-        !((attr & A_CELL_BLINKSLOW) && cellBlinkSlow) &&
-        !((attr & A_CELL_BLINKFAST) && cellBlinkFast)) {
-
-        // not concealed or in blink state
+    drawtxt = true;
+    if (attr & A_CELL_CONCEAL)  // don't draw this char if concealed.
+        drawtxt = false;
+    if (((attr & A_CELL_BLINKSLOW) && cellBlinkSlow)  // don't draw if in blink state
+        || ((attr & A_CELL_BLINKFAST) && cellBlinkFast)) {
+        if (!modeNoBlink)
+            drawtxt = false;
+    }
+    
+    if (drawtxt) {
+        // not concealed or not in blink state
         if (attr & A_CELL_FAINT)
             ctx.fillStyle = brightenRGB(clut[tfg], -0.33);
         else

@@ -130,24 +130,24 @@ Sequences (# : to be implemented)
 #           '255' : DOORWAY mode on.
 #           '?6' : 1,1=ul of scrolling region
 #           '?7' : auto wrap on
-#           '?25' : cursor on
-#           '?31' : bright from alternate set
-#           '?32' : bright disabled
-#           '?33' : blink = bright background
-#           '?34' : blink from alternate set
-#           '?35' : blink disabled
+            '?25' : cursor on
+#           '?31' : bold uses font 1
+            '?32' : bold disabled
+            '?33' : blink = bright background
+#           '?34' : blink uses font 2
+            '?35' : blink disabled
 
     CSI n 'l' : Reset Mode (RM).
         n = '?50' : turns off 'real' ANSI mode.
 #           '255' : DOORWAY mode off.
 #           '?6' : 1,1=ul of scrolling region
 #           '?7' : auto wrap off
-#           '?25' : cursor hide
-#           '?31' : bright from SGR
-#           '?32' : bright enabled
-#           '?33' : blink = bright background off
-#           '?34' : blink from SGR
-#           '?35' : blink enabled
+            '?25' : cursor hide
+#           '?31' : bold uses font 0
+            '?32' : bold enabled
+            '?33' : blink = bright background off
+#           '?34' : blink uses font 0
+            '?35' : blink enabled
         
     CSI n [ ; ... ] 'm' : Set Graphics Rendition (SGR). zero or more of: {0}
         0 : Reset all to default.
@@ -222,6 +222,8 @@ Sequences (# : to be implemented)
         n = 6 : Request cursor position. Reply is CSI r ';' c 'R'.
 
 #   CSI p1 ; p2 '*r' : Baud rate emulation.
+#       p1 : "Sequence is ignored if p1 is not empty, 0, or 1." ??!?
+#       p2 : 0=unlimited, 1=300, 2=600, 3=1200, 4=2400, 5=4800, 6=9600, 7=19200, 8=38400, 9=57600, 10=76800, 11=115200
 
 #   CSI t ; b 'r' : Set scroll window (DECSTBM).
 #       t = top row number
