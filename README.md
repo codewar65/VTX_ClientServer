@@ -1,6 +1,6 @@
 # VTX_ClientServer
 
-updated: 26-JUL-2017
+updated: 29-JUL-2017
 
 
 ## Intro
@@ -16,8 +16,8 @@ payload (html, css, javascript client, web font) to the 'user's web browser.
 
 The client software then connects to the server via a web socket connection. 
 Upon a 'user' connection to the web socket server, the server will spawn a 
-'sysop' defined application ('node' software). The 'node' software pipes 
-UTF-8 ANSI text to / from the server via StdIn / StdOut. The server then relays
+'sysop' defined application ('node' software). The 'node' software pipes raw 
+binary text to / from the server via StdIn / StdOut. The server then relays
 this stream to the 'user' through the web socket connection. Alternately,
 VTX server can be configured to connect to a remote telnet server (bbs or other
 service).
@@ -92,6 +92,9 @@ WSPort : The websocket port number.
 
 NodeType : 'ExtProc' or 'Telnet'
 
+CodePage: The codepage that is running on the node process telnet service. Currently supported Code Pages:
+CP437, CP667, CP668, CP737, CP770, CP771, CP772, CP773, CP774, CP775, CP790, CP808, CP813, CP850, CP851, CP852, CP853, CP855, CP857, CP858, CP859, CP860, CP861, CP863, CP865, CP866, CP867, CP869, CP872, CP878, CP895, CP900, CP912, CP915, CP920, CP991, CP1117, CP1118, CP1119, CPMIK, WIN1250, WIN1251, WIN1253, WIN1254, WIN1257
+
 ExtProcess : the name of the node process that is launched for a 'user' 
 connection. This will be the main process that the 'user' interacts with. The
 program needs to communicate with the server via StdIn / StdOut UTF-8 IO pipe 
@@ -101,8 +104,6 @@ function properly.
 TelnetIP : IP address that the server needs to connect to the telnet server.
 
 TelnetPort : The port number the telnet server is running on.
-
-TelnetCP : The codepage that is running on the eternal telnet service.
 
 MaxConnections : maximum number of websocket connections allowed to operate at
 the same time.
