@@ -44,6 +44,8 @@ program vtxserv;
 {$mode objfpc}{$H+}
 {$apptype console}
 
+{$define DEBUG}
+
 uses
   cmem,
   {$IFDEF UNIX}{$IFDEF UseCThreads}
@@ -273,6 +275,7 @@ const
   // telnet commands
   TN_IS           = $00;
   TN_SEND         = $01;
+
   TN_BIN          = $00;
   TN_ECHO         = $01;
   TN_RECONNECT    = $02;
@@ -306,6 +309,29 @@ const
   TN_DONT         = $FE;
   TN_IAC          = $FF;
 
+  TnCmds : array [0..255] of string = (
+  	'BIN/IS', 'ECHO/SEND','RECONNECT','SGA','MSGSZ','STATUS','TMARK','RECHO',	// 0-7
+    'LWID','PAGSZ','CRDIS','HRZTAB','HRZDIS','FFDIS','VRTTAB','VRTDIS',	// 8-15
+    'LFDIS','XASCII','LOGOUT,','BYTEMACRO','DET','SUPDUP','SUPDUPOUT','SLOC', // 16-23
+    'TTYPE','EOR','USERIDENT','OMARK','TLOCNUM','TN3270','X3PAD','NAWS', // 24-31
+    'TSPEED','RFC','LM','XLOC','EVARS','AUTH','ENCRY','NEWE', // 32-39
+		'TN3270E','XAUTH','CHARSET','RSP','CPCOPT','SUPLECHO','STARTTLS','KERMIT', // 40-47
+    'SENDURL','FORWARDX','32','33','34','35','36','37', // 48-
+    '38','39','3A','3B','3C','3D','3E','3F',
+		'40','41','42','43','44','45','46','47','48','49','4A','4B','4C','4D','4E','4F',
+		'50','51','52','53','54','55','56','57','58','59','5A','5B','5C','5D','5E','5F',
+		'60','61','62','63','64','65','66','67','68','69','6A','6B','6C','6D','6E','6F',
+		'70','71','72','73','74','75','76','77','78','79','7A','7B','7C','7D','7E','7F',
+		'80','81','82','83','84','85','86','87','88','89','8A','8B','8C','8D','8E','8F',
+		'90','91','92','93','94','95','96','97','98','99','9A','9B','9C','9D','9E','9F',
+		'A0','A1','A2','A3','A4','A5','A6','A7','A8','A9','AA','AB','AC','AD','AE','AF',
+		'B0','B1','B2','B3','B4','B5','B6','B7','B8','B9','BA','BB','BC','BD','BE','BF',
+		'C0','C1','C2','C3','C4','C5','C6','C7','C8','C9','CA','CB','CC','CD','CE','CF',
+		'D0','D1','D2','D3','D4','D5','D6','D7','D8','D9','DA','DB','DC','DD','DE','DF',
+		'E0','E1','E2','E3','E4','E5','E6','E7','E8','E9','EA','EB','EC','ED','EE','EF',
+		'SE','NOP','DM','BRK','IP','AO','AYT','EC','EL','GA','SB','WILL','WONT','DO','DONT','IAC'
+	);
+
   // TELNET states for Q method
   // option is enabled ONLY IF state is TNS_YES
   TNQ_NO          = 0;
@@ -328,6 +354,7 @@ var
   runningWS :     boolean;
   runningHTTP :   boolean;
   cmdbuff :       string = '';    // console linein buffer
+  logout :				Text;						// server logfile.
 {$endregion}
 
 { *************************************************************************** }
@@ -486,6 +513,24 @@ begin
     end;
 end;
 
+function GetIP(strName : string) : string;
+var
+  phe : pHostEnt;
+begin
+  //Convert the name to a cstring since 'gethostbyname' expects a cstring
+  phe := gethostbyname(pchar(strName));
+  if phe = nil then
+  	result := '0.0.0.0'
+  else
+	begin
+		result := format('%d.%d.%d.%d', [
+    	byte(phe^.h_addr^[0]),
+    	byte(phe^.h_addr^[1]),
+    	byte(phe^.h_addr^[2]),
+    	byte(phe^.h_addr^[3])]);
+  end;
+ end;
+
 { read the vtxserv.ini file for settings }
 procedure LoadSettings;
 var
@@ -516,6 +561,10 @@ begin
   SystemInfo.TelnetPort :=  iin.ReadString(sect, 'TelnetPort',  '7002');
 
   SystemInfo.MaxConnections := iin.ReadInteger(sect, 'MaxConnections',  32);
+
+  // resolve possible named IPs to IP addresses.
+	SystemInfo.TelnetIP := GetIP(SystemInfo.TelnetIP);
+
   iin.Free;
 end;
 
@@ -987,8 +1036,9 @@ var
   str :     rawbytestring;
   tmpstr :  string;
   len : integer;
-
+	debug : string;
 begin
+  debug := '';
   case SystemInfo.NodeType of
 
     ExtProc:
@@ -997,6 +1047,7 @@ begin
   	Telnet:
 		  begin
 	  		str := char(TN_IAC);
+        debug += TnCmds[TN_IAC] + ' ';
 			  for i := 0 to length(stuff) - 1 do
 			  begin
 		    	case VarType(stuff[i]) of
@@ -1004,15 +1055,25 @@ begin
 			        begin
 		      	    tmpstr := stuff[i];
 		    	      for j := 0 to length(tmpstr) - 1 do
+                begin
 		  	          str += char(tmpstr.Chars[j]);
-			        end;
+                  debug += char(tmpstr.Chars[j]);
+                end;
+                debug += ' ';
+              end;
 
 		     		else
+            begin
 	    	    	str += char(byte(stuff[i]));
+              debug += TnCmds[byte(stuff[i])] + ' ';
+            end;
           end;
 		  	end;
 	  		len := length(str);
 	  		result := fpsend(serverCon.tnsock, pointer(str), len, 0);
+{$ifdef DEBUG}
+writeln(logout, 'telnetout: ' + debug);
+{$endif}
   		end;
 
   end;
@@ -1026,6 +1087,7 @@ var
   strout : rawbytestring;
   b : 			byte;
   i : 			integer;
+	debug : 	string;
 
 begin
   strout := '';
@@ -1089,6 +1151,9 @@ begin
             TN_WILL:
               // server would like to do something. send DO or DONT
               begin
+{$ifdef DEBUG}
+writeln(logout, 'telnetin : IAC WILL ' + TnCmds[b]);
+{$endif}
                 if serverCon.tnqus[b] = TNQ_WANTYES then
                 begin
                   // response to my request to do
@@ -1120,6 +1185,9 @@ begin
             TN_WONT:
               // server would like to not do something. send DONT
               begin
+{$ifdef DEBUG}
+writeln(logout, 'telnetin : IAC WONT ' + TnCmds[b]);
+{$endif}
                 if (serverCon.tnqus[b] = TNQ_WANTYES)
                   or (serverCon.tnqus[b] = TNQ_WANTNO) then
                 begin
@@ -1137,6 +1205,9 @@ begin
             TN_DO:
               // server wants me to do something. send WILL or WONT
               begin
+{$ifdef DEBUG}
+writeln(logout, 'telnetin : IAC DO ' + TnCmds[b]);
+{$endif}
                 if serverCon.tnqus[b] = TNQ_WANTYES then
                 begin
                   // response to my request to will
@@ -1145,7 +1216,7 @@ begin
                   // send some SB stuff now
                   if b = TN_NAWS then
                   begin
-                    SendCmd([ TN_SB, 0, 80, 0, 25 ]);
+                    SendCmd([ TN_SB, TN_NAWS, 0, 80, 0, 25 ]);
                     SendCmd([ TN_SE ]);
                   end;
                 end
@@ -1176,6 +1247,9 @@ begin
             TN_DONT:
               begin
                 // server wants me to not do something. send WONT
+{$ifdef DEBUG}
+writeln(logout, 'telnetin : IAC DONT ' + TnCmds[b]);
+{$endif}
                 if serverCon.tnqus[b] = TNQ_WANTYES then
                 begin
                   // response to my request to will
@@ -1207,6 +1281,9 @@ begin
               TN_TTYPE:
                 // will neg term type;
                 begin
+{$ifdef DEBUG}
+writeln(logout, 'telnetin : IAC SB TTYPE ' + TnCmds[b]);
+{$endif}
                   SendCmd([ TN_SB, serverCon.tncmd, TN_IS, 'ANSI' ]);
                   SendCmd([ TN_SE ]);
                 end;
@@ -1214,12 +1291,18 @@ begin
               TN_TSPEED:
                 // will neg terminal speed
                 begin
+{$ifdef DEBUG}
+writeln(logout, 'telnetin : IAC SB TSPEED ' + TnCmds[b]);
+{$endif}
                   SendCmd([ TN_SB, serverCon.tncmd, TN_IS, '921600,921600' ]);
                   SendCmd([ TN_SE ]);
                 end;
 
               TN_NEWE:
                 begin
+{$ifdef DEBUG}
+writeln(logout, 'telnetin : IAC SB NEWE ' + TnCmds[b]);
+{$endif}
                   SendCmd([ TN_SB, serverCon.tncmd, TN_IS, 0 ]);
                   SendCmd([ TN_SE ]);
                 end;
@@ -1227,6 +1310,9 @@ begin
               else
                 begin
                   // ? why are we being asked this? server on drugs?
+{$ifdef DEBUG}
+writeln(logout, 'telnetin : IAC SB ' + TnCmds[serverCon.tncmd] + TnCmds[b]);
+{$endif}
                   SendCmd([ TN_DONT, serverCon.tncmd ]);
                   strout := strout + char(b);
                 end;
@@ -1366,25 +1452,40 @@ begin
 
           // send telnet setups.
           // set initial telnet options
+          serverCon.tnqus[TN_BIN] :=    TNQ_WANTYES;
+          serverCon.tnqhim[TN_BIN] :=		TNQ_WANTYES;
           serverCon.tnqus[TN_SGA] :=    TNQ_WANTYES;
           serverCon.tnqhim[TN_SGA] :=   TNQ_WANTYES;
           serverCon.tnqhim[TN_ECHO] :=  TNQ_WANTYES;
           serverCon.tnqus[TN_NAWS] :=   TNQ_WANTYES;
           serverCon.tnqus[TN_TTYPE] :=  TNQ_WANTYES;
           serverCon.tnqus[TN_TSPEED] := TNQ_WANTYES;
-          serverCon.tnqus[TN_BIN] :=    TNQ_WANTYES;
 
           // send initial barrage of telnet settings
           for i := 0 to 255 do
           begin
             case serverCon.tnqus[i] of
-              TNQ_WANTYES:  SendCmd([ TN_WILL, i ]);
-              TNQ_WANTNO:   SendCmd([ TN_WONT, i ]);
+              TNQ_WANTYES:
+                begin
+                	SendCmd([ TN_WILL, i ]);
+                end;
+
+              TNQ_WANTNO:
+                begin
+                	SendCmd([ TN_WONT, i ]);
+                end;
             end;
 
             case serverCon.tnqhim[i] of
-              TNQ_WANTYES:  SendCmd([ TN_DO, i ]);
-              TNQ_WANTNO:   SendCmd([ TN_DONT, i ]);
+              TNQ_WANTYES:
+                begin
+	                SendCmd([ TN_DO, i ]);
+                end;
+
+              TNQ_WANTNO:
+                begin
+                	SendCmd([ TN_DONT, i ]);
+                end;
             end;
           end;
 
@@ -1794,11 +1895,9 @@ var
   serv :        TServSet;
   Done :        boolean;
   Hybernate :   boolean;
-  Found :       boolean;
   i :           integer;
   cp :          TCodePages;
   str :         string;
-  fout :        TextFile;
   count :       integer;
   ThreadRan :   boolean;
   WsaData :     TWSAData;
@@ -1811,6 +1910,12 @@ begin
   {$IFDEF WINDOWS}
     SetConsoleOutputCP(CP_UTF8);
   {$ENDIF}
+
+  assign(logout, 'vtxserv.log');
+  if FileExists('vtxserv.log') then
+	  append(logout)
+  else
+  	rewrite(logout);
 
   write('VTX Server Console.' + CRLF
       + '2017 Dan Mecklenburg Jr.' + CRLF
@@ -2057,6 +2162,7 @@ begin
   if SystemInfo.NodeType = Telnet then
     WSACleanup;
 
+	closefile(logout);
 end.
 {$endregion}
 
