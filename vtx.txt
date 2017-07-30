@@ -1,5 +1,5 @@
 VTX
-Draft : July 23, 2017
+Draft : July 30, 2017
 
 Layout
 ======
@@ -25,8 +25,8 @@ Code Definitions
     ST = '\x1B\' : String Terminator.
 
 
-Sequences
-=========
+Sequences (# : to be implemented)
+=================================
 
     CSI n '@' : Insert Character (ICH). Moves text from current posion right n characters. {1}
 
@@ -35,6 +35,10 @@ Sequences
     CSI n 'B' : Cursor Down (CUD). Move cursor down n rows. {1}
 
     CSI n 'C' : Cursor Forward (CUF). Move cursor n columns right. Stops at right of page. {1}
+
+#   CSI f [ ; n ] ' D' : Font Selection (FNT). 
+#       f = font number (0=primary, 1=high intensity,2=blink,3=high and blink,4..9:alternates).
+#       n = font: Since the character fonts to be listed here were never established by ECMA, cterm font numbers are used.
 
     CSI n 'D' : Cursor Backwards (CUB). Move cursor n columns left. Stops at left of page. {1}
 
@@ -63,6 +67,10 @@ Sequences
     CSI n 'M' : Delete Lines (DL). Delete n rows at current row. {1}
 
     CSI n 'P' : Delete Character (DCH). Delete n characters at cursor position. {1}
+
+#   CSI n 'S' : Scroll Up (SU). Scroll up.
+
+#   CSI n 'T' : Scroll Down (SD). Scroll down.
 
     CSI n 'X' : Erase Character (ECH). Erase next n characters {1}
 
@@ -118,10 +126,29 @@ Sequences
 
     CSI n 'h' : Set Mode (SM).
         n = '?50' : turns on 'real' ANSI mode.
+       
+#           '255' : DOORWAY mode on.
+#           '?6' : 1,1=ul of scrolling region
+#           '?7' : auto wrap on
+#           '?25' : cursor on
+#           '?31' : bright from alternate set
+#           '?32' : bright disabled
+#           '?33' : blink = bright background
+#           '?34' : blink from alternate set
+#           '?35' : blink disabled
 
     CSI n 'l' : Reset Mode (RM).
         n = '?50' : turns off 'real' ANSI mode.
-
+#           '255' : DOORWAY mode off.
+#           '?6' : 1,1=ul of scrolling region
+#           '?7' : auto wrap on
+#           '?25' : cursor hide
+#           '?31' : bright from alternate set
+#           '?32' : bright disabled
+#           '?33' : blink = bright background
+#           '?34' : blink from alternate set
+#           '?35' : blink disabled
+        
     CSI n [ ; ... ] 'm' : Set Graphics Rendition (SGR). zero or more of: {0}
         0 : Reset all to default.
         1 : Bold on in 'real' ANSI mode, high intensity foreground color in BBS/ANSI.SYS mode.
@@ -132,6 +159,11 @@ Sequences
         7 : Reverse foreground and background colors.
         8 : Concealed on.
         9 : Strikethrough on.
+#       10 : Select default font.
+#       11 : Select high intensity font.
+#       12 : Select blink font.
+#       13 : Select high/blink font.
+#       14-19: Select alternate font.
         21 : Bold off in 'real' ANSI mode, regular intensity foreground color in BBS/ANSI.SYS mode.
         23 : Italics off.
         24 : Underline off.
@@ -188,6 +220,12 @@ Sequences
 
     CSI n 'n' : Device Status Report. {0}
         n = 6 : Request cursor position. Reply is CSI r ';' c 'R'.
+
+#   CSI p1 ; p2 '*r' : Baud rate emulation.
+
+#   CSI t ; b 'r' : Set scroll window (DECSTBM).
+#       t = top row number
+#       b = bottom row number
 
     CSI s : Save cursor position.
     CSI u : Restore cursor position.
