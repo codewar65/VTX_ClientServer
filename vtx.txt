@@ -162,9 +162,13 @@ Sequences
         50 : Glow on.
         56 : Outline on.
         57 : Shadow on.
+        58 : Teletext Block Mosaic on.
+        59 : Teletext Separated Block Mosaic on.
         70 : Glow off.
         76 : Outline off.
         77 : Glow off.
+        78 : Teletext Block Mosaic off.
+        79 : Teletext Separated Block Mosaic off.
         90 : High intensity black foreground color.
         91 : High intensity red foreground color.
         92 : High intensity green foreground color.

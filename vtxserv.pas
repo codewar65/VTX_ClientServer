@@ -797,6 +797,7 @@ begin
       '.css':   code := SendText(ASocket, 'text/css', uri);
       '.js':    code := SendText(ASocket, 'text/javascript', uri);
       '.png':   code := SendBinary(ASocket, 'image/png', uri);
+      '.ico':		code := SendBinary(ASocket, 'image/x-icon', uri);
       '.eot':   code := SendBinary(ASocket, 'application/vnd.ms-fontobject', uri);
       '.svg':   code := SendBinary(ASocket, 'image/svg+xml', uri);
       '.ttf':   code := SendBinary(ASocket, 'application/font-sfnt', uri);
@@ -926,6 +927,13 @@ end;
 
 // send data to node process
 function TvtxNodeProcess.SendBuffer(buf : pbyte; len : longint) : integer;
+var
+  newbuf,
+  pin,
+  pout : pbyte;
+  b : byte;
+  i,
+  lenout : longint;
 begin
   result := -1;
   case SystemInfo.NodeType of
@@ -938,10 +946,33 @@ begin
 
     Telnet:
 			begin
-//        fProgress := 'SEND: ' + BufferDump(buf, len);
-//        Synchronize(@DoProgress);
 	  	  if serverCon.tnlive then
-  	  	  result := fpsend(serverCon.tnsock, buf, len, 0);
+        begin
+          // need to escape out IAC's
+          newbuf := GetMemory(len * 2);	// worse case scenario. all IAC's
+  				pout := newbuf;
+          lenout := 0;
+
+          for i := 0 to len - 1 do
+          begin
+            b := buf[i];
+            pout^ := b;
+            inc(pout);
+            inc(lenout);
+
+            // escape TN_IAC
+            if b = TN_IAC then
+            begin
+              pout^ := b;
+              inc(pout);
+              inc(lenout);
+            end;
+          end;
+
+  	  	  //result := fpsend(serverCon.tnsock, buf, len, 0);
+	  	  	result := fpsend(serverCon.tnsock, newbuf, lenout, 0);
+    			FreeMemory(newbuf);
+				end;
       end;
   end;
 end;
@@ -1501,7 +1532,7 @@ procedure TvtxApp.WSRead(
 var
   bytes : longint;
   con :   TvtxWSConnection;
-  buf :   array [0..1024] of byte;
+  buf :   array [0..2049] of byte;
 
 begin
   lastaction := now;
@@ -1509,8 +1540,8 @@ begin
 
   con := TvtxWSConnection(aSender);
   bytes := aData.Size;
-  if bytes > 1024 then
-    bytes := 1024;
+  if bytes > 2048 then
+    bytes := 2048;
 
   if bytes > 0 then
   begin
