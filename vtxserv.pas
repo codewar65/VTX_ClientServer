@@ -75,15 +75,17 @@ type
 
   // available code pages to translate to / from.
   TCodePages = (
-    CP1250, 	CP1251, 	CP1252, 	CP1253,
-    CP1254, 	CP1255, 	CP1256, 	CP1257,
-    CP1258, 	CP437, 		CP850, 		CP852,
-    CP866, 		CP874, 		CP932, 		CP936,
-    CP949, 		CP950, 		MACINTOSH, KOI8 );
+		CP437, CP667, CP668, CP737, CP770, CP771, CP772, CP773,
+    CP774, CP775, CP790, CP808, CP813, CP850, CP851, CP852,
+    CP853, CP855, CP857, CP858, CP859, CP860, CP861, CP863,
+    CP865, CP866, CP867, CP869, CP872, CP878, CP895, CP900,
+    CP912, CP915, CP920, CP991, CP1117, CP1118, CP1119, CP65001,
+    CPMIK, UTF8, UTF16, WIN1250, WIN1251, WIN1253, WIN1254, WIN1257
+	);
 
   // code page converter prototypes
-  TCodePageConverter =    function(const s: string): string;
-  TCodePageUnconverter =  function(const s: string; SetTargetCodePage: boolean = false): RawByteString;
+//  TCodePageConverter =    function(const s: string): string;
+//  TCodePageUnconverter =  function(const s: string; SetTargetCodePage: boolean = false): RawByteString;
 
   { Node process type. }
   TvtxNodeType = ( ExtProc, Telnet );
@@ -98,7 +100,7 @@ type
     MaxConnections :  integer;
 
     NodeType :        TvtxNodeType;
-    CodePage :				TCodePages;		// phase TelnetCP out.
+    CodePage :				TCodePages;
 
     // string to launch node preocess
     ExtProc :         string;
@@ -106,7 +108,6 @@ type
     // connection info for internal telnet client
     TelnetIP :        string;
     TelnetPort :      string;
-    TelnetCP :        TCodePages;
   end;
 
   // available net services
@@ -236,17 +237,20 @@ type
 {$region CONSTANTS}
 const
   // code page stuff
-  FirstCP : TCodePages = CP1250;
-  LastCP : 	TCodePages = KOI8;
+  FirstCP : TCodePages = CP437;
+  LastCP : 	TCodePages = WIN1257;
 
-  CodePageNames : array [ CP1250 .. KOI8 ] of string = (
-    'CP1250', 'CP1251', 'CP1252', 'CP1253',
-    'CP1254', 'CP1255', 'CP1256', 'CP1257',
-    'CP1258', 'CP437', 'CP850', 'CP852',
-    'CP866', 'CP874', 'CP932', 'CP936',
-    'CP949', 'CP950', 'MACINTOSH', 'KOI8' );
+  CodePageNames : array [ CP437 .. WIN1257 ] of string = (
+		'CP437', 'CP667', 'CP668', 'CP737', 'CP770', 'CP771', 'CP772', 'CP773',
+    'CP774', 'CP775', 'CP790', 'CP808', 'CP813', 'CP850', 'CP851', 'CP852',
+    'CP853', 'CP855', 'CP857', 'CP858', 'CP859', 'CP860', 'CP861', 'CP863',
+    'CP865', 'CP866', 'CP867', 'CP869', 'CP872', 'CP878', 'CP895', 'CP900',
+    'CP912', 'CP915', 'CP920', 'CP991', 'CP1117', 'CP1118', 'CP1119', 'CP65001',
+  	'CPMIK', 'UTF8', 'UTF16', 'WIN1250', 'WIN1251', 'WIN1253', 'WIN1254', 'WIN1257'
+);
 
-  CodePageConverters : array [ CP1250 .. KOI8 ] of TCodePageConverter = (
+{
+	CodePageConverters : array [ CP1250 .. KOI8 ] of TCodePageConverter = (
     @CP1250ToUTF8, @CP1251ToUTF8, @CP1252ToUTF8, @CP1253ToUTF8,
     @CP1254ToUTF8, @CP1255ToUTF8, @CP1256ToUTF8, @CP1257ToUTF8,
     @CP1258ToUTF8, @CP437ToUTF8, @CP850ToUTF8, @CP852ToUTF8,
@@ -259,6 +263,7 @@ const
     @UTF8ToCP1258, @UTF8ToCP437, @UTF8ToCP850, @UTF8ToCP852,
     @UTF8ToCP866, @UTF8ToCP874, @UTF8ToCP932, @UTF8ToCP936,
     @UTF8ToCP949, @UTF8ToCP950, @UTF8ToMACINTOSH, @UTF8ToKOI8 );
+}
 
   // names of net services
   ProcessType : array [0..1] of string = ('ExtProc', 'Telnet' );
@@ -329,6 +334,7 @@ var
 { SUPPORT PROCEDURES / FUNCTIONS }
 {$region SUPPORT ROUTINES}
 { Convert contents of filename to UTF-8 }
+{
 function Convert(cp : TCodePages; filename : string) : string; register;
 var
   fin : TextFile;
@@ -362,6 +368,7 @@ function ConvertToCP(cp : TCodePages; strin : string) : RawByteString; register;
 begin
   result := CodePageUnconverters[cp](strin);
 end;
+}
 
 { Get a socket error description. }
 function GetSocketErrorMsg(errno : integer) : string;
@@ -507,10 +514,6 @@ begin
 
   SystemInfo.TelnetIP :=    iin.ReadString(sect, 'TelnetIP', '192.168.0.2');
   SystemInfo.TelnetPort :=  iin.ReadString(sect, 'TelnetPort',  '7002');
-  SystemInfo.TelnetCP :=    TCodePages(
-                              InList(
-                                iin.ReadString(sect, 'TelnetCP', 'CP437'),
-                                CodePageNames));
 
   SystemInfo.MaxConnections := iin.ReadInteger(sect, 'MaxConnections',  32);
   iin.Free;
@@ -1956,6 +1959,8 @@ begin
 
         'CONV':
           begin
+            app.WriteCon('', 'Codepage convertion removed from server. To be implemented as external utils.');
+{
             if length(word) = 4 then
             begin
               Found := false;
@@ -1986,6 +1991,7 @@ begin
             end
             else
               app.WriteCon('', 'Invalid number of parameters.');
+}
           end;
 
         'CPS':

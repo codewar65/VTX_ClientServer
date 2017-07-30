@@ -340,7 +340,16 @@ var
     CRLF =      '\x0D\x0A',
 
     // tables for converting byte to UTF16 (unicode)
-
+    codePageAKAs = {
+        CP790:      'CP667',
+        CP991:      'CP667',
+        CP1119:     'CP772',
+        CP1118:     'CP774',
+        CP900:      'CP866',
+        CP895:      'CP866',
+        CP65001:    'UTF8'
+    },
+    
     codePageData = {
         CP437: new Uint16Array([    // CP437
             0x0000, 0x263A, 0x263B, 0x2665, 0x2666, _ENQ,   0x2660, _BEL,
@@ -1813,15 +1822,22 @@ function domElement(type, options, styles, txt) {
 // only convert Uint8Array to string
 function toUTF16(data) {
     var
-        c, d, l, i, outstr;
+        c, d, l, i, outstr, encstr;
 
     if (data instanceof Uint8Array) {
         l = data.length;
         outstr = '';
-        if (codePage == 'UTF16') {
-            for (i = 0; i < l; i += 2) {
-                outstr += String.fromCharCode((data[i]<<8) | data[i+1]);
-            }
+        if (codePage == 'UTF8') {
+
+            encstr = String.fromCharCode.apply(null, data);
+            outstr = decodeURIComponent(escape(encstr));
+
+        } else if (codePage == 'UTF16') {
+            outstr = String.fromCharCode.apply(data);
+
+            //for (i = 0; i < l; i += 2) 
+            //    outstr += String.fromCharCode((data[i]<<8) | data[i+1]);
+
         } else {
             for (i = 0; i < l; i++) {
                 d = data[i];
@@ -1836,6 +1852,7 @@ function toUTF16(data) {
 
 // send data to remote (or echo local if not connected)
 // only send arraybuffer data
+// add convert from native to node's codepage.
 function sendData(data) {
     var
         unsent, i, l, str;
@@ -1854,6 +1871,7 @@ function sendData(data) {
     if (!(data instanceof Uint8Array))
         throw 'Invalid data in sendData().';
 
+    // check code page conversions.
     if (ws && (ws.readyState == 1)) {
         ws.send(data.buffer);
     } else {
@@ -3742,9 +3760,13 @@ function renderCell(rownum, colnum, forcerev) {
             ctx.lineWidth = 1;
             ctx.strokeText(ch, 0, 0);
         } else {
-            if ((attr & (A_CELL_BLOCK | A_CELL_SEPARATED)) && (ch >= 32 && ch < 96))
-                drawMosaicBlock(ctx, ch, w, h, attr & A_CELL_SEPARATED)
-            else
+            if (attr & (A_CELL_BLOCK | A_CELL_SEPARATED)) {
+                var cz = ch.charCodeAt(0);
+                if ((cz >= 32) && (cz <= 95))
+                    drawMosaicBlock(ctx, cz, w, h, attr & A_CELL_SEPARATED)
+                else
+                    ctx.fillText(ch, 0, 0);
+            } else
                 ctx.fillText(ch, 0, 0);
         }
 
@@ -3970,6 +3992,20 @@ function initDisplay() {
         fsize,
         defattrs;
 
+    // adjust codepage from AKAs - abort if invalid
+    var cp = codePage;
+    if (!codePageData[cp]) {
+        if (!codePageAKAs[cp]) {
+            if ((cp == 'UTF8') || (cp == 'UTF16'))
+                codePage = cp
+            else {
+                document.write('Invalid code page.');
+                return;
+            }
+        } else
+            codePage = codePageAKAs[cp];
+    }
+    
     // find the page / text div
     pageDiv = document.getElementById('vtxpage');
     if (!pageDiv)

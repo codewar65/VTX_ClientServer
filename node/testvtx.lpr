@@ -49,6 +49,10 @@ begin
   	+ SGR(ANSI_YELLOW) + '9' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Clickable Hotspots.');
 
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'A')+'['
+  	+ SGR(ANSI_YELLOW) + 'A' + SGR(ANSI_BROWN)
+    + ']' + SGR(ANSI_LTBLUE) + ' Block Characters.');
+
   Print(UP(9) + SGR(ANSI_LTGREEN));
   PrintLn(RIGHT(30) + 'This is a demonstration of the VTX web and');
   PrintLn(RIGHT(30) + 'websocket server, VTX web browser client, and');
@@ -69,7 +73,7 @@ begin
   result := '';
   repeat
     key := upCase(GetKey);
-    if Pos(key, 'Q123456789') <> 0 then
+    if Pos(key, 'Q123456789A') <> 0 then
       result := key;
   until result <> '';
 end;
@@ -564,6 +568,44 @@ begin
   until key = 'Q';
 end;
 
+procedure PageA;
+var
+  key : string;
+begin
+  Print(VTXMODE + CLS + HOME + SGR(ANSI_LTCYAN, [SGR_RESET]));
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 50)
+    + ' Teletext Mosiac Block Mode');
+  PrintLn;
+
+  PrintLn(#27'[94mSpecial 2 x 3 block graphic characters as used on the BBC Micro, TRS-80,');
+  PrintLn('and Teletext style screens can be accessed with special SGR commands. While');
+  PrintLn('this mode is on, characters SPACE through _ are rendered as block characters.');
+  PrintLn('Full block and separated blocks are available in the two modes.');
+  PrintLn;
+  PrintLn('Normal characters:');
+  PrintLn;
+  PrintLn(#27'[97m    ! " # $ % & '' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?');
+  PrintLn('  @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ / ] ^ _');
+  PrintLn;
+  PrintLn(#27'[93mCSI 58 m'#27'[94m: Turn full block mode on (0 or 78 will turn if off).');
+  PrintLn;
+  PrintLn(#27'[97;58m    ! " # $ % & '' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?');
+  PrintLn('  @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ / ] ^ _'#27'[78m');
+  PrintLn;
+  PrintLn(#27'[93mCSI 59 m'#27'[94m: Turn separated  block mode on (0 or 79 will turn if off).');
+  PrintLn;
+  PrintLn(#27'[97;59m    ! " # $ % & '' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?');
+  PrintLn('  @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ / ] ^ _'#27'[79m');
+  PrintLn;
+
+  Print(SGR(ANSI_GREEN) + 'Press '+HOTSPOT(3,1,0,'Q')+'['
+    + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
+
+  repeat
+    key := upCase(GetKey);
+  until key = 'Q';
+end;
+
 var
   selection : string;
   loop : boolean;
@@ -588,6 +630,7 @@ begin
       '7':  Page7;
       '8':  Page8;
       '9':  Page9;
+      'A':	PageA;
 
       'Q':
         begin
