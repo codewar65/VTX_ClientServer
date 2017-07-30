@@ -37,6 +37,24 @@ The node directory contains files needed for the 'node' applications.
 The work directory is various unneeded stuff I use for web graphics and testing.
 
 
+## Client Features
+
+80 column display by any length page. Using webfont specified in html/css 
+template file (in the www path).
+
+256 colors (base 8 + high intensity + 6x6x6 color cube + grays) - see https://en.wikipedia.org/wiki/ANSI_escape_code
+
+Transparent black in VTX mode.
+
+Variable row sizing, row background effects, and marquee text rows in VTX ANSI mode.
+
+Support up to 64 SVG sprites from 64 SVG sprite definitions.
+
+See vtx.txt for ANSI code sequences supported.
+
+Y-Modem 1K upload and download.
+
+
 ## Compiling
 
 There is no make procedure at this time. It currently only builds on Windows.
@@ -147,9 +165,13 @@ servers.
 
 ## To Do / To Fix / Bugs
 
-Testing YModem download. Write YModem upload.
-
 Merge row size, row background, and page/cursor attributes into one ESC sequence
 group.
 
 Add codes to reset page and cursor attributes to default.
+
+Fix minor text rendering bugs.
+
+Test Teletext block characters.
+
+Rewrite test node software for generic codepage.
