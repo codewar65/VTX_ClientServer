@@ -517,19 +517,39 @@ end;
 procedure Page8;
 var
   key : string;
+	filenames : array [0..7] of string = (
+		'ansi1.utf',
+		'ansi2.utf',
+		'ansi3.utf',
+		'ansi4.utf',
+		'ansi5.utf',
+		'ansi6.utf',
+		'ansi7.utf',
+		'ansi8.utf'
+  );
+  i : integer;
+
 begin
-  Print(BBSMODE + CLS);
+  i := 0;
+  Print(#27'[1;11*r');
 
-  PrintANSI('k1-1967.utf8');
-
-  Print(#27'[0m' + SGR(ANSI_GREEN) + 'Press '+ HOTSPOT(3,1,0,'Q') + '['
-    + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
   repeat
+    Print(BBSMODE + CLS);
+		PrintANSI(filenames[i]);
+    inc(i); if i >= length(filenames) then i := 0;
+
+    Print(#27'[0m' + SGR(ANSI_GREEN) + 'Press any key for next or '+ HOTSPOT(3,1,0,'Q') + '['
+    	+ SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
+
     key := upCase(GetKey);
+
   until key = 'Q';
 
+  Print(#27'[1;0*r');
   Print(CLS + VTXMODE);
 end;
+
+
 
 procedure Page9;
 var

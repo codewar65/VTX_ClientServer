@@ -2750,7 +2750,7 @@ function conCharOut(chr) {
                         case 3:// page border color
                             i = (parm[1] & 0xFF);
                             pageAttr = setPageAttrBorder(pageAttr, i);
-                            p = pageDiv.parentNode;
+                            var p = pageDiv.parentNode;
                             p.style['background-color'] = clut[(pageAttr >> 8) & 0xFF];
                             break;
 
@@ -3074,13 +3074,6 @@ function conCharOut(chr) {
                     parm = fixParams(parm, [ 0, 0 ]);
                     if (parm[0] < 2) {
                         modeSpeed = bauds[parm[1]] * 100;
-                        if (modeSpeed == 0) {
-                            conStrOut(conBuffer);
-                            conBuffer = '';
-                            clearInterval(irqWriteBuffer);
-                        } else {
-                            irqWriteBuffer = setInterval(doWriteBuffer, 33);
-                        }
                     }
                 }
                 break;
@@ -3136,44 +3129,49 @@ function conCharOut(chr) {
 // call once every 33 ms
 function doWriteBuffer() {
     var
+        strOut,
         bytes;
         
     if (conBuffer.length > 0) {
         // how many bytes to send since last call.
-        bytes = modeSpeed / 300;
-        if (conBuffer.length < bytes){
-            conStrOut(conBuffer);
+        if (modeSpeed == 0) {
+            strOut = conBuffer;
             conBuffer = '';
         } else {
-            conStrOut(conBuffer.substring(0,bytes));
-            conBuffer = conBuffer.substring(bytes);
+            bytes = modeSpeed / 300;
+            if (conBuffer.length < bytes){
+                strOut = conBuffer;
+                conBuffer = '';
+            } else {
+                strOut = conBuffer.substring(0,bytes);
+                conBuffer = conBuffer.substring(bytes);
+            }
         }
+        conStrOut(strOut);
     }
 }
 
 function conBufferOut(data) {
-    // write data to output buffer. 9600 baud ~ 1 char / ms.
-    if (modeSpeed == 0) {
-        if (conBuffer.length > 0) {
-            // any remnents left in conBuffer, send now.
-            conStrOut(conBuffer);
-            conBuffer = '';
-        }
-        conStrOut(data);
-    } else {
-        conBuffer += data;
-    }
+    conBuffer += data;
 }
 
 // write string using current attributes at cursor position. ###CALL conBufferOut!###
 function conStrOut(str) {
     var
+        oldSpeed,
         l, i;
 
     str = str || '';
     l = str.length;
-    for (i = 0; i < l; i++)
+    for (i = 0; i < l; i++) {
+        oldSpeed = modeSpeed;
         conCharOut(str.charCodeAt(i));
+        if (modeSpeed != oldSpeed) {
+            // move rest back to buffer!
+            conBuffer = str.substring(i+1) + conBuffer;
+            break;
+        }
+    }
 }
 
 // get actual document position of element
@@ -3755,8 +3753,8 @@ function renderCell(rownum, colnum, forcerev) {
         return;
 
     row = getRowElement(rownum);
-    //h = rowSize * size;             // height of char
-    h = fontSize * size;             // height of char
+    h = fontSize * size;            // height of char
+    stroke = h * 0.1;               // underline/strikethrough size
     cnv = row.firstChild;           // get canvas
     if (!cnv) {
         // create new canvas if nonexistant
@@ -3773,10 +3771,10 @@ function renderCell(rownum, colnum, forcerev) {
     ch = conText[rownum].charAt(colnum);
     tfg = (attr & 0xFF);
     tbg = (attr >> 8) & 0xff;
+    
     tbold  = attr & A_CELL_BOLD;
     if (modeNoBold) // CSI ?32 h / l
         tbold = 0;
-    stroke = h * 0.1;  // underline/strikethrough size
 
     if (attr & A_CELL_REVERSE) {
         tmp = tfg;
@@ -3785,6 +3783,7 @@ function renderCell(rownum, colnum, forcerev) {
         if (tfg == 0)
             tfg = 16;
     }
+    
     if (!modeVTXANSI) {
         if (tbold && (tfg < 8)) {
             tfg += 8;
@@ -3792,16 +3791,11 @@ function renderCell(rownum, colnum, forcerev) {
         tbold = false;
     }
 
-    // forec reverse (for mouse selections)
+    // force highlight (for mouse selections)
     if (forcerev) {
         tbg = 4;
         tfg = 15;
     }
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(x, 0, w + 1, h + 1);
-    ctx.clip();
 
     // fix iCE colors
     if (modeBlinkBright && (tbg < 8) 
@@ -3810,7 +3804,12 @@ function renderCell(rownum, colnum, forcerev) {
         tbg += 8;
         attr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
     }
-    
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, 0, w + 1, h + 1);
+    ctx.clip();
+
     if (tbg > 0) {
         ctx.fillStyle = clut[tbg];
         ctx.fillRect(x, 0, w, h);
@@ -4013,6 +4012,8 @@ function setBulbs() {
 // set event for page resize check and cursor blink
 function setTimers(onoff) {
     if (onoff) {
+        if (irqWriteBuffer == null)
+            irqWriteBuffer = setInterval(doWriteBuffer, 33);
         if (irqCheckResize == null)
             irqCheckResize = setInterval(doCheckResize, 10);
         if (irqCursor == null)
@@ -4020,12 +4021,15 @@ function setTimers(onoff) {
         if (irqBlink == null)
             irqBlink = setInterval(doBlink, 533);
     } else {
+        if (irqWriteBuffer != null)
+            clearInterval(irqWriteBuffer);
         if (irqCheckResize != null)
             clearInterval(irqCheckResize);
         if (irqCursor != null)
             clearInterval(irqCursor);
         if (irqBlink != null)
             clearInterval(irqBlink);
+        irqWriteBuffer = null;
         irqCheckResize = null;
         irqCursor = null;
         irqBlink = null;
@@ -4278,6 +4282,9 @@ function initDisplay() {
             i, j, str, data;
 
         data = new Uint8Array(e.data);
+
+//dump(data,0,data.length);
+
         switch (termState) {
             case TS_NORMAL:
                 // convert from codepage
@@ -4311,7 +4318,7 @@ function initDisplay() {
         conBufferOut('\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
         setBulbs();
     }
-    conBufferOut('\x1b[1;6*r');
+    //conBufferOut('\x1b[1;6*r');
     return;
 }
 
