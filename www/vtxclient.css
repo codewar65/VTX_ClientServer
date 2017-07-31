@@ -1,11 +1,11 @@
 @font-face {
-    font-family: 'Vga Unicode';
-    src: url('VgaUnicode9.woff'); format('woff');
+    font-family: 'VgaUnicode8';
+    src: url('VgaUnicode8.woff'); format('woff');
 }
 html {
 }
 body {
-    font-family:    'Vga Unicode';
+    font-family:    'VgaUnicode8';
     font-size:      16px;
     padding-top:    1em;
     padding-bottom: 1em;

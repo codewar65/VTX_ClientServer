@@ -177,8 +177,9 @@ var
     codePage = '@CodePage@',
     wsConnect = 'ws://@InternetIP@:@WSPort@',
 
-    ws = null,              // websocket connection.
+    ws = null,                  // websocket connection.
 
+    irqWriteBuffer = null,      // print buffer (33ms)
     irqCheckResize = null,
     irqCursor = null,
     irqBlink = null,
@@ -229,10 +230,14 @@ var
     modeBlinkBright = false,    // CSI ?33 h/l to switch blink for bright background.
     modeCursor = true,          // CSI ?25 h/l to turn cursor on / off.
     modeBoldFont = false,       // CSI ?31 h/l to use font 1 for bold.
-    modeNoBold = true,          // CSI ?32 h/l to disallow bold.
+    modeNoBold = false,         // CSI ?32 h/l to disallow bold.
     modeBlinkFont = false,      // CSI ?34 h/l to use font 2 for blink.
     modeNoBlink = false,        // CSI ?35 h/l to disallow blink.
-
+    modeSpeed = 0,              // baud emulation speed.
+    
+    // display buffer.
+    conBuffer = '',             // console output buffer. (use string for now).
+    
     // Attrs are integer arrays, base 0 (i.e.: row 1 = index 0)
     conRowAttr  = [],           // row attributes array of number
     conCellAttr = [],           // character attributes array of array or number
@@ -296,6 +301,9 @@ var
 
     ovl = {},               // overlay dialog stuff for file transfers
 
+    // bitspersecond / 100 rates for speed emulation.
+    bauds =     [ 0,3,6,12,24,48,96,192,384,576,768,1152 ],
+    
     // ASCII C0 Codes
     _NUL     = 0x00,
     _SOH     = 0x01,
@@ -1882,7 +1890,7 @@ function sendData(data) {
         ws.send(data.buffer);
     } else {
         str = toUTF16(data);
-        conStrOut(str);
+        conBufferOut(str);
         crsrDraw();
     }
 }
@@ -2244,7 +2252,7 @@ function conPrintChar(chr) {
     }
 }
 
-// the big function - ansi sequence state machine.
+// the big function - ansi sequence state machine. ###CALL conBufferOut!###
 function conCharOut(chr) {
     var
         def,
@@ -3055,7 +3063,28 @@ function conCharOut(chr) {
                     sendData(CSI + (crsrRow+1) + ';' + (crsrCol+1) + 'R');
                 }
                 break;
-
+            case 0x72:  // r
+                if (interm == '*') {
+                    // *r - emulate baud
+                    // assuming if p1 < 2 then use p2, else reset to full speed.
+                    // ps1 : nil,0,1 = host transmit, 2=host recieve, 3=printer
+                    //      4=modem hi, 5=modem lo
+                    // ps2 : nil,0=full speed, 1=300, 2=600,3=1200,4=2400,5=4800,
+                    //      6=9600,7=19200,8=38400,9=57600,10=76800,11=115200
+                    parm = fixParams(parm, [ 0, 0 ]);
+                    if (parm[0] < 2) {
+                        modeSpeed = bauds[parm[1]] * 100;
+                        if (modeSpeed == 0) {
+                            conStrOut(conBuffer);
+                            conBuffer = '';
+                            clearInterval(irqWriteBuffer);
+                        } else {
+                            irqWriteBuffer = setInterval(doWriteBuffer, 33);
+                        }
+                    }
+                }
+                break;
+                
             case 0x73:  // s - Save Position
                 crsrSaveRow = crsrRow;
                 crsrSaveCol = crsrCol;
@@ -3104,19 +3133,47 @@ function conCharOut(chr) {
         crsrDraw();
 }
 
-// write string using current attributes at cursor position
+// call once every 33 ms
+function doWriteBuffer() {
+    var
+        bytes;
+        
+    if (conBuffer.length > 0) {
+        // how many bytes to send since last call.
+        bytes = modeSpeed / 300;
+        if (conBuffer.length < bytes){
+            conStrOut(conBuffer);
+            conBuffer = '';
+        } else {
+            conStrOut(conBuffer.substring(0,bytes));
+            conBuffer = conBuffer.substring(bytes);
+        }
+    }
+}
+
+function conBufferOut(data) {
+    // write data to output buffer. 9600 baud ~ 1 char / ms.
+    if (modeSpeed == 0) {
+        if (conBuffer.length > 0) {
+            // any remnents left in conBuffer, send now.
+            conStrOut(conBuffer);
+            conBuffer = '';
+        }
+        conStrOut(data);
+    } else {
+        conBuffer += data;
+    }
+}
+
+// write string using current attributes at cursor position. ###CALL conBufferOut!###
 function conStrOut(str) {
     var
         l, i;
 
     str = str || '';
     l = str.length;
-//    if (termState == TS_NORMAL)
-//        setTimers(false);
     for (i = 0; i < l; i++)
         conCharOut(str.charCodeAt(i));
-//    if (termState == TS_NORMAL)
-//        setTimers(true);
 }
 
 // get actual document position of element
@@ -3230,8 +3287,9 @@ function getDefaultFontSize() {
                     txtRight = x;
             }
         }
-    colSize = Math.round((txtRight - txtLeft) / testString.length);
-    rowSize = Math.round(txtBottom - txtTop) + 1;
+    // middle ground between Mozilla and Chromium
+    colSize = Math.round(((txtRight - txtLeft) / testString.length) - 0.25);
+    rowSize = Math.floor(txtBottom - txtTop) + 1;
 }
 
 // compute size of text based on text and font.
@@ -3697,7 +3755,8 @@ function renderCell(rownum, colnum, forcerev) {
         return;
 
     row = getRowElement(rownum);
-    h = rowSize * size;             // height of char
+    //h = rowSize * size;             // height of char
+    h = fontSize * size;             // height of char
     cnv = row.firstChild;           // get canvas
     if (!cnv) {
         // create new canvas if nonexistant
@@ -3825,10 +3884,10 @@ function renderCell(rownum, colnum, forcerev) {
 
         // draw underline / strikethough manually
         if (attr & A_CELL_UNDERLINE) {
-            ctx.fillRect(x, h - stroke, w, stroke);
+            ctx.fillRect(0, h - stroke, w, stroke);
         }
         if (attr & A_CELL_STRIKETHROUGH) {
-            ctx.fillRect(x, (h + stroke) / 2, w, stroke);
+            ctx.fillRect(0, (h + stroke) / 2, w, stroke);
         }
     }
     ctx.restore();
@@ -3990,7 +4049,7 @@ function paste(e) {
     e.preventDefault();
 
     clipboardData = e.clipboardData || window.clipboardData;
-    conStrOut(clipboardData.getData('Text'));
+    conBufferOut(clipboardData.getData('Text'));
 }
 
 // update cursor from crsrAttr values
@@ -4208,11 +4267,13 @@ function initDisplay() {
         setBulbs();
     }
     ws.onclose = function() {
-        conStrOut('\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
+        modeSpeed = 0;
+        conBufferOut('\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
         document.body.style['cursor'] = 'default';
         setBulbs();
     }
     ws.onmessage = function(e) {
+        // need to rebuffer for speed emulation (except for file transfers!)
         var
             i, j, str, data;
 
@@ -4221,7 +4282,7 @@ function initDisplay() {
             case TS_NORMAL:
                 // convert from codepage
                 str = toUTF16(data);
-                conStrOut(str);
+                conBufferOut(str);
                 break;
 
             case TS_YMR_START:
@@ -4230,7 +4291,7 @@ function initDisplay() {
                 if (data.length > 0) {
                     // transfer ended midway. output the rest.
                     str = toUTF16(data);
-                    conStrOut(str);
+                    conBufferOut(str);
                 }
                 break;
 
@@ -4241,16 +4302,16 @@ function initDisplay() {
                 if (data.length > 0) {
                     // transfer ended midway. output the rest.
                     str = toUTF16(data);
-                    conStrOut(str);
+                    conBufferOut(str);
                 }
                 break;
         }
     }
     ws.onerror = function(error) {
-        conStrOut('\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
+        conBufferOut('\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
         setBulbs();
     }
-
+    conBufferOut('\x1b[1;6*r');
     return;
 }
 
@@ -4408,10 +4469,7 @@ function fadeScreen(fade) {
     }
 }
 
-
-
 // YModem rigmarole
-
 var
     ymTimer,
     ymCCount,
@@ -4608,7 +4666,7 @@ function ymRStateMachine(data){
                     }
                     if ((block == 0) && (ymFileData.size == 0)) {
                         // first packet. get filename and optional filesize
-dump(ymPacketBuff, 0, ymPacketBuff.length);
+                        //dump(ymPacketBuff, 0, ymPacketBuff.length);
                         ymFileName = '';
                         j = 2;
                         while (ymPacketBuff[j])
@@ -4797,7 +4855,6 @@ function ymSStateMachine(data) {
                     // now need ACK + C
                     
                 } else {
-                    conCharOut(b);
                     // wait for 10 seconds before abort
                     if (new Date().getTime() > ymSendStartTime + 10000)
                         ymCancel();
@@ -4845,7 +4902,6 @@ function ymSStateMachine(data) {
                     
                 } else
                     // ?!
-                    conCharOut(b);
                 break;
 
             case TS_YMS_PUTPACKET:
@@ -4915,7 +4971,6 @@ function ymSStateMachine(data) {
                     ymCancel();
                 } else {
                     // ?!
-                    conCharOut(b);
                 }
                 break;
         }
@@ -5009,30 +5064,6 @@ function ymSendStart() {
     el.click();
     ovl['dialog'].removeChild(el);
 }
-
-/*
-              SENDER                                  RECEIVER
-                                                      "sb foo.*<CR>"
-              "sending in batch mode etc."
-                                                      C (command:rb)
-              SOH 00 FF foo.c NUL[123] CRC CRC
-                                                      ACK
-                                                      C
-              SOH 01 FE Data[128] CRC CRC
-                                                      ACK
-              SOH 02 FC Data[128] CRC CRC
-                                                      ACK
-              SOH 03 FB Data[100] CPMEOF[28] CRC CRC
-                                                      ACK
-              EOT
-                                                      NAK
-              EOT
-                                                      ACK
-                                                      C
-              SOH 00 FF NUL[128] CRC CRC
-                                                      ACK
-
-*/
 
 function dump(buff, start, len){
     var

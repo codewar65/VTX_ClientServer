@@ -221,9 +221,9 @@ Sequences (# : to be implemented)
     CSI n 'n' : Device Status Report. {0}
         n = 6 : Request cursor position. Reply is CSI r ';' c 'R'.
 
-#   CSI p1 ; p2 '*r' : Baud rate emulation.
-#       p1 : "Sequence is ignored if p1 is not empty, 0, or 1." ??!?
-#       p2 : 0=unlimited, 1=300, 2=600, 3=1200, 4=2400, 5=4800, 6=9600, 7=19200, 8=38400, 9=57600, 10=76800, 11=115200
+    CSI p1 ; p2 '*r' : Baud rate emulation.
+        p1 : "Sequence is ignored if p1 is not empty, 0, or 1." ??!?
+        p2 : 0=unlimited, 1=300, 2=600, 3=1200, 4=2400, 5=4800, 6=9600, 7=19200, 8=38400, 9=57600, 10=76800, 11=115200
 
 #   CSI t ; b 'r' : Set scroll window (DECSTBM).
 #       t = top row number
