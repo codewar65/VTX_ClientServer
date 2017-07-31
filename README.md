@@ -1,6 +1,6 @@
 # VTX_ClientServer
 
-updated: 29-JUL-2017
+updated: 31-JUL-2017
 
 
 ## Intro
@@ -50,7 +50,7 @@ Variable row sizing, row background effects, and marquee text rows in VTX ANSI m
 
 Support up to 64 SVG sprites from 64 SVG sprite definitions.
 
-See vtx.txt for ANSI code sequences supported.
+See https://github.com/codewar65/VTX_ClientServer/blob/master/vtx.txt for ANSI code sequences supported.
 
 Y-Modem 1K upload and download.
 
@@ -148,13 +148,9 @@ Stablize server software - fully crashproof and able to always terminate phantom
 nodes.
 
 Add additional tool to server console for convert SVG files to Base64 for use
-in node software. Possibly remove these tools to separate command line utilities.
+in node software.
 
 Clean up demo node software. Develop ncurses compatible functions and procedures.
-
-Add new escape sequences to define clickable hotspots for sending a key or string
-to the server. Additionally, define hotspot for external URLs links that open in 
-an new page.
 
 Investigate ability for websocket server to accept non-'user' connections from
 other VTX servers for passing private network information like mail or echo-style
@@ -163,6 +159,9 @@ messages.
 Migrate away from Synape TCP libraries to low level sockets in HTTP and WS 
 servers.
 
+Softfonts - Built in bitmap font to vector font converter using method in bdf2svg (in utils).
+
+CSI 10-19 m / CSI space D font commands.
 
 ## To Do / To Fix / Bugs
 
@@ -170,9 +169,3 @@ Merge row size, row background, and page/cursor attributes into one ESC sequence
 group.
 
 Add codes to reset page and cursor attributes to default.
-
-Fix minor text rendering bugs.
-
-Test Teletext block characters.
-
-Rewrite test node software for generic codepage.
