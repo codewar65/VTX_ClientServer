@@ -541,7 +541,7 @@ const
 
 begin
   iin := TIniFile.Create('vtxserv.ini');
-  SystemInfo.SystemName :=  iin.ReadString(sect, 'SystmeName',  'A VTX Board');
+  SystemInfo.SystemName :=  iin.ReadString(sect, 'SystemName',  'A VTX Board');
   SystemInfo.SystemIP :=    iin.ReadString(sect, 'SystemIP',    'localhost');
   SystemInfo.InternetIP :=  iin.ReadString(sect, 'InternetIP',  '142.105.247.156');
   SystemInfo.HTTPPort :=    iin.ReadString(sect, 'HTTPPort',    '7001');

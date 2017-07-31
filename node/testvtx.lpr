@@ -517,7 +517,9 @@ end;
 procedure Page8;
 var
   key : string;
-	filenames : array [0..7] of string = (
+	filenames : array [0..9] of string = (
+		'ansi0.5.utf',
+		'ansi0.utf',
 		'ansi1.utf',
 		'ansi2.utf',
 		'ansi3.utf',
@@ -531,21 +533,26 @@ var
 
 begin
   i := 0;
-  Print(#27'[1;11*r');
+
+  Print(BBSMODE);
+  //Print(#27'[1;11*r');
 
   repeat
-    Print(BBSMODE + CLS);
+  begin
+    Print(CLS);
+
 		PrintANSI(filenames[i]);
     inc(i); if i >= length(filenames) then i := 0;
 
-    Print(#27'[0m' + SGR(ANSI_GREEN) + 'Press any key for next or '+ HOTSPOT(3,1,0,'Q') + '['
-    	+ SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
+    Print(CRLF + #27'[0m' + SGR(ANSI_GREEN) + 'Press any key for next or '
+      + HOTSPOT(3,1,0,'Q') + '[' + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN)
+      + ']uit when done: ');
 
     key := upCase(GetKey);
-
+  end
   until key = 'Q';
 
-  Print(#27'[1;0*r');
+  //Print(#27'[1;0*r');
   Print(CLS + VTXMODE);
 end;
 

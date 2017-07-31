@@ -3767,6 +3767,9 @@ function renderCell(rownum, colnum, forcerev) {
     }
     ctx = cnv.getContext('2d');
 
+if ((colnum == 23) && (rownum == 0)) 
+    nop();
+    
     attr = conCellAttr[rownum][colnum];
     ch = conText[rownum].charAt(colnum);
     tfg = (attr & 0xFF);
@@ -3798,13 +3801,18 @@ function renderCell(rownum, colnum, forcerev) {
     }
 
     // fix iCE colors
-    if (modeBlinkBright && (tbg < 8) 
-        && (attr & (A_CELL_BLINKSLOW | A_CELL_BLINKFAST))) {
+var fb = attr & A_CELL_BLINKSLOW;
+var sb = attr & A_CELL_BLINKFAST;
+    if (modeBlinkBright 
+        && (tbg < 8) 
+        && (fb || sb)) {
         // high intensity background / force blink off
         tbg += 8;
         attr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
     }
 
+    if (tfg == 0) tfg = 16;
+    
     ctx.save();
     ctx.beginPath();
     ctx.rect(x, 0, w + 1, h + 1);
@@ -5099,3 +5107,5 @@ function dump(buff, start, len){
     str += ': ' + alpha;
     console.log(str);
 }
+
+function nop() {}
