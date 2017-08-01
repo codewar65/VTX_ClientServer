@@ -28,6 +28,7 @@
     <RunParams>
       <local>
         <FormatVersion Value="1"/>
+        <CommandLineParams Value="-r microknightplus_v1.0.raw -o microknightplus_v1.0.svg"/>
       </local>
     </RunParams>
     <Units Count="1">
