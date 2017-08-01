@@ -7,7 +7,9 @@ function Menu : string;
 var
   key : string;
 begin
-  Print(VTXMODE + CLS + HOME + SGR(ANSI_LTCYAN, [SGR_RESET]));
+
+  Print(#27'[0m'#27'[1;0*r');
+  Print(#27'[?25h'#27'[?32l'#27'[?33l'#27'[?35l' + VTXMODE + CLS + HOME + SGR(ANSI_LTCYAN, [SGR_RESET]));
   PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 50)
     + ' VTX Server / Client / Node Demo');
   PrintLn;
@@ -535,7 +537,7 @@ begin
   i := 0;
 
   Print(BBSMODE);
-  //Print(#27'[1;11*r');
+  Print(#27'[1;10*r');
 
   repeat
   begin
@@ -552,7 +554,7 @@ begin
   end
   until key = 'Q';
 
-  //Print(#27'[1;0*r');
+  Print(#27'[1;0*r');
   Print(CLS + VTXMODE);
 end;
 

@@ -193,6 +193,10 @@ var
     crtWidth,                   // crt width in pixels
     crtCols = 80,               // columns side of row on crt.
     pageWidth,                  // with of html in pixels
+
+    pageLeft,                   // left position of page div.
+    pageTop,                    // top position of page div.
+
     elPage = document.getElementsByTagName('html')[0],
     crsr,                       // cursor element
     crsrRow,                    // cursor position
@@ -215,6 +219,7 @@ var
     termState,                  // TERMSTATE_...
 
     pageDiv = null,             // page contents div
+    ctrlDiv = null,             // controls panel
     textDiv = null,             // text plane
     soundBell = null,           // bell sound
     textPos = null,             // ul x,y of textdiv
@@ -3374,6 +3379,7 @@ function doCheckResize() {
         pageWidth = elPage.clientWidth;
         crsrDraw(true);
     }
+    ctrlDiv.style['left'] = (6 + textPos.left + crtWidth) + 'px';
 }
 
 // blink cursor (533ms is cursor blink speed based on DOS VGA).
@@ -3389,7 +3395,7 @@ function doBlink(){
     var
         r, c, y, rh;
 
-    if (!modeNoBlink) {
+    if (!modeNoBlink && !modeBlinkBright) {
         // y of first row.
         y = textDiv.getBoundingClientRect().top;
         for (r = 0; r < conRowAttr.length; r++) {
@@ -3783,8 +3789,6 @@ if ((colnum == 23) && (rownum == 0))
         tmp = tfg;
         tfg = tbg;
         tbg = tmp;
-        if (tfg == 0)
-            tfg = 16;
     }
     
     if (!modeVTXANSI) {
@@ -3801,17 +3805,23 @@ if ((colnum == 23) && (rownum == 0))
     }
 
     // fix iCE colors
-var fb = attr & A_CELL_BLINKSLOW;
-var sb = attr & A_CELL_BLINKFAST;
     if (modeBlinkBright 
         && (tbg < 8) 
-        && (fb || sb)) {
+        && (attr & (A_CELL_BLINKSLOW | A_CELL_BLINKFAST))) {
         // high intensity background / force blink off
         tbg += 8;
         attr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
     }
 
+    // fix transparents
     if (tfg == 0) tfg = 16;
+    if ((tbg == 0) && !modeVTXANSI) tbg = 16;
+
+    // fix stupid ansi
+    if (ch.charCodeAt(0) == 0x2588) {
+        ch = 32;
+        tbg = tfg;
+    }
     
     ctx.save();
     ctx.beginPath();
@@ -4143,79 +4153,9 @@ function initDisplay() {
     crtWidth = colSize * 80;
 
     pageDiv.style['width'] = crtWidth + 'px';
-
-    // add indicators / buttons
-    pos = 0;
-
-    pageDiv.appendChild(domElement(
-        'img',
-        {   src:        'os0.png',
-            id:         'osbulb',
-            width:      24,
-            height:     24,
-            title:      'Online Status' },
-        {   position:   'fixed',
-            top:        (2 + (pos++ * 26))+'px',
-            right:      '2px'}));
-
-    pageDiv.appendChild(domElement(
-        'img',
-        {   src:        'cl0.png',
-            id:         'clbulb',
-            width:      24,
-            height:     24,
-            title:      'CapsLk' },
-        {   position:   'fixed',
-            top:        (2 + (pos++ * 26))+'px',
-            right:      '2px'}));
-
-    pageDiv.appendChild(domElement(
-        'img',
-        {   src:        'nl0.png',
-            id:         'nlbulb',
-            width:      24,
-            height:     24,
-            title:      'NumLk' },
-        {   position:   'fixed',
-            top:        (2 + (pos++ * 26))+'px',
-            right:      '2px'}));
-
-    pageDiv.appendChild(domElement(
-        'img',
-        {   src:        'sl0.png',
-            id:         'slbulb',
-            width:      24,
-            height:     24,
-            title:      'ScrLk' },
-        {   position:   'fixed',
-            top:        (2 + (pos++ * 26))+'px',
-            right:      '2px'}));
-
-    pageDiv.appendChild(domElement(
-        'img',
-        {   src:        'ul.png',
-            id:         'ulbtn',
-            onclick:    ymSendStart,
-            width:      24,
-            height:     24,
-            title:      'YModem Upload' },
-        {   cursor:     'pointer',
-            position:   'fixed',
-            top:        (2 + (pos++ * 26))+'px',
-            right:      '2px'}));
-
-    pageDiv.appendChild(domElement(
-        'img',
-        {   src:        'dl.png',
-            id:         'dlbtn',
-            onclick:    ymRecvStart,
-            width:      24,
-            height:     24,
-            title:      'YModem Download' },
-        {   cursor:     'pointer',
-            position:   'fixed',
-            top:        (2 + (pos++ * 26))+'px',
-            right:      '2px'}));
+    var pagePos = getElementPosition(pageDiv);
+    pageLeft = pagePos.left;
+    pageTop = pagePos.top;
 
     // build marquee CSS
     var style = document.createElement('style');
@@ -4272,6 +4212,71 @@ function initDisplay() {
     textPos = textDiv.getBoundingClientRect();
     termState = TS_NORMAL; // set for standard terminal mode, not in file xfer mode
 
+    ctrlDiv = domElement(
+        'div', 
+        {   id:             'ctrls' },
+        {   width:          '24px',
+            height:         '164px',
+            position:       'fixed',
+            top:            textPos.top + 'px',
+            left:           (6 + textPos.left + crtWidth) + 'px'});
+    
+    pos = 0;
+    ctrlDiv.appendChild(domElement(
+        'img',
+        {   src:        'os0.png',
+            id:         'osbulb',
+            width:      24,
+            height:     24,
+            title:      'Online Status' }));
+
+    ctrlDiv.appendChild(domElement(
+        'img',
+        {   src:        'cl0.png',
+            id:         'clbulb',
+            width:      24,
+            height:     24,
+            title:      'CapsLk' }));
+
+    ctrlDiv.appendChild(domElement(
+        'img',
+        {   src:        'nl0.png',
+            id:         'nlbulb',
+            width:      24,
+            height:     24,
+            title:      'NumLk' }));
+
+    ctrlDiv.appendChild(domElement(
+        'img',
+        {   src:        'sl0.png',
+            id:         'slbulb',
+            width:      24,
+            height:     24,
+            title:      'ScrLk' }));
+
+    ctrlDiv.appendChild(domElement(
+        'img',
+        {   src:        'ul.png',
+            id:         'ulbtn',
+            onclick:    ymSendStart,
+            width:      24,
+            height:     24,
+            title:      'YModem Upload' },
+        {   cursor:     'pointer'}));
+
+    ctrlDiv.appendChild(domElement(
+        'img',
+        {   src:        'dl.png',
+            id:         'dlbtn',
+            onclick:    ymRecvStart,
+            width:      24,
+            height:     24,
+            title:      'YModem Download' },
+        {   cursor:     'pointer'}));
+            
+    pageDiv.appendChild(ctrlDiv);
+   
+    
     // test websocket connect
     ws = new WebSocket(wsConnect, ['telnet']);
     ws.binaryType = "arraybuffer";
