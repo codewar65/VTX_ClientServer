@@ -3697,16 +3697,16 @@ function renderCell(rownum, colnum, forcerev) {
     }
     
     ctx.save();
-    ctx.beginPath();
-    ctx.rect(x, 0, w + 1, h + 1);
-    ctx.clip();
+    //ctx.beginPath();
+    //ctx.rect(x, 0, w + 1, h + 1);
+    //ctx.clip();
 
     if (tbg > 0) {
         ctx.fillStyle = clut[tbg];
         ctx.fillRect(x, 0, w, h);
     } else
         ctx.clearRect(x, 0, w, h);
-
+    
     drawtxt = true;
     if (attr & A_CELL_CONCEAL)  // don't draw this char if concealed.
         drawtxt = false;
@@ -3724,7 +3724,7 @@ function renderCell(rownum, colnum, forcerev) {
             ctx.fillStyle = clut[tfg];
 
         // swap for special fonts.
-        teletext = -1;
+        var teletext = -1;
         if ((tfnt == 10) || (tfnt == 11)) {
             if ((ch >= ' ') && (ch <= "_"))
                 teletext = tfnt - 10
@@ -3764,7 +3764,7 @@ function renderCell(rownum, colnum, forcerev) {
             0,                          // y skew
             xskew,                      // x skew
             size,                       // y scale
-            x / (size * width) + xadj,  // x adj
+            x + xadj,
             0);                         // y adj
         if (attr & A_CELL_OUTLINE) {
             ctx.strokeStyle = clut[tfg];
@@ -4036,8 +4036,6 @@ function initDisplay() {
         conFont[i] = fontName;
         conFontCP[i] = codePage;
     }
-    conFont[10] =   'teletext2x3';  // special fonts for blocks
-    conFont[11] =   'teletext2x3s';
     
     pageDiv.style['width'] = crtWidth + 'px';
     var pagePos = getElementPosition(pageDiv);
@@ -4182,7 +4180,7 @@ function initDisplay() {
 
         data = new Uint8Array(e.data);
 
-//dump(data,0,data.length);
+        //dump(data,0,data.length);
 
         switch (termState) {
             case TS_NORMAL:
