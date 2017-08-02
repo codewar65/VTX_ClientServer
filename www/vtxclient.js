@@ -24,16 +24,17 @@
   OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
   OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
   VTX Server
   2017-07-20
   vtxserv.pas
-
 
     TODO :
         Client Ident
 
         codes for restore cursor attr, restore page attr
+        
+        finish PETSCII if term = 'PETSCII' / use cbmColors palette
+        
 
 
     PAGEATTR
@@ -121,7 +122,7 @@
 {//REGION Globals
 var
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
-    clut = [
+    ansiColors = [
         // VGA 0-15 - transparent will switch to #000000 when appropriate
         'transparent',  '#AA0000',      '#00AA00',      '#AA5500',
         '#0000AA',      '#AA00AA',      '#00AAAA',      '#AAAAAA',
@@ -170,6 +171,12 @@ var
         '#808080', '#8A8A8A', '#949494', '#9E9E9E', '#A8A8A8', '#B2B2B2',
         '#BCBCBC', '#C6C6C6', '#D0D0D0', '#DADADA', '#E4E4E4', '#EEEEEE'
     ],
+    // commodore 64/128 colors
+    cbmColors = [
+        '#000000', '#FFFFFF', '#68372B', '#70A4B2', '#6F3D86', '#588D43',
+        '#352879', '#B8C76F', '#6F4F25', '#433900', '#9A6759', '#444444',
+        '#6C6C6C', '#9AD284', '#6C5EB5', '#959595'
+    ],
 
     // strings that get transmogrified by the HTTP server.
     // only change these if you are not using the VTX HTTP server.
@@ -177,7 +184,7 @@ var
     wsConnect = 'ws://@InternetIP@:@WSPort@',
     crtCols = @Columns@,        // columns side of row on crt.
     xScale = @XScale@,          // scale everything this much on x.
-
+    term = '@Terminal@',        // ANSI or PETSCII
     ws = null,                  // websocket connection.
 
     irqWriteBuffer = null,      // print buffer (33ms)
@@ -1507,21 +1514,6 @@ var
     numState, capState, scrState;
 }
 
-// get codepoint from string
-if (!String.prototype.codePointAt) {
-    String.prototype.codePointAt = function (pos) {
-        pos = isNaN(pos) ? 0 : pos;
-        var str = String(this),
-            code = str.charCodeAt(pos),
-            next = str.charCodeAt(pos + 1);
-        // If a surrogate pair
-        if (0xD800 <= code && code <= 0xDBFF && 0xDC00 <= next && next <= 0xDFFF) {
-            return ((code - 0xD800) * 0x400) + (next - 0xDC00) + 0x10000;
-        }
-        return code;
-    };
-}
-
 // string splice - why this is not standard is beyond me.
 // ECMA-262 / 15.4.4.12 - prototype.splice
 if (!String.prototype.splice) {
@@ -1666,7 +1658,7 @@ function getMouseCell(e) {
             rh = Math.round(fontSize * size);
             if ((y >= dt) && (y < (dt + rh))) {
                 // on this row. get col
-                c = (x - textPos.left) / Math.round(colSize * size * width);
+                c = (x - textPos.left) / (xScale * colSize * size * width);
                 return { row: i, col: Math.floor(c) };
             }
             dt += rh;
@@ -1901,6 +1893,16 @@ function delRow(rownum) {
     conRowAttr.splice(rownum, 1);
     conText.splice(rownum, 1);
     conCellAttr.splice(rownum, 1);
+    
+    // move all hotspots below up one. remove hotspots on this row.
+    i = conHotSpots.length;
+    while (i--) {
+        hs = conHotSpot[i];
+        if (hs.row == rownum)
+            conHotSpots.splice(i,1)
+        else if (hs.row > rownum)
+            conHotSpots.row--;
+    }
 }
 
 // insert row into storage and element into html
@@ -1914,6 +1916,14 @@ function insRow(rownum) {
     conRowAttr.splice(rownum, 0, defRowAttr);
     conText.splice(rownum, 0, '');
     conCellAttr.splice(rownum, 0, []);
+    
+    // move all hotspots on this row and below down one.
+    i = conHotSpots.length;
+    while (i--) {
+        hs = conHotSpot[i];
+        if (hs.row >= rownum)
+            conHotSpots.row++;
+    }
 }
 
 // delete a character at position
@@ -2624,8 +2634,8 @@ function conCharOut(chr) {
 
                 // set row attrs here
                 var row = getRowElement(crsrRow);
-                var c1 = clut[parm[0]];
-                var c2 = clut[parm[1]];
+                var c1 = ansiColors[parm[0]];
+                var c2 = ansiColors[parm[1]];
                 switch (parm[2] << 16) {
                     case A_ROW_SOLID:
                         row.style['background'] = c1;
@@ -2668,13 +2678,13 @@ function conCharOut(chr) {
                             i = (parm[1] & 0xFF);
                             pageAttr = setPageAttrBorder(pageAttr, i);
                             var p = pageDiv.parentNode;
-                            p.style['background-color'] = clut[(pageAttr >> 8) & 0xFF];
+                            p.style['background-color'] = ansiColors[(pageAttr >> 8) & 0xFF];
                             break;
 
                         case 4:// page background color
                             i = (parm[1] & 0xFF);
                             pageAttr = setPageAttrBackground(pageAttr, i);
-                            pageDiv.style['background-color'] = clut[pageAttr & 0xFF];
+                            pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
                             break;
                     }
                 }
@@ -3143,8 +3153,8 @@ function crsrDraw(force) {
 
     // set cursor siz / pos
     crsr.style['top'] =     rpos.top + 'px';
-    crsr.style['left'] =    (rpos.left + (crsrCol * csize.width)) + 'px';
-    crsr.style['width'] =   csize.width + 'px';
+    crsr.style['left'] =    (rpos.left + (xScale * crsrCol * csize.width)) + 'px';
+    crsr.style['width'] =   (xScale * csize.width) + 'px';
     crsr.style['height'] =  csize.height + 'px';
 
     if (rpos.top < dt) {
@@ -3297,7 +3307,7 @@ function doCheckResize() {
         pageWidth = elPage.clientWidth;
         crsrDraw(true);
     }
-    ctrlDiv.style['left'] = (6 + textPos.left + crtWidth) + 'px';
+    ctrlDiv.style['left'] = (6 + textPos.left + (crtWidth*xScale)) + 'px';
 }
 
 // blink cursor (533ms is cursor blink speed based on DOS VGA).
@@ -3305,7 +3315,7 @@ function doCursor() {
     crsr.firstChild.style['background-color'] =
         ((crsrBlink = !crsrBlink) || (!modeCursor)) ? 
         'transparent' : 
-        clut[getCrsrAttrColor(crsrAttr)];
+        ansiColors[getCrsrAttrColor(crsrAttr)];
 }
 
 // animate blink (533ms)
@@ -3622,7 +3632,7 @@ function adjustRow(rownum) {
     if ((cnv.height != (h + 16)) || (cnv.width != nw)) {
         // adjust for new height.
         row.style['height'] = size + 'em';
-        cnv.width = nw;
+        cnv.width = nw * xScale;
         cnv.height = (h + 16);
 
         // redraw this entire row
@@ -3643,7 +3653,7 @@ function redrawRow(rownum){
     row = getRowElement(rownum);
     size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
     width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
-    w = colSize * size * width;     // width of char
+    w = xScale * colSize * size * width;     // width of char
     x = w * l;                  // left pos of char on canv
     cnv = row.firstChild;
     ctx = cnv.getContext('2d');
@@ -3664,7 +3674,7 @@ function renderCell(rownum, colnum, forcerev) {
     forcerev = forcerev || false;
     size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
     width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
-    w = colSize * size * width;     // width of char
+    w = xScale * colSize * size * width;     // width of char
     x = w * colnum;                 // left pos of char on canv
 
     // don't render off page unless marquee
@@ -3743,7 +3753,7 @@ function renderCell(rownum, colnum, forcerev) {
     //ctx.clip();
 
     if (tbg > 0) {
-        ctx.fillStyle = clut[tbg];
+        ctx.fillStyle = ansiColors[tbg];
         ctx.fillRect(x, 0, w, h);
     } else
         ctx.clearRect(x, 0, w, h);
@@ -3760,9 +3770,9 @@ function renderCell(rownum, colnum, forcerev) {
     if (drawtxt) {
         // not concealed or not in blink state
         if (attr & A_CELL_FAINT)
-            ctx.fillStyle = brightenRGB(clut[tfg], -0.33);
+            ctx.fillStyle = brightenRGB(ansiColors[tfg], -0.33);
         else
-            ctx.fillStyle = clut[tfg];
+            ctx.fillStyle = ansiColors[tfg];
 
         // swap for special fonts.
         var teletext = -1;
@@ -3779,7 +3789,7 @@ function renderCell(rownum, colnum, forcerev) {
 
         if (attr & A_CELL_GLOW) {
             // how does this work on scaled? test
-            ctx.shadowColor = brightenRGB(clut[tfg], 0.25);
+            ctx.shadowColor = brightenRGB(ansiColors[tfg], 0.25);
             ctx.shadowOffsetX = 0;
             ctx.shadowOffsetY = 0;
             ctx.shadowBlur = 7;
@@ -3801,14 +3811,14 @@ function renderCell(rownum, colnum, forcerev) {
             xadj  = 1;
         }
         ctx.setTransform(
-            size * width,               // x scale
+            xScale * size * width,      // x scale
             0,                          // y skew
-            xskew,                      // x skew
+            xScale * xskew,             // x skew
             size,                       // y scale
-            x + xadj,
+            (x + xScale * xadj),        // x adj
             0);                         // y adj
         if (attr & A_CELL_OUTLINE) {
-            ctx.strokeStyle = clut[tfg];
+            ctx.strokeStyle = ansiColors[tfg];
             ctx.lineWidth = 1;
             ctx.strokeText(ch, 0, 0);
         } else {
@@ -4034,7 +4044,7 @@ function newCrsr() {
             break;
     }
     c = getCrsrAttrColor(crsrAttr);
-    o.style['background-color'] = clut[c];
+    o.style['background-color'] = ansiColors[c];
 }
 
 // setup the crt and cursor
@@ -4070,15 +4080,14 @@ function initDisplay() {
     // determine standard sized font width in pixels
     getDefaultFontSize(); // get fontName, colSize, rowSize
     crtWidth = colSize * crtCols;
-
-    
+  
     conFontNum = 0;                 // current font being used.
     for (i = 0; i < 10; i++) {      // set default font selects.
         conFont[i] = fontName;
         conFontCP[i] = codePage;
     }
     
-    pageDiv.style['width'] = crtWidth + 'px';
+    pageDiv.style['width'] = (crtWidth*xScale) + 'px';
     var pagePos = getElementPosition(pageDiv);
     pageLeft = pagePos.left;
     pageTop = pagePos.top;
@@ -4086,7 +4095,10 @@ function initDisplay() {
     // build marquee CSS
     var style = document.createElement('style');
     style.type = 'text/css';
-    var css = '.marquee { animation: marquee 12s linear infinite; } @keyframes marquee { 0% { transform: translate( ' + (crtCols * colSize) + 'px, 0); } 100% { transform: translate(-100%, 0); }}';
+    var css = '.marquee { animation: marquee 12s linear infinite; } ' 
+        + '@keyframes marquee { ' 
+        + '0% { transform: translate( ' + (xScale * crtCols * colSize) + 'px, 0); } ' 
+        + '100% { transform: translate(-100%, 0); }}';
     if (style.styleSheet)
         style.styleSheet.cssText = css
     else
@@ -4115,8 +4127,8 @@ function initDisplay() {
 
     // set page attributes
     p = pageDiv.parentNode;
-    p.style['background-color'] = clut[(pageAttr >> 8) & 0xFF];
-    pageDiv.style['background-color'] = clut[pageAttr & 0xFF];
+    p.style['background-color'] = ansiColors[(pageAttr >> 8) & 0xFF];
+    pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
     pageWidth = elPage.clientWidth;
 
     // set initial states.
@@ -4144,7 +4156,7 @@ function initDisplay() {
             height:         '164px',
             position:       'fixed',
             top:            textPos.top + 'px',
-            left:           (6 + textPos.left + crtWidth) + 'px'});
+            left:           (6 + textPos.left + (crtWidth * xScale)) + 'px'});
     
     pos = 0;
     ctrlDiv.appendChild(domElement(
@@ -5039,23 +5051,3 @@ function dump(buff, start, len){
 }
 
 function nop(){};
-
-/*
-    Dynamic fonts - 
-    
-    CSI = [ p1 [ ; p2 ] ] {
-        NON-STANDARD EXTENSION.
-        Defaults:  p1 = 255  p2 = 0 Indicates that a font block is following.
-        
-        p1 indicates the font slot to place the loaded font into.  This must
-            be higher than the last default defined font (See CSI sp D for list
-            of predefined fonts)  
-        p2 indicates font size according to the following table:
-            0 - 8x16 font, 4096 bytes.
-            1 - 8x14 font, 3586 bytes.
-            2 - 8x8 font, 2048 bytes.
-
-    SOURCE: CTerm only.    
-
-    
-*/

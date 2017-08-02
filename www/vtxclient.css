@@ -55,7 +55,6 @@ body {
     overflow:       hidden;
     text-overflow:  clip;
     z-index:        10;
-    user-select:    none;
 }
 
 /* for fading on ul/dl */

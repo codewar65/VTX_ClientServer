@@ -102,6 +102,7 @@ type
     MaxConnections :  integer;
     Columns :					integer;	// columns for term console.
     XScale :					real;			// scale everything by this on the X axis.
+    Terminal :				string;		// ANSI, PETSCII
 
     NodeType :        TvtxNodeType;
     CodePage :				TCodePages;
@@ -497,7 +498,8 @@ begin
   SystemInfo.HTTPPort :=    iin.ReadString(sect, 'HTTPPort',    '7001');
   SystemInfo.WSPort :=      iin.ReadString(sect, 'WSPort',      '7003');
   SystemInfo.Columns :=			iin.ReadInteger(sect, 'Columns', 80);
-  SystemInfo.XScale :=			iin.ReadFloat(sect, 'XScale', 1.0);
+  SystemInfo.XScale :=			iin.ReadFloat(sect, 	'XScale', 1.0);
+  SystemInfo.Terminal :=		iin.ReadString(sect, 'Terminal',		'ANSI');
 
   SystemInfo.NodeType :=    TvtxNodeType(InList(
                               iin.ReadString(sect, 'NodeType', 'ExtProc'),
@@ -609,6 +611,7 @@ begin
   str := str.Replace('@CodePage@', CodePageNames[SystemInfo.CodePage]);
   str := str.Replace('@Columns@', IntToStr(SystemInfo.Columns));
   str := str.Replace('@XScale@', FloatToStr(SystemInfo.XScale));
+  str := str.Replace('@Terminal@', SystemInfo.Terminal);
   result := str;
 end;
 
@@ -1241,7 +1244,7 @@ writeln(logout, 'telnetin : IAC DONT ' + TnCmds[b]);
 {$ifdef DEBUG}
 writeln(logout, 'telnetin : IAC SB TTYPE ' + TnCmds[b]);
 {$endif}
-                  SendCmd([ TN_SB, serverCon.tncmd, TN_IS, 'ANSI' ]);
+                  SendCmd([ TN_SB, serverCon.tncmd, TN_IS, SystemInfo.Terminal ]);
                   SendCmd([ TN_SE ]);
                 end;
 
@@ -1858,6 +1861,7 @@ var
   count :       integer;
   ThreadRan :   boolean;
   WsaData :     TWSAData;
+  t1, t2 :			boolean;
 
 const
   WSAVersion : integer = $0202;
@@ -2019,41 +2023,27 @@ begin
               app.WriteCon('', 'WS service is not running.');
           end;
 
-        'CONV':
+        'LOADCFG':
           begin
-            app.WriteCon('', 'Codepage convertion removed from server. To be implemented as external utils.');
-{
-            if length(word) = 4 then
+            t1 := runningHttp;
+            t2 := runningWS;
+        		if runningHTTP then
             begin
-              Found := false;
-              for cp := FirstCP to LastCP do
-              begin
-                if CodePageNames[cp] = upcase(word[1]) then
-                begin
-                  if fileexists(word[2]) then
-                  begin
-                    str := Convert(cp, word[2]);
-                    assign(fout, word[3]);
-                    rewrite(fout);
-                    write(fout, str);
-                    closefile(fout);
-                    app.WriteCon('', 'Saved.');
-                    Found := true;
-                  end
-                  else
-                  begin
-                    app.WriteCon('', 'Unable to locate input file.');
-                    Found := true;
-                  end;
-                  break;
-                end;
-              end;
-              if not Found then
-                app.WriteCon('', 'Unsupported Codepage. See CPS.');
-            end
-            else
-              app.WriteCon('', 'Invalid number of parameters.');
-}
+            	app.StopHTTP;
+              while not serverHTTP.Finished do;
+						end;
+            if runningWS then
+            begin
+	            app.CloseAllNodes();
+        			app.StopWS;
+              while not serverWS.Finished do;
+            end;
+            LoadSettings;
+            sleep(2000);
+            if t1 then
+	            app.StartHTTP;
+            if t2 then
+            	app.StartWS;
           end;
 
         'CPS':
@@ -2075,8 +2065,8 @@ begin
             app.WriteCon('', '          CLS  - Clear console screen.');
             app.WriteCon('', '          HELP  - You''re soaking in it.');
             app.WriteCon('', '          QUIT  - Stop all services and exit.');
-            app.WriteCon('', '          CONV <codepage> <input> <output>  - Convert text file to UTF8.');
             app.WriteCon('', '          CPS  - List supported codepages available for CONV.');
+            app.WriteCon('', '          LOADCFG - force reload config.');
             app.WriteCon('', '');
             app.WriteCon('', '          serv = HTTP, WS, or ALL');
           end
