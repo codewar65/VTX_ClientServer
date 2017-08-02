@@ -1,39 +1,18 @@
 /* dafault font */
-@font-face {
-    font-family: u_vga16;
-    src: url("u_vga16.woff") format("woff");
-}
+@font-face {    font-family: u_vga16;           src: url("u_vga16.woff") format("woff");}
 
-/* fonts for alternates - remove if you will never need these */
-@font-face {
-    font-family: MicroKnight;
-    src: url("MicroKnight.woff") format("woff");
-}
-
-@font-face {
-    font-family: MicroKnightPlus;
-    src: url('MicroKnightPlus.woff') format('woff');
-}
-
-@font-face {
-    font-family: mOsOul;
-    src: url("mOsOul.woff") format("woff");
-}
-
-@font-face {
-    font-family: P0T-NOoDLE;
-    src: url("P0T-NOoDLE.woff") format("woff");
-}
-
-@font-face {
-    font-family: Topaz;
-    src: url("Topaz_a1200.woff") format("woff");
-}
-
-@font-face {
-    font-family: TopazPlus;
-    src: url("TopazPlus_a1200.woff") format("woff");
-}
+/* fonts for alternates - remove the ones you don't need */
+@font-face {    font-family: MicroKnight;       src: url("MicroKnight.woff") format("woff");}
+@font-face {    font-family: MicroKnightPlus;   src: url('MicroKnightPlus.woff') format('woff');}
+@font-face {    font-family: mOsOul;            src: url("mOsOul.woff") format("woff");}
+@font-face {    font-family: P0T-NOoDLE;        src: url("P0T-NOoDLE.woff") format("woff");}
+@font-face {    font-family: Topaz;             src: url("Topaz_a1200.woff") format("woff");}
+@font-face {    font-family: TopazPlus;         src: url("TopazPlus_a1200.woff") format("woff");}
+@font-face {    font-family: c64_0;             src: url("c64_0.woff") format("woff");}
+@font-face {    font-family: c64_1;             src: url("c64_1.woff") format("woff");}
+@font-face {    font-family: c128_0;            src: url("c128_0.woff") format("woff");}
+@font-face {    font-family: c128_1;            src: url("c128_1.woff") format("woff");}
+@font-face {    font-family: atari;             src: url("atari.woff") format("woff");}
 
 body {
     font-family:    u_vga16;

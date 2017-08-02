@@ -94,12 +94,14 @@ type
 
   { TvtxSystemInfo : Board Inofo record }
   TvtxSystemInfo = record
-    SystemName :      string;   // name of bbs - webpage title
-    SystemIP :        string;   // ip address of this host - needed to bind to socket
-    InternetIP :      string;   // ip address as seen from internet
-    HTTPPort :        string;   // port number for http front end
-    WSPort :          string;   // port number for ws back end
+    SystemName :      string;   // name of bbs - webpage title.
+    SystemIP :        string;   // ip address of this host - needed to bind to socket.
+    InternetIP :      string;   // ip address as seen from internet.
+    HTTPPort :        string;   // port number for http front end.
+    WSPort :          string;   // port number for ws back end.
     MaxConnections :  integer;
+    Columns :					integer;	// columns for term console.
+    XScale :					real;			// scale everything by this on the X axis.
 
     NodeType :        TvtxNodeType;
     CodePage :				TCodePages;
@@ -251,22 +253,6 @@ const
   	'CPMIK', 'UTF8', 'UTF16', 'WIN1250', 'WIN1251', 'WIN1253', 'WIN1254', 'WIN1257'
 );
 
-{
-	CodePageConverters : array [ CP1250 .. KOI8 ] of TCodePageConverter = (
-    @CP1250ToUTF8, @CP1251ToUTF8, @CP1252ToUTF8, @CP1253ToUTF8,
-    @CP1254ToUTF8, @CP1255ToUTF8, @CP1256ToUTF8, @CP1257ToUTF8,
-    @CP1258ToUTF8, @CP437ToUTF8, @CP850ToUTF8, @CP852ToUTF8,
-    @CP866ToUTF8, @CP874ToUTF8, @CP932ToUTF8, @CP936ToUTF8,
-    @CP949ToUTF8, @CP950ToUTF8, @MACINTOSHToUTF8, @KOI8ToUTF8 );
-
-  CodePageUnconverters : array [ CP1250 .. KOI8 ] of TCodePageUnconverter = (
-    @UTF8ToCP1250, @UTF8ToCP1251, @UTF8ToCP1252, @UTF8ToCP1253,
-    @UTF8ToCP1254, @UTF8ToCP1255, @UTF8ToCP1256, @UTF8ToCP1257,
-    @UTF8ToCP1258, @UTF8ToCP437, @UTF8ToCP850, @UTF8ToCP852,
-    @UTF8ToCP866, @UTF8ToCP874, @UTF8ToCP932, @UTF8ToCP936,
-    @UTF8ToCP949, @UTF8ToCP950, @UTF8ToMACINTOSH, @UTF8ToKOI8 );
-}
-
   // names of net services
   ProcessType : array [0..1] of string = ('ExtProc', 'Telnet' );
 
@@ -360,42 +346,6 @@ var
 { *************************************************************************** }
 { SUPPORT PROCEDURES / FUNCTIONS }
 {$region SUPPORT ROUTINES}
-{ Convert contents of filename to UTF-8 }
-{
-function Convert(cp : TCodePages; filename : string) : string; register;
-var
-  fin : TextFile;
-  linein : RawByteString;
-  str : string;
-begin
-  result := '';
-  str := '';
-  if fileexists(filename) then
-  begin
-    assign(fin, filename);
-    reset(fin);
-    while not eof(fin) do
-    begin
-      readln(fin, linein);
-      str += CodePageConverters[cp](linein) + CRLF;
-    end;
-    closefile(fin);
-    result := str;
-  end;
-end;
-
-{ Convert strin to UTF-8 }
-function ConvertFromCP(cp : TCodePages; strin : string) : string; register;
-begin
-  result := CodePageConverters[cp](strin);
-end;
-
-{ Convert strin to codepage }
-function ConvertToCP(cp : TCodePages; strin : string) : RawByteString; register;
-begin
-  result := CodePageUnconverters[cp](strin);
-end;
-}
 
 { Get a socket error description. }
 function GetSocketErrorMsg(errno : integer) : string;
@@ -546,10 +496,13 @@ begin
   SystemInfo.InternetIP :=  iin.ReadString(sect, 'InternetIP',  '142.105.247.156');
   SystemInfo.HTTPPort :=    iin.ReadString(sect, 'HTTPPort',    '7001');
   SystemInfo.WSPort :=      iin.ReadString(sect, 'WSPort',      '7003');
+  SystemInfo.Columns :=			iin.ReadInteger(sect, 'Columns', 80);
+  SystemInfo.XScale :=			iin.ReadFloat(sect, 'XScale', 1.0);
 
   SystemInfo.NodeType :=    TvtxNodeType(InList(
                               iin.ReadString(sect, 'NodeType', 'ExtProc'),
                               ProcessType));
+
   SystemInfo.CodePage :=    TCodePages(
                               InList(
                                 iin.ReadString(sect, 'CodePage', 'CP437'),
@@ -650,8 +603,12 @@ begin
   str := str.Replace('@SystemIP@', SystemInfo.SystemIP);
   str := str.Replace('@InternetIP@', SystemInfo.InternetIP);
   str := str.Replace('@HTTPPort@', SystemInfo.HTTPPort);
+  str := str.Replace('@TelnetIP@', SystemInfo.TelnetIP);
+  str := str.Replace('@TelnetPort@', SystemInfo.TelnetPort);
   str := str.Replace('@WSPort@', SystemInfo.WSPort);
   str := str.Replace('@CodePage@', CodePageNames[SystemInfo.CodePage]);
+  str := str.Replace('@Columns@', IntToStr(SystemInfo.Columns));
+  str := str.Replace('@XScale@', FloatToStr(SystemInfo.XScale));
   result := str;
 end;
 

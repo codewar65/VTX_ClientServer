@@ -175,6 +175,8 @@ var
     // only change these if you are not using the VTX HTTP server.
     codePage = '@CodePage@',
     wsConnect = 'ws://@InternetIP@:@WSPort@',
+    crtCols = @Columns@,        // columns side of row on crt.
+    xScale = @XScale@,          // scale everything this much on x.
 
     ws = null,                  // websocket connection.
 
@@ -190,7 +192,6 @@ var
     rowSize,                    // character size
     colSize,                    // cell width in pixels
     crtWidth,                   // crt width in pixels
-    crtCols = 80,               // columns side of row on crt.
     pageWidth,                  // with of html in pixels
 
     pageLeft,                   // left position of page div.
@@ -1312,15 +1313,14 @@ var
             0x053c, 0x056c, 0x053d, 0x056d, 0x053e, 0x056e, 0x053f, 0x056f,
             0x0540, 0x0570, 0x0541, 0x0571, 0x0542, 0x0572, 0x0543, 0x0573,
             0x0544, 0x0574, 0x0545, 0x0575, 0x0546, 0x0576, 0x0547, 0x0577,
-            _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,
-            _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,
-            _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,
-            _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,
+            _NUL,   _NUL,   _NUL,   _NUL,   _NUL,   _NUL,   _NUL,   _NUL,
+            _NUL,   _NUL,   _NUL,   _NUL,   _NUL,   _NUL,   _NUL,   _NUL,
+            _NUL,   _NUL,   _NUL,   _NUL,   _NUL,   _NUL,   _NUL,   _NUL,
+            _NUL,   _NUL,   _NUL,   _NUL,   _NUL,   _NUL,   _NUL,   _NUL,
             0x0548, 0x0578, 0x0549, 0x0579, 0x054a, 0x057a, 0x054b, 0x057b,
             0x054c, 0x057c, 0x054d, 0x057d, 0x054e, 0x057e, 0x054f, 0x057f,
             0x0550, 0x0580, 0x0551, 0x0581, 0x0552, 0x0582, 0x0553, 0x0583, 
             0x0554, 0x0584, 0x0555, 0x0585, 0x0556, 0x0586, 0x055a, _NUL ]),
-            ]),
         CP1131: new Uint16Array([   // CP1131 - Belarus
             0x0410, 0x0411, 0x0412, 0x0413, 0x0414, 0x0415, 0x0416, 0x0417,
             0x0418, 0x0419, 0x041a, 0x041b, 0x041c, 0x041d, 0x041e, 0x041f,
@@ -3614,9 +3614,9 @@ function adjustRow(rownum) {
 
     if (conRowAttr[rownum] & A_ROW_MARQUEE) {
         // marquee are normal width min or text length max
-        nw = Math.max(conText[rownum].length * w, 80 * colSize)
+        nw = Math.max(conText[rownum].length * w, crtCols * colSize)
     } else {
-        nw= 80 * colSize;
+        nw= crtCols * colSize;
     }
 
     if ((cnv.height != (h + 16)) || (cnv.width != nw)) {
@@ -3668,7 +3668,7 @@ function renderCell(rownum, colnum, forcerev) {
     x = w * colnum;                 // left pos of char on canv
 
     // don't render off page unless marquee
-    if ((x > w * 80) && !(conRowAttr[rownum] & A_ROW_MARQUEE))
+    if ((x > w * crtCols) && !(conRowAttr[rownum] & A_ROW_MARQUEE))
         return;
 
     row = getRowElement(rownum);
@@ -3679,7 +3679,7 @@ function renderCell(rownum, colnum, forcerev) {
         // create new canvas if nonexistant
         cnv = domElement(
             'canvas',
-            {   width:  80*w,
+            {   width:  crtCols * w,
                 height: (h+16) },
             {   zIndex: '50' });
         row.appendChild(cnv);
@@ -4069,7 +4069,7 @@ function initDisplay() {
 
     // determine standard sized font width in pixels
     getDefaultFontSize(); // get fontName, colSize, rowSize
-    crtWidth = colSize * 80;
+    crtWidth = colSize * crtCols;
 
     
     conFontNum = 0;                 // current font being used.
@@ -4086,7 +4086,7 @@ function initDisplay() {
     // build marquee CSS
     var style = document.createElement('style');
     style.type = 'text/css';
-    var css = '.marquee { animation: marquee 12s linear infinite; } @keyframes marquee { 0% { transform: translate( ' + (80*colSize) + 'px, 0); } 100% { transform: translate(-100%, 0); }}';
+    var css = '.marquee { animation: marquee 12s linear infinite; } @keyframes marquee { 0% { transform: translate( ' + (crtCols * colSize) + 'px, 0); } 100% { transform: translate(-100%, 0); }}';
     if (style.styleSheet)
         style.styleSheet.cssText = css
     else
