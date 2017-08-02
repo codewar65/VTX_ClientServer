@@ -1291,7 +1291,7 @@ var
             0x0111, 0x0144, 0x00F2, 0x00F3, 0x00F4, 0x0151, 0x00F6, 0x015B, 
             0x0171, 0x00F9, 0x00FA, 0x00FB, 0x00FC, 0x0119, 0x021B, 0x00FF]),
         ARMSCII_8: new Uint16Array([    // ArmSCI-8
-            0x00a0, 0x058D, 0x0587, 0x0589, 0x0029, 0x0028, 0x00bb, 0x00a8,
+            0x00a0, 0x058E, 0x0587, 0x0589, 0x0029, 0x0028, 0x00bb, 0x00a8,
             0x2014, 0x00b7, 0x0559, 0x055d, 0x002d, 0x055f, 0x2026, 0x055c,
             0x055b, 0x055e, 0x0531, 0x0561, 0x0532, 0x0562, 0x0533, 0x0563, 
             0x0534, 0x0564, 0x0535, 0x0565, 0x0536, 0x0566, 0x0537, 0x0567,
@@ -1303,6 +1303,24 @@ var
             0x054c, 0x057c, 0x054d, 0x057d, 0x054e, 0x057e, 0x054f, 0x057f,
             0x0550, 0x0580, 0x0551, 0x0581, 0x0552, 0x0582, 0x0553, 0x0583, 
             0x0554, 0x0584, 0x0555, 0x0585, 0x0556, 0x0586, 0x055a, _NUL ]),
+        HAIK8: new Uint16Array([    // HAIK8
+            0x00a0, 0x058E, 0x0587, 0x0589, 0x0029, 0x0028, 0x00bb, 0x00a8,
+            0x2014, 0x00b7, 0x0559, 0x055d, 0x002d, 0x055f, 0x2026, 0x055c,
+            0x055b, 0x055e, 0x0531, 0x0561, 0x0532, 0x0562, 0x0533, 0x0563, 
+            0x0534, 0x0564, 0x0535, 0x0565, 0x0536, 0x0566, 0x0537, 0x0567,
+            0x0538, 0x0568, 0x0539, 0x0569, 0x053a, 0x056a, 0x053b, 0x056b,
+            0x053c, 0x056c, 0x053d, 0x056d, 0x053e, 0x056e, 0x053f, 0x056f,
+            0x0540, 0x0570, 0x0541, 0x0571, 0x0542, 0x0572, 0x0543, 0x0573,
+            0x0544, 0x0574, 0x0545, 0x0575, 0x0546, 0x0576, 0x0547, 0x0577,
+            _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,
+            _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,
+            _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,
+            _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,  _NULL,
+            0x0548, 0x0578, 0x0549, 0x0579, 0x054a, 0x057a, 0x054b, 0x057b,
+            0x054c, 0x057c, 0x054d, 0x057d, 0x054e, 0x057e, 0x054f, 0x057f,
+            0x0550, 0x0580, 0x0551, 0x0581, 0x0552, 0x0582, 0x0553, 0x0583, 
+            0x0554, 0x0584, 0x0555, 0x0585, 0x0556, 0x0586, 0x055a, _NUL ]),
+            ]),
         CP1131: new Uint16Array([   // CP1131 - Belarus
             0x0410, 0x0411, 0x0412, 0x0413, 0x0414, 0x0415, 0x0416, 0x0417,
             0x0418, 0x0419, 0x041a, 0x041b, 0x041c, 0x041d, 0x041e, 0x041f,
@@ -2304,12 +2322,35 @@ function conCharOut(chr) {
                             break;
                             
                         //case  7: // haik8 codepage (use only with armscii8 screenmap)
+                            conFont[parm[0]] = fontName;
+                            conFontCP[parm[0]] = 'HAIK8';
+                            break;
+
                         //case  8: // ISO-8859-8 Hebrew
-                        //case 32: // Commodore 64 (UPPER)
-                        //case 33: // Commodore 64 (Lower)
-                        //case 34: // Commodore 128 (UPPER)
-                        //case 35: // Commodore 128 (Lower)
-                        //case 36: // Atari
+                        
+                        case 32: // Commodore 64 (UPPER)
+                            conFont[parm[0]] =  'c64_0';
+                            conFontCP[parm[0]] = 'RAW';
+                            break;
+                        
+                        case 33: // Commodore 64 (Lower)
+                            conFont[parm[0]] =  'c64_1';
+                            conFontCP[parm[0]] = 'RAW';
+                            break;
+                            
+                        case 34: // Commodore 128 (UPPER)
+                            conFont[parm[0]] =  'c128_0';
+                            conFontCP[parm[0]] = 'RAW';
+                            break;
+                            
+                        case 35: // Commodore 128 (Lower)
+                            conFont[parm[0]] =  'c128_1';
+                            conFontCP[parm[0]] = 'RAW';
+                            break;
+                        
+                        case 36: // Atari
+                            conFont[parm[0]] =  'atari';
+                            conFontCP[parm[0]] = 'RAW';
                 
                         case 37: // P0T NOoDLE (Amiga) 
                             conFont[parm[0]] = 'P0T-NOoDLE';
@@ -5000,7 +5041,6 @@ function dump(buff, start, len){
 function nop(){};
 
 /*
-
     Dynamic fonts - 
     
     CSI = [ p1 [ ; p2 ] ] {

@@ -424,7 +424,11 @@ begin
 	          charname := vals[1];
 
 	        'ENCODING':
-	          enc := strtoint(vals[1]);
+            begin
+	          	enc := strtoint(vals[1]);
+		      	  if enc < 32 then
+  							enc := $2400 + enc
+            end;
 
 	        'BBX':
 	          begin
@@ -466,7 +470,6 @@ begin
 	                    pixw := 1;
 	                    if vga9 and VGA9Char(enc) and (x = 7) then
 	                    	pixw := 2;
-
 
 	                    //  a 0 b
 	                    // 3 [ ] 1   corners
