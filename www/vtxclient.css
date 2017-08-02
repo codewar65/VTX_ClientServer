@@ -1,42 +1,42 @@
 /* dafault font */
 @font-face {
-    font-family: 'u_vga16';
-    src: url('u_vga16.woff'); format('woff');
+    font-family: u_vga16;
+    src: url("u_vga16.woff") format("woff");
 }
 
 /* fonts for alternates - remove if you will never need these */
 @font-face {
-    font-family: 'MicroKnight';
-    src: url('MicroKnight.woff'); format('woff');
+    font-family: MicroKnight;
+    src: url("MicroKnight.woff") format("woff");
 }
 
 @font-face {
-    font-family: 'MicroKnightPlus';
-    src: url('MicroKnightPlus.woff'); format('woff');
+    font-family: MicroKnightPlus;
+    src: url('MicroKnightPlus.woff') format('woff');
 }
 
 @font-face {
-    font-family: "mOsOul";
-    src: url('mOsOul.woff'); format('woff');
+    font-family: mOsOul;
+    src: url("mOsOul.woff") format("woff");
 }
 
 @font-face {
-    font-family: 'P0T-NOoDLE';
-    src: url('P0T-NOoDLE.woff'); format('woff');
+    font-family: P0T-NOoDLE;
+    src: url("P0T-NOoDLE.woff") format("woff");
 }
 
 @font-face {
-    font-family: 'Topaz';
-    src: url('Topaz_a1200.woff'); format('woff');
+    font-family: Topaz;
+    src: url("Topaz_a1200.woff") format("woff");
 }
 
 @font-face {
-    font-family: 'TopazPlus';
-    src: url('TopazPlus_a1200.woff'); format('woff');
+    font-family: TopazPlus;
+    src: url("TopazPlus_a1200.woff") format("woff");
 }
 
 body {
-    font-family:    'u_vga16';
+    font-family:    u_vga16;
     font-size:      16px;
     padding-top:    1em;
     padding-bottom: 1em;

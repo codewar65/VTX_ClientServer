@@ -377,8 +377,8 @@ var
     // codepage tables.
     // size     desc
     // 255      glyphs for all points (for doorway mode)
-    // 128      80-FF (00-7F from first half from ASCII)
-    // 96       A0-FF (00-9F from first half from ASCII)
+    // 128      80-FF (00-7F from ASCII)
+    // 96       A0-FF (00-7F from ASCII, 80-9F from CP437)
     codePageData = {
         ASCII: new Uint16Array([
             0x0000, 0x263A, 0x263B, 0x2665, 0x2666, 0x2663, 0x2660, 0x2022, 
@@ -2864,18 +2864,17 @@ function conCharOut(chr) {
                                 setCellAttrShadow(cellAttr, (parm[i] < 70));
                             break;
 
-//                        case 58:    // teletext block
-//                        case 78:
-//                            cellAttr =
-//                                setCellAttrBlock(cellAttr, (parm[i] < 70));
-//                            break;
-
-//                        case 59:    // teletext separated block
-//                        case 79:
-//                            cellAttr =
-//                                setCellAttrSeparated(cellAttr, (parm[i] < 70));
-//                            break;
-
+                        // special built in fonts
+                        case 80: // teletext blocks 0x20-0x5F
+                        case 81: // teletext blocks 0x20-0x5F
+                        case 82: // reserved
+                        case 83: // reserved
+                        case 84: // reserved
+                        case 85: // reserved
+                            cellAttr =
+                                setCellAttrFont(cellAttr, (parm[i] - 70));
+                            break;
+                            
                         // text foreground colors
                         case 30: case 31: case 32: case 33:
                         case 34: case 35: case 36: case 37:
@@ -3650,7 +3649,7 @@ function renderCell(rownum, colnum, forcerev) {
     ch = conText[rownum].charAt(colnum);
     tfg = (attr & 0xFF);
     tbg = (attr >> 8) & 0xff;
-    tfnt = (attr & A_CELL_FONT_MASK) >> 28;
+    tfnt = ((attr & A_CELL_FONT_MASK) >> 28) & 0xF;
 
     if (tfnt > 0) 
         nop();
@@ -3724,8 +3723,16 @@ function renderCell(rownum, colnum, forcerev) {
         else
             ctx.fillStyle = clut[tfg];
 
-//        ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + fontName;
-        ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[tfnt];
+        // swap for special fonts.
+        teletext = -1;
+        if ((tfnt == 10) || (tfnt == 11)) {
+            if ((ch >= ' ') && (ch <= "_"))
+                teletext = tfnt - 10
+            else
+                ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[0];
+        } else
+            ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[tfnt];
+
         ctx.textAlign = 'start';
         ctx.textBaseline = 'top';
 
@@ -3764,14 +3771,10 @@ function renderCell(rownum, colnum, forcerev) {
             ctx.lineWidth = 1;
             ctx.strokeText(ch, 0, 0);
         } else {
-            //if (attr & (A_CELL_BLOCK | A_CELL_SEPARATED)) {
-            //    var cz = ch.charCodeAt(0);
-            //    if ((cz >= 32) && (cz <= 95))
-            //        drawMosaicBlock(ctx, cz, w, h, attr & A_CELL_SEPARATED)
-            //    else
-            //        ctx.fillText(ch, 0, 0);
-            //} else
-            ctx.fillText(ch, 0, 0);
+            if (teletext >= 0) 
+                drawMosaicBlock(ctx, ch.charCodeAt(0), w, h, teletext)
+            else
+                ctx.fillText(ch, 0, 0);
         }
 
         // draw underline / strikethough manually
@@ -4027,11 +4030,14 @@ function initDisplay() {
     getDefaultFontSize(); // get fontName, colSize, rowSize
     crtWidth = colSize * 80;
 
-    conFontNum = 0;
-    for (i = 0; i < 10; i++) {
+    
+    conFontNum = 0;                 // current font being used.
+    for (i = 0; i < 10; i++) {      // set default font selects.
         conFont[i] = fontName;
         conFontCP[i] = codePage;
     }
+    conFont[10] =   'teletext2x3';  // special fonts for blocks
+    conFont[11] =   'teletext2x3s';
     
     pageDiv.style['width'] = crtWidth + 'px';
     var pagePos = getElementPosition(pageDiv);

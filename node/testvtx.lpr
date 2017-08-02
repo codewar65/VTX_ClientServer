@@ -55,7 +55,7 @@ begin
   	+ SGR(ANSI_YELLOW) + 'A' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Block Characters.');
 
-  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'A')+'['
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'B')+'['
   	+ SGR(ANSI_YELLOW) + 'B' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Font Selection.');
 
@@ -610,25 +610,26 @@ begin
     + ' Teletext Mosiac Block Mode');
   PrintLn;
 
-  PrintLn(#27'[94mSpecial 2 x 3 block graphic characters as used on the BBC Micro, TRS-80,');
-  PrintLn('and Teletext style screens can be accessed with special SGR commands. While');
+  PrintLn(#27'[94mSpecial 2 x 3 block graphic characters as used on the BBC Micro, TRS-80, and');
+  PrintLn('Teletext style screens can be accessed with special font select commands. While');
   PrintLn('this mode is on, characters SPACE through _ are rendered as block characters.');
-  PrintLn('Full block and separated blocks are available in the two modes.');
+  PrintLn('Full block and separated blocks are available in the two modes. Characters');
+  PrintLn('outside this range are rendered using font 0.');
   PrintLn;
   PrintLn('Normal characters:');
   PrintLn;
   PrintLn(#27'[97m    ! " # $ % & '' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?');
   PrintLn('  @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ / ] ^ _');
   PrintLn;
-  PrintLn(#27'[93mCSI 58 m'#27'[94m: Turn full block mode on (0 or 78 will turn if off).');
+  PrintLn(#27'[93mCSI 80 m'#27'[94m: Turn full block mode on (10 will turn if off).');
   PrintLn;
-  PrintLn(#27'[97;58m    ! " # $ % & '' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?');
-  PrintLn('  @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ / ] ^ _'#27'[78m');
+  PrintLn(#27'[97;80m    ! " # $ % & '' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?');
+  PrintLn('  @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ / ] ^ _'#27'[10m');
   PrintLn;
-  PrintLn(#27'[93mCSI 59 m'#27'[94m: Turn separated  block mode on (0 or 79 will turn if off).');
+  PrintLn(#27'[93mCSI 81 m'#27'[94m: Turn separated  block mode on (10 will turn if off).');
   PrintLn;
-  PrintLn(#27'[97;59m    ! " # $ % & '' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?');
-  PrintLn('  @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ / ] ^ _'#27'[79m');
+  PrintLn(#27'[97;81m    ! " # $ % & '' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?');
+  PrintLn('  @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ / ] ^ _'#27'[10m');
   PrintLn;
 
   Print(SGR(ANSI_GREEN) + 'Press '+HOTSPOT(3,1,0,'Q')+'['
