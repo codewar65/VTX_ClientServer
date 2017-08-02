@@ -144,13 +144,8 @@ to work with VTX.
 
 ## Roadmap
 
-Stablize server software - fully crashproof and able to always terminate phantom
-nodes.
-
 Add additional tool to server console for convert SVG files to Base64 for use
 in node software.
-
-Clean up demo node software. Develop ncurses compatible functions and procedures.
 
 Investigate ability for websocket server to accept non-'user' connections from
 other VTX servers for passing private network information like mail or echo-style
@@ -161,11 +156,34 @@ servers.
 
 Softfonts - Built in bitmap font to vector font converter using method in bdf2svg (in utils).
 
-CSI 10-19 m / CSI space D font commands.
 
 ## To Do / To Fix / Bugs
 
 Merge row size, row background, and page/cursor attributes into one ESC sequence
 group.
 
+Look at row sizing controls. See if can match VT ESC # sequences. Or move ESC # 0 / ESC # 6 to VTX codes. 
+Defined existing VT codes:
+    ESC # 3	Double wide / double high, top half
+    ESC # 4	Double wide / double high, bottom half
+    ESC # 5	Single height row
+    ESC # 6	Double wide row
+    ESC # 8	Alignment display, fill screen with E's
+
 Add codes to reset page and cursor attributes to default.
+
+Set maximum row count (~250)
+
+Move hotspots on delrow / insrow.
+
+Scroll regions.
+
+DOORWAY mode. Keystrokes for DOORWAY in new column(s) in keyboard lut.
+
+Blink / bold font swapping.
+
+Test.test.test.test. Especially fonts / codepages. Add missing glyphs to u_vga16.
+
+Commodore fonts / thin version of u_vga16.
+
+Redo website.

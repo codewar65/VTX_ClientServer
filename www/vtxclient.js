@@ -3692,7 +3692,7 @@ function renderCell(rownum, colnum, forcerev) {
 
     // fix stupid ansi
     if (ch.charCodeAt(0) == 0x2588) {
-        ch = 32;
+        ch = ' ';
         tbg = tfg;
     }
     
