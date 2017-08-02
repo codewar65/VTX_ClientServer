@@ -144,36 +144,49 @@ begin
 end;
 
 var
-  imgchecksum : integer;
-  i, j : integer;
-  arg : string;
-  bdfname, svgname : string;
-  rawname, fname : string;
-  state : integer;
-  startglyph, endglyph : integer;
-	fin : textfile;						// bdf file input
-  bin : tfilestream;
-  fout : textfile;					// svg font output
-  linein : string;
-  vals : TStringArray;
-  charname : string;				// current glyph name
-  enc : integer;						// current glyph code point
-  x, y : integer;
-  sx, sy, ex, ey : integer;
-  sc, ec : TCorner;
-  c0, c1, c2, c3 : boolean;
-	poly : TStickArray;
-  removed : boolean;
-  font_name, weight_name, slant, style_name, face_name : string;
-  font_ascent, font_descent : integer;
-  default_char, cap_height, x_height : integer;
-	path : string;
-  dx, dy : integer;
-  height : integer;
-  vga9 : boolean;		// switch for carry over to bit 9 on special characters
-  truewidth : integer;
-  pixw : integer;		// last column pixel width
-  chr : integer;
+  imgchecksum : 		integer;
+  i, j : 						integer;
+  arg : 						string;
+  bdfname,
+  svgname : 				string;
+  rawname, fname : 	string;
+  state : 					integer;
+  startglyph,
+  endglyph : 				integer;
+	fin : 						textfile;				// bdf file input
+  bin : 						tfilestream;
+  fout : 						textfile;				// svg font output
+  linein : 					string;
+  vals : 						TStringArray;
+  charname : 				string;					// current glyph name
+  enc : 						integer;				// current glyph code point
+  x, y : 						integer;
+  sx, sy, ex, ey : 	integer;
+  sc, ec : 					TCorner;
+  c0, c1, c2, c3 : 	boolean;
+	poly : 						TStickArray;
+  removed : 				boolean;
+  font_name,
+  weight_name,
+  slant,
+  style_name,
+  face_name : 			string;
+  font_ascent,
+  font_descent : 		integer;
+  default_char,
+  cap_height,
+  x_height : 				integer;
+	path : 						string;
+  dx, dy : 					integer;
+  height : 					integer;
+  vga9 : 						boolean;				// switch for carry over to bit 9 on special characters
+  double : 					boolean;				// switch for expanding 8x8 to 8x16
+  truewidth : 			integer;
+  pixw : 						integer;				// last column pixel width
+  chr : 						integer;
+  fontbank : 				integer;				// bank # in raw file
+  cbmmapping :			boolean;				// map characters as commodore.
+  seekto :					longint;
 
 const
   cp437 : array [0..255] of integer = (
@@ -223,6 +236,9 @@ begin
   startglyph := 0;
   endglyph := 65535;
   vga9 := false;
+  double := false;
+  fontbank := 0;
+  cbmmapping := false;
   for i := 1 to argc - 1 do
   begin
     	arg := argv[i];
@@ -232,12 +248,15 @@ begin
             help;
   	      	exit;
           end;
-        '-I':	state := 1;
-        '-O':	state := 2;
-	      '-S': state := 3;
-				'-E': state := 4;
-        '-R': state := 5;
-        '-9': vga9 := true;
+        '-I':	state := 1;			// input file
+        '-R': state := 5;			// raw files 0-31 -> $2400 rest go 32+ (256 glyphs)
+        '-F': state := 6;			// font bank (n x font size is start)
+        '-O':	state := 2;			// output file
+	      '-S': state := 3;			// start
+				'-E': state := 4;			// end
+        '-9': vga9 := true;  	// 9 pixels wide
+        '-D': double := true;	// double height of 8x8 font
+        '-C': cbmmapping := true;
         else
           case state of
             0:
@@ -281,6 +300,12 @@ begin
                 bdfname := '';
 	              rawname := arg;
 	            	state := 0;
+              end;
+            6:
+              begin
+                // font bank
+                fontbank := strtoint(arg);
+                state := 0;
               end;
           end;
       end;
@@ -727,8 +752,13 @@ begin
   end
   else
   begin
-
+		// raw binary file (256 characters)
     bin := tfilestream.create(rawname, fmOpenRead);
+
+    // skip to fontbank
+    seekto := fontbank * 16 * 256;
+    if double then seekto := seekto div 2;
+    bin.Seek(seekto, soFromBeginning);
 
     height := 16;
     x_height := 16;
@@ -769,23 +799,43 @@ begin
     for chr := 0 to 255 do
 		begin
 
-			// convert chr to enc (CP437)
-//      enc := cp437[chr];
-        if chr < 32 then
-  				enc := $2400 + chr
+      if cbmmapping then
+      begin
+				if chr < 32 then
+        	enc := 64 + chr
+        else if chr < 64 then
+        	enc := chr
+        else if chr < 96 then
+        	enc := chr - 64 + 96
         else
-	      	enc := chr;
+        	enc := chr - 96 + 224;
+			end
+      else
+      begin
+    	  if chr < 32 then
+					enc := $2400 + chr
+	      else
+	    	 	enc := chr;
+      end;
 
       writeln('Character : ' + inttostr(enc));
 
       // read bitmap in
       imgchecksum := 0;
       setlength(img, h);
-      for i := 0 to h - 1 do
-      begin
-       	img[i] := bin.readbyte;
-        imgchecksum += img[i];
-      end;
+      if double then
+	      for i := 0 to 7 do
+		    begin
+  		   	img[i*2] := bin.readbyte;
+  		   	img[i*2+1] := img[i*2];
+    		  imgchecksum += img[i];
+	      end
+      else
+	      for i := 0 to 15 do
+  	    begin
+    	   	img[i] := bin.readbyte;
+      	  imgchecksum += img[i];
+	      end;
 
       if (chr < 32) and (imgchecksum = 0) then
       begin
