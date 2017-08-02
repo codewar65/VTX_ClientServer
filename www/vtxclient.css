@@ -1,38 +1,38 @@
+/* dafault font */
 @font-face {
     font-family: 'u_vga16';
     src: url('u_vga16.woff'); format('woff');
 }
+
+/* fonts for alternates - remove if you will never need these */
 @font-face {
     font-family: 'MicroKnight';
-    src: url('MicroKnight_v1.0.woff'); format('woff');
+    src: url('MicroKnight.woff'); format('woff');
 }
+
 @font-face {
     font-family: 'MicroKnightPlus';
-    src: url('MicroKnightPlus_v1.0.woff'); format('woff');
+    src: url('MicroKnightPlus.woff'); format('woff');
 }
+
 @font-face {
     font-family: "mOsOul";
-    src: url('mOsOul_v1.0.woff'); format('woff');
+    src: url('mOsOul.woff'); format('woff');
 }
+
 @font-face {
     font-family: 'P0T-NOoDLE';
-    src: url('P0T-NOoDLE v1.0.woff'); format('woff');
+    src: url('P0T-NOoDLE.woff'); format('woff');
 }
+
 @font-face {
-    font-family: 'Topaz_a500';
-    src: url('Topaz_a500_v1.0.woff'); format('woff');
+    font-family: 'Topaz';
+    src: url('Topaz_a1200.woff'); format('woff');
 }
+
 @font-face {
-    font-family: 'Topaz_a500';
-    src: url('Topaz_a500_v1.0.woff'); format('woff');
-}
-@font-face {
-    font-family: 'TopazPlus_a500';
-    src: url('TopazPlus_a500_v1.0.woff'); format('woff');
-}
-@font-face {
-    font-family: 'TopazPlus_a1200';
-    src: url('TopazPlus_a1200_v1.0.woff'); format('woff');
+    font-family: 'TopazPlus';
+    src: url('TopazPlus_a1200.woff'); format('woff');
 }
 
 body {
@@ -44,6 +44,7 @@ body {
     right:          0;    
     position: relative;
 }
+
 /* rows of text */
 .vtx {
     position:       relative;
@@ -54,6 +55,7 @@ body {
     overflow:       hidden;
     text-overflow:  clip;
 }
+
 /* the console page */
 #vtxpage {
     min-height:     94vh;
@@ -64,6 +66,7 @@ body {
     text-overflow:  clip;
     z-index:        0;
 }
+
 /* the text area */
 #vtxtext {
     width:          100%;
@@ -75,10 +78,13 @@ body {
     z-index:        10;
     user-select:    none;
 }
+
+/* for fading on ul/dl */
 .fade {
     opacity:    .5;
     background: #000055;
 }
+
 .noselect {
   -webkit-touch-callout: none; /* iOS Safari */
     -webkit-user-select: none; /* Safari */

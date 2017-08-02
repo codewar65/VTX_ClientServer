@@ -36,54 +36,53 @@ Sequences (# : to be implemented)
 
     CSI n 'C' : Cursor Forward (CUF). Move cursor n columns right. Stops at right of page. {1}
 
-#   CSI f [ ; n ] SPACE 'D' : Font Selection (FNT). 
-#       f = font number (0=primary, 1=high intensity,2=blink,3=high and blink,4..9:alternates).
-#       n = font: Since the character fonts to be listed here were never established by ECMA, cterm font numbers are used.
+    CSI f [ ; n ] SPACE 'D' : Font Selection (FNT). 
+        f = font number (0=primary, 1=high intensity,2=blink,3=high and blink,4..9:alternates).
+        n = font: Since the character fonts to be listed here were never established by ECMA, cterm font numbers are used.
 
-#           0  - Codepage 437 English
-#           1  - Codepage 1251 Cyrillic, (swiss)
-#           2  - Russian koi8-r
-#           3  - ISO-8859-2 Central European
-#           4  - ISO-8859-4 Baltic wide (VGA 9bit mapped)
-#           5  - Codepage 866 (c) Russian
-#           6  - ISO-8859-9 Turkish
-#           7  - haik8 codepage (use only with armscii8 screenmap)
-#           8  - ISO-8859-8 Hebrew
-#           9  - Ukrainian font koi8-u
-#           10 - ISO-8859-15 West European, (thin)
-#           11 - ISO-8859-4 Baltic (VGA 9bit mapped)
-#           12 - Russian koi8-r (b)
-#           13 - ISO-8859-4 Baltic wide
-#           14 - ISO-8859-5 Cyrillic
-#           15 - ARMSCII-8 Character set
-#           16 - ISO-8859-15 West European
-#           17 - Codepage 850 Multilingual Latin I, (thin)
-#           18 - Codepage 850 Multilingual Latin I
-#           19 - Codepage 885 Norwegian, (thin)
-#           20 - Codepage 1251 Cyrillic
-#           21 - ISO-8859-7 Greek
-#           22 - Russian koi8-r (c)
-#           23 - ISO-8859-4 Baltic
-#           24 - ISO-8859-1 West European
-#           25 - Codepage 866 Russian
-#           26 - Codepage 437 English, (thin)
-#           27 - Codepage 866 (b) Russian
-#           28 - Codepage 885 Norwegian
-#           29 - Ukrainian font cp866u
-#           30 - ISO-8859-1 West European, (thin)
-#           31 - Codepage 1131 Belarusian, (swiss)
-
+            0  - Codepage 437 English
+            1  - Codepage 1251 Cyrillic, (swiss)
+            2  - Russian koi8-r
+            3  - ISO-8859-2 Central European
+            4  - ISO-8859-4 Baltic wide (VGA 9bit mapped)
+            5  - Codepage 866 (c) Russian
+            6  - ISO-8859-9 Turkish
+            7  - haik8 codepage (use only with armscii8 screenmap)
+            8  - ISO-8859-8 Hebrew
+            9  - Ukrainian font koi8-u
+            10 - ISO-8859-15 West European, (thin)
+            11 - ISO-8859-4 Baltic (VGA 9bit mapped)
+            12 - Russian koi8-r (b)
+            13 - ISO-8859-4 Baltic wide
+            14 - ISO-8859-5 Cyrillic
+            15 - ARMSCII-8 Character set
+            16 - ISO-8859-15 West European
+            17 - Codepage 850 Multilingual Latin I, (thin)
+            18 - Codepage 850 Multilingual Latin I
+            19 - Codepage 885 Norwegian, (thin)
+            20 - Codepage 1251 Cyrillic
+            21 - ISO-8859-7 Greek
+            22 - Russian koi8-r (c)
+            23 - ISO-8859-4 Baltic
+            24 - ISO-8859-1 West European
+            25 - Codepage 866 Russian
+            26 - Codepage 437 English, (thin)
+            27 - Codepage 866 (b) Russian
+            28 - Codepage 885 Norwegian
+            29 - Ukrainian font cp866u
+            30 - ISO-8859-1 West European, (thin)
+            31 - Codepage 1131 Belarusian, (swiss)
 #           32 - Commodore 64 (UPPER)
 #           33 - Commodore 64 (Lower)
 #           34 - Commodore 128 (UPPER)
 #           35 - Commodore 128 (Lower)
 #           36 - Atari
-#           37 - P0T NOoDLE (Amiga) 
-#           38 - mO'sOul (Amiga)    
-#           39 - MicroKnight Plus (Amiga)
-#           40 - Topaz Plus (Amiga)      
-#           41 - MicroKnight (Amiga)
-#           42 - Topaz (Amiga)      
+            37 - P0T NOoDLE (Amiga) 
+            38 - mO'sOul (Amiga)    
+            39 - MicroKnight Plus (Amiga)
+            40 - Topaz Plus (Amiga)      
+            41 - MicroKnight (Amiga)
+            42 - Topaz (Amiga)      
 
     CSI n 'D' : Cursor Backwards (CUB). Move cursor n columns left. Stops at left of page. {1}
 
@@ -204,11 +203,11 @@ Sequences (# : to be implemented)
         7 : Reverse foreground and background colors.
         8 : Concealed on.
         9 : Strikethrough on.
-#       10 : Select default font.
-#       11 : Select high intensity font.
-#       12 : Select blink font.
-#       13 : Select high/blink font.
-#       14-19: Select alternate font.
+        10 : Select default font.
+        11 : Select high intensity font.
+        12 : Select blink font.
+        13 : Select high/blink font.
+        14-19: Select alternate font.
         21 : Bold off in 'real' ANSI mode, regular intensity foreground color in BBS/ANSI.SYS mode.
         23 : Italics off.
         24 : Underline off.

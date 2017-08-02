@@ -55,7 +55,11 @@ begin
   	+ SGR(ANSI_YELLOW) + 'A' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Block Characters.');
 
-  Print(UP(9) + SGR(ANSI_LTGREEN));
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'A')+'['
+  	+ SGR(ANSI_YELLOW) + 'B' + SGR(ANSI_BROWN)
+    + ']' + SGR(ANSI_LTBLUE) + ' Font Selection.');
+
+  Print(UP(11) + SGR(ANSI_LTGREEN));
   PrintLn(RIGHT(30) + 'This is a demonstration of the VTX web and');
   PrintLn(RIGHT(30) + 'websocket server, VTX web browser client, and');
   PrintLn(RIGHT(30) + 'user node processes.');
@@ -67,7 +71,7 @@ begin
   PrintLn(RIGHT(30) + 'This demo will display the ANSI code sequences');
   PrintLn(RIGHT(30) + 'supported by the VTX client.');
 
-  Print(SGR(ANSI_GREEN) + ' Select Screen or ' + SGR(ANSI_BROWN)
+  Print(DOWN(2) + SGR(ANSI_GREEN) + ' Select Screen or ' + SGR(ANSI_BROWN)
   	+ HOTSPOT(3,1,0,'Q')+'[' + SGR(ANSI_YELLOW) + 'Q'
     + SGR(ANSI_BROWN) + ']' + SGR(ANSI_GREEN)
     + 'uit : ');
@@ -75,7 +79,7 @@ begin
   result := '';
   repeat
     key := upCase(GetKey);
-    if Pos(key, 'Q123456789A') <> 0 then
+    if Pos(key, 'Q123456789AB') <> 0 then
       result := key;
   until result <> '';
 end;
@@ -635,6 +639,40 @@ begin
   until key = 'Q';
 end;
 
+procedure PageB;
+var
+  key : string;
+begin
+  Print(VTXMODE + CLS + HOME + SGR(ANSI_LTCYAN, [SGR_RESET]));
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 50)
+    + ' Font Support');
+  PrintLn;
+
+  PrintLn(#27'[1;37 D'#27'[2;38 D'#27'[3;40 D'#27'[4;41 D');
+  PrintLn(#27'[94mFont Select command allows the VTX client switch to alternate defined');
+  PrintLn('fonts / codepage combinations.');
+  PrintLn;
+
+  PrintLn(#27'[93mCSI n ; f space D'#27'[94m: Define which font selection to be available for use.');
+  PrintLn('    n : 0 - 9. Represents the font slot to define.');
+  PrintLn('    f : the font number preset. 0 = default codepage defined at start of client');
+  PrintLn('        (typically CP437). Others are listed in '+URL(9,1,1,'http://cvs.synchro.net/cgi-bin/viewcvs.cgi/*checkout*/src/conio/cterm.txt')+'cterm.txt.');
+  PrintLn;
+  PrintLn(#27'[93mCSI 10-19 m'#27'[94m: Select font to begin using for text.');
+  PrintLn;
+  PrintLn('    '#27'[95;11mP0T NOoOLE (Amiga)      '#27'[12mmO''sOul (Amiga)');
+  PrintLn;
+  PrintLn('    '#27'[13mTopaz Plus (Amiga)      '#27'[14mMicroKnight (Amiga)');
+  PrintLn;
+
+  Print(#27'[10m'+SGR(ANSI_GREEN) + 'Press '+HOTSPOT(3,1,0,'Q')+'['
+    + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
+
+  repeat
+    key := upCase(GetKey);
+  until key = 'Q';
+end;
+
 var
   selection : string;
   loop : boolean;
@@ -660,6 +698,7 @@ begin
       '8':  Page8;
       '9':  Page9;
       'A':	PageA;
+      'B':	PageB;
 
       'Q':
         begin
