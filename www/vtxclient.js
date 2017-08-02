@@ -1583,7 +1583,12 @@ function toUTF16(data) {
             for (i = 0; i < l; i++) {
                 d = data[i];
                 //c = codePageData[codePage][d];
-                c = getUnicode(codePage, d);
+                
+                // need to keep controls unless in DOORWAY
+                if (d >= 32)
+                    c = getUnicode(codePage, d)
+                else
+                    c = d;
                 outstr += String.fromCharCode(c);
             }
         }
