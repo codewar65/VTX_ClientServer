@@ -157,33 +157,54 @@ servers.
 Softfonts - Built in bitmap font to vector font converter using method in bdf2svg (in utils).
 
 
-## To Do / To Fix / Bugs
+## To Do(*) / To Fix(!) / Investigate(?)
 
-Merge row size, row background, and page/cursor attributes into one ESC sequence
-group.
+* Merge row size, row background, and page/cursor attributes into one ESC sequence group.
 
-Look at row sizing controls. See if can match VT ESC # sequences. Or move ESC # 0 / ESC # 6 to VTX codes. 
-Defined existing VT codes:
+? Look at row sizing controls. See if can match VT ESC # sequences. Or move ESC # 0 / ESC # 6 to VTX codes. 
+  Defined existing VT codes:
     ESC # 3	Double wide / double high, top half
     ESC # 4	Double wide / double high, bottom half
     ESC # 5	Single height row
     ESC # 6	Double wide row
     ESC # 8	Alignment display, fill screen with E's
 
-Add codes to reset page and cursor attributes to default.
+? Add codes to reset page, row, and cursor attributes to default. (works like CSI 0 m).
 
-Set maximum row count (~250)
+! Set maximum row count (~250). Remove rows off top as exceeds.
 
-Move hotspots on delrow / insrow.
+! Move hotspots on delrow / insrow.
 
-Scroll regions.
+* Move sprite commands.
 
-DOORWAY mode. Keystrokes for DOORWAY in new column(s) in keyboard lut.
+* Scroll regions.
 
-Blink / bold font swapping.
+* DOORWAY mode. Keystrokes for DOORWAY in new column(s) in keyboard lut.
 
-Test.test.test.test. Especially fonts / codepages. Add missing glyphs to u_vga16.
+* Blink / bold font swapping.
 
-Commodore fonts / thin version of u_vga16.
+* Test.test.test.test. Especially fonts / codepages. Add missing glyphs to u_vga16.
 
-Redo website.
+* Commodore / Atari fonts / thin version of u_vga16.
+
+* Redo website.
+
+? CSI 1 c : request visible rows. Respond CSI ?50:n c : n=rows @ normal size.
+
+* Client handshake with server.
+
+? WSS / certificate &| poor-mans client<->server encryption with rotating keys.
+
+? VT100 compatibily mode.
+
+? Global row size commands (for use C64 mode etc).
+
+? Row width scales altered? 
+    0=50% (40 column) 
+    1=80% (64 column) 
+    2=100% (80 column) 
+    3=165% (132 column)
+
+? Row size scales effect height only?
+
+? Built in audio object. Cmds to set volume / play / stop / rewind / set stream URL. 
