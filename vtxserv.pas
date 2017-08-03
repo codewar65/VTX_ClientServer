@@ -103,6 +103,7 @@ type
     Columns :					integer;	// columns for term console.
     XScale :					real;			// scale everything by this on the X axis.
     Terminal :				string;		// ANSI, PETSCII
+    Initialize :			string;		// terminal init string
 
     NodeType :        TvtxNodeType;
     CodePage :				TCodePages;
@@ -500,6 +501,7 @@ begin
   SystemInfo.Columns :=			iin.ReadInteger(sect, 'Columns', 80);
   SystemInfo.XScale :=			iin.ReadFloat(sect, 	'XScale', 1.0);
   SystemInfo.Terminal :=		iin.ReadString(sect, 'Terminal',		'ANSI');
+  SystemInfo.Initialize :=	iin.ReadString(sect, 'Initialize',	'\x1B[0m');
 
   SystemInfo.NodeType :=    TvtxNodeType(InList(
                               iin.ReadString(sect, 'NodeType', 'ExtProc'),
@@ -612,6 +614,7 @@ begin
   str := str.Replace('@Columns@', IntToStr(SystemInfo.Columns));
   str := str.Replace('@XScale@', FloatToStr(SystemInfo.XScale));
   str := str.Replace('@Terminal@', SystemInfo.Terminal);
+  str := str.Replace('@Initialize@', SystemInfo.Initialize);
   result := str;
 end;
 
