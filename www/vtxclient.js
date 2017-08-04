@@ -396,9 +396,9 @@ var
         CP65001:    'UTF8',
         CP819:      'ISO8859_1',
         CP28593:    'ISO8859_3',
-        PETSCII20:  'RAW',
-        PETSCII64:  'RAW',
-        PETSCII128: 'RAW',
+        VIC20:      'RAW',
+        C64:        'RAW',
+        C128:       'RAW',
         ATASCII:    'RAW'
     },
 
@@ -3062,17 +3062,17 @@ function initDisplay() {
     if (cbm) {
         conFontNum = 0;
         switch (vtxdata.codePage) {
-            case 'PETSCII20':
+            case 'VIC20':
                 conFont[0] = 'VIC201';
                 conFont[1] = 'VIC200';
                 break;
                 
-            case 'PETSCII64':
+            case 'C64':
                 conFont[0] = 'C641';
                 conFont[1] = 'C640';
                 break;
                 
-            case 'PETSCII128':
+            case 'C128':
                 conFont[0] = 'C1281';
                 conFont[1] = 'C1280';
                 break;
