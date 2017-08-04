@@ -1,6 +1,6 @@
 # VTX_ClientServer
 
-updated: 01-AUG-2017
+updated: 03-AUG-2017
 
 
 ## Intro
@@ -57,34 +57,36 @@ Y-Modem 1K upload and download.
 
 ## PETSCII Mode
 Commodore 64 or 128 font support.
+
 All PETSCII controls are emulated.
+
 Keys mapped to:
-    Backspace   = BACK/DEL
-    Del         = BACK/DEL
-    ESC         = RUN/STOP
-    END         = Text Mode
-    Shift END   = Graphics Mode
-    HOME        = HOME
-    Shift HOME  = CLR
-    Arrows      = Arrows
-    Ctrl 1      = Black
-    Ctrl 2      = White
-    Ctrl 3      = Red
-    Ctrl 4      = Cyan
-    Ctrl 5      = Purple
-    Ctrl 6      = Green
-    Ctrl 7      = Blue
-    Ctrl 8      = Yellow
-    Ctrl 9      = Reverse Off
-    Ctrl 0      = Reverse On
-    Alt 1       = Orange
-    Alt 2       = Brown
-    Alt 3       = Lt Red
-    Alt 4       = Dk Gray
-    Alt 5       = Gray
-    Alt 6       = Lt Green
-    Alt 7       = Lt Blue
-    Alt 8       = Lt Gray
+* Backspace   = BACK/DEL
+* Del         = BACK/DEL
+* ESC         = RUN/STOP
+* END         = Text Mode
+* Shift END   = Graphics Mode
+* HOME        = HOME
+* Shift HOME  = CLR
+* Arrows      = Arrows
+* Ctrl 1      = Black
+* Ctrl 2      = White
+* Ctrl 3      = Red
+* Ctrl 4      = Cyan
+* Ctrl 5      = Purple
+* Ctrl 6      = Green
+* Ctrl 7      = Blue
+* Ctrl 8      = Yellow
+* Ctrl 9      = Reverse Off
+* Ctrl 0      = Reverse On
+* Alt 1       = Orange
+* Alt 2       = Brown
+* Alt 3       = Lt Red
+* Alt 4       = Dk Gray
+* Alt 5       = Gray
+* Alt 6       = Lt Green
+* Alt 7       = Lt Blue
+* Alt 8       = Lt Gray
 
 
 ## Compiling
