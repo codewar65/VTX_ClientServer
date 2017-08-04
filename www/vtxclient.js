@@ -4229,14 +4229,14 @@ function conCharOut(chr) {
                 crsrCol = 0;
                 crsrRow++;
                 crsrrender = true;
-                crsrAttr = setCrsrAttrReverse(crsrAttr, false);
+                cellAttr = setCellAttrReverse(cellAttr, false);
                 break;
 
             case 14: // text mode
-                if (modeCBMShift) {
+                //if (modeCBMShift) {
                     conFontNum = 1;
                     renderAll();
-                }
+                //}
                 break;
 
             case 17: // down
@@ -4297,10 +4297,10 @@ function conCharOut(chr) {
                 break;
 
             case 142: // graphics mode
-                if (modeCBMShift) {
+                //if (modeCBMShift) {
                     conFontNum = 0;
                     renderAll();
-                }
+                //}
                 break;
 
             case 144: // black
