@@ -191,7 +191,7 @@ servers.
 Softfonts - Built in bitmap font to vector font converter using method in bdf2svg (in utils).
 
 
-## To Do(*) / To Fix(!) / Investigate(?)
+## To Do($) / To Fix(!) / Investigate(?)
 
 * Merge row size, row background, and page/cursor attributes into one ESC sequence group.
 
@@ -205,39 +205,29 @@ Softfonts - Built in bitmap font to vector font converter using method in bdf2sv
 
 ? Add codes to reset page, row, and cursor attributes to default. (works like CSI 0 m).
 
-! Set maximum row count (~250). Remove rows off top as exceeds.
-
 ! Move hotspots on delrow / insrow.
 
-* Move sprite commands.
+$ Move sprite commands.
 
-* Scroll regions.
+$ Scroll regions.
 
-* DOORWAY mode. Keystrokes for DOORWAY in new column(s) in keyboard lut.
+$ DOORWAY mode. Keystrokes for DOORWAY in new column(s) in keyboard lut.
 
-* Blink / bold font swapping.
+$ Blink / bold font swapping.
 
-* Test.test.test.test. Especially fonts / codepages. Add missing glyphs to u_vga16.
+$ Test.test.test.test. Especially fonts / codepages. Add missing glyphs to u_vga16.
 
-* Commodore / Atari fonts / thin version of u_vga16.
+$ thin version of uvga16.
 
-* Redo website.
+$ Redo website.
 
 ? CSI 1 c : request visible rows. Respond CSI ?50:n c : n=rows @ normal size.
 
-* Client handshake with server.
+$ Client handshake with server.
 
 ? WSS / certificate &| poor-mans client<->server encryption with rotating keys.
 
 ? VT100 compatibily mode.
-
-? Global row size commands (for use C64 mode etc).
-
-? Row width scales altered? 
-    0=50% (40 column) 
-    1=80% (64 column) 
-    2=100% (80 column) 
-    3=165% (132 column)
 
 ? Row size scales effect height only?
 
