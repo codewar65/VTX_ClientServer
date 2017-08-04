@@ -190,13 +190,13 @@ var
 
     // strings that get transmogrified by the HTTP server.
     // only change these if you are not using the VTX HTTP server.
-    codePage = '@CodePage@',
-    wsConnect = 'ws://@InternetIP@:@WSPort@',
-    crtCols = @Columns@,        // columns side of row on crt.
-    xScale = @XScale@,          // scale everything this much on x.
-    term = '@Terminal@',        // ANSI or PETSCII
-    cbm = (term == 'PETSCII'),
-    initStr = '@Initialize@',   // terminal initialize
+    codePage = vtxdata.codePage,    // '@CodePage@',
+    wsConnect = vtxdata.wsConnect,  // 'ws://@InternetIP@:@WSPort@',
+    crtCols = vtxdata.crtCols,      // @Columns@,        // columns side of row on crt.
+    xScale = vtxdata.xScale,        // @XScale@,          // scale everything this much on x.
+    term = vtxdata.term,            // '@Terminal@',        // ANSI or PETSCII
+    cbm = (vtxdata.term == 'PETSCII'),
+    initStr = vtxdata.initStr,      // '@Initialize@',   // terminal initialize
 
     ws = null,                  // websocket connection.
 
@@ -232,6 +232,8 @@ var
     cellAttr,                   // current active attributes
     cellBlinkSlow,              // text blink states
     cellBlinkFast,
+    defPageAttr,
+    defCrsrAttr,
     defCellAttr,                // default cell attributes.
     lastChar,                   // last printable character outputed.
     lastHotSpot = null,         // last mouseover hotspot
@@ -393,7 +395,11 @@ var
         CP895:      'CP866',
         CP65001:    'UTF8',
         CP819:      'ISO8859_1',
-        CP28593:    'ISO8859_3'
+        CP28593:    'ISO8859_3',
+        PETSCII20:  'RAW',
+        PETSCII64:  'RAW',
+        PETSCII128: 'RAW',
+        ATASCII:    'RAW'
     },
 
     // codepage tables.
@@ -1608,6 +1614,70 @@ var
     numState, capState, scrState;
 }
 
+// create an element
+function domElement(type, options, styles, txt) {
+    var
+        e = document.createElement(type),
+        i;
+
+    if (options)
+        for (i in options)
+            e[i] = options[i];
+    if (styles)
+        for (i in styles)
+            e.style[i] = styles[i];
+    if (txt)
+        e.appendChild(document.createTextNode(txt));
+    return e;
+}
+
+// load fonts and boot
+function bootVTX() {
+    var
+        fontNames = [ 
+            'UVGA16', 'MICROKNIGHT', 'MICROKNIGHTPLUS', 
+            'MOSOUL', 'P0TNOODLE', 'TOPAZ', 'TOPAZPLUS',
+            'VIC200', 'VIC201', 'C640', 'C641', 'C1280', 
+            'C1281', 'ATARI' 
+        ],
+        i, l, str,
+        el, hd,
+        testDiv;
+        
+    // load fonts
+    // inject @font-faces
+    hd = document.getElementsByTagName('head')[0];
+    str = '';
+    for (i = 0, l = fontNames.length; i < l; i++) {
+        str += '@font-face {\r\n '
+            + '  font-family: "' + fontNames[i] + '"; '
+            + '  src: url("' + fontNames[i] + '.woff") format("woff"); }\r\n';
+    }
+    el = domElement('style', { type: 'text/css' }, {}, str );
+    hd.appendChild(el);
+        
+    // loop through until ALL fonts have been loaded.
+    for (i = 0, l = fontNames.length; i < l; i++) {
+        testDiv = domElement('div',
+        {},{
+            fontFamily:         fontNames[i] + ', AdobeBlank',
+            fontSize:           '12px',
+            color:              'red',
+            backgroundColor:    'black',
+            display:            'inline-block',
+            border:             '0px',
+            padding:            '0px',
+            margin:             '0px' },
+            'Test 1..2..3..');
+        document.body.appendChild(testDiv);
+        while (testDiv.clientWidth < 4);
+        document.body.removeChild(testDiv);
+    }
+
+    // when all fonts loaded call initDisplay
+    initDisplay();
+}
+
 // string splice - why this is not standard is beyond me.
 // ECMA-262 / 15.4.4.12 - prototype.splice
 if (!String.prototype.splice) {
@@ -1627,23 +1697,6 @@ function addListener(obj, eventName, listener) {
         obj.addEventListener(eventName, listener, false)
     else
         obj.attachEvent("on" + eventName, listener);
-}
-
-// create an element
-function domElement(type, options, styles, txt) {
-    var
-        e = document.createElement(type),
-        i;
-
-    if (options)
-        for (i in options)
-            e[i] = options[i];
-    if (styles)
-        for (i in styles)
-            e.style[i] = styles[i];
-    if (txt)
-        e.appendChild(document.createTextNode(txt));
-    return e;
 }
 
 
@@ -2073,7 +2126,8 @@ function getDefaultFontSize() {
         testString += String.fromCharCode(i);
     testString += '\u2588\u2584\u2580\u2590\u258c\u2591\u2592\u2593';
 
-    cs = document.defaultView.getComputedStyle(document.body, null);
+    //cs = document.defaultView.getComputedStyle(document.body, null);
+    cs = document.defaultView.getComputedStyle(pageDiv, null);
     fontName = cs['font-family'];
     fontSize = parseInt(cs['font-size']);
     font = fontSize + 'px ' + fontName;
@@ -2835,7 +2889,7 @@ function expandToRow(rownum) {
             conText[conText.length] = '';
         }
         // remove excess
-        while (conRowAttr.length > 500) {
+        while (conRowAttr.length > vtxdata.crtHistory) {
             delRow(0);
             crsrRow--;
         }
@@ -2981,24 +3035,6 @@ function initDisplay() {
         fsize,
         defattrs;
 
-    // adjust codepage from AKAs - abort if invalid
-    if (cbm) {
-        codePage = 'RAW';
-    } else {
-        var cp = codePage;
-        if (!codePageData[cp]) {
-            if (!codePageAKAs[cp]) {
-                if ((cp == 'UTF8') || (cp == 'UTF16'))
-                    codePage = cp
-                else {
-                    document.write('Invalid code page.');
-                    return;
-                }
-            } else
-                codePage = codePageAKAs[cp];
-        }
-    }
-
     // find the page / text div
     pageDiv = document.getElementById('vtxpage');
     if (!pageDiv)
@@ -3011,11 +3047,37 @@ function initDisplay() {
     getDefaultFontSize(); // get fontName, colSize, rowSize
     crtWidth = colSize * crtCols;
 
+    // codepage from AKAs - abort if invalid
+    if (!codePageData[codePage]) {
+        if (!codePageAKAs[codePage]) {
+            if ((codePage != 'UTF8') && (codePage != 'UTF16')) {
+                //document.write('Invalid code page.');
+                //return;
+            }
+        } else
+            codePage = codePageAKAs[codePage];
+    }
+    
+    // set fonts.
     if (cbm) {
         conFontNum = 0;
-        conFont[0] = 'C641';
+        switch (vtxdata.codePage) {
+            case 'PETSCII20':
+                conFont[0] = 'VIC201';
+                conFont[1] = 'VIC200';
+                break;
+                
+            case 'PETSCII64':
+                conFont[0] = 'C641';
+                conFont[1] = 'C640';
+                break;
+                
+            case 'PETSCII128':
+                conFont[0] = 'C1281';
+                conFont[1] = 'C1280';
+                break;
+        }
         conFontCP[0] = 'RAW';
-        conFont[1] = 'C640';
         conFontCP[1] = 'RAW';
     } else {
         conFontNum = 0;                 // current font being used.
@@ -3044,20 +3106,12 @@ function initDisplay() {
     var head = document.head || document.getElementsByTagName('head')[0];
     head.appendChild(style);
 
-    if (cbm) {
-        defCellAttr = makeCellAttr(1, 0);
-        cellAttr =  defCellAttr;
-        crsrAttr = makeCrsrAttr(1, 3, 0);
-        pageAttr = (11 << 8) | 0;           //(6 / 14)
-    } else {
-        // get default attributes for page from <div id='vtxpage'...>
-        // stored as hex values in cellattr, crsrattr, and pageattr
-        // TODO : move to ini
-        defCellAttr = htoi(pageDiv.getAttribute('cellattr') || '00000007');
-        cellAttr =  defCellAttr;
-        crsrAttr = htoi(pageDiv.getAttribute('crsrattr') || '00000207');
-        pageAttr = htoi(pageDiv.getAttribute('pageattr') || '00000000');
-    }
+    defCellAttr = vtxdata.defCellAttr;
+    defCrsrAttr = vtxdata.defCrsrAttr;
+    defPageAttr = vtxdata.defPageAttr;
+    cellAttr =  defCellAttr;
+    crsrAttr = defCrsrAttr;
+    pageAttr = defPageAttr;
 
     // create cursor
     newCrsr();
@@ -3182,7 +3236,7 @@ function initDisplay() {
             i, j, str, data;
 
         data = new Uint8Array(e.data);
-dump(data,0,data.length);
+        //dump(data,0,data.length);
 
         // convert data to string 
         str = '';
@@ -3272,8 +3326,8 @@ function UFT8ArrayToStr(array) {
 }
 
 // light it up
-//addListener(window, 'load', initDisplay);
-addListener(document, 'DOMContentLoaded', initDisplay);
+addListener(window, 'load', bootVTX);
+//addListener(document, 'DOMContentLoaded', bootVTX);
 // key events
 addListener(document, 'keydown', keyDown);
 addListener(document, 'keyup', keyUp);
@@ -4052,24 +4106,6 @@ function dump(buff, start, len){
 
 function nop(){};
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // convert character ch (0-255) to unicode
 function getUnicode(cp, ch) {
     
@@ -4087,13 +4123,16 @@ function getUnicode(cp, ch) {
 
             case 128:
                 d = (ch < 128) ? codePageData['ASCII'][ch] : cplut[ch - 128];
+                break;
 
             case 96:
                 d = (ch < 160) ? codePageData['ASCII'][ch] : cplut[ch - 160];
+                break;
                 
             default:
                 // default to 437 if not found.
                 d = codePageData['CP437'][ch];
+                break;
         }
     }
     return d;
@@ -4101,7 +4140,7 @@ function getUnicode(cp, ch) {
 
 // only convert Uint8Array to string
 // FUNCTION NOT USED ANYMORE
-function toUTF16(data) {
+function XYZtoUTF16(data) {
     var
         c, d, l, i, outstr, encstr;
 
@@ -4147,11 +4186,12 @@ function sendData(data) {
         data = new Uint8Array(l);
         for (i = 0; i < l; i++)
             data[i] = str.charCodeAt(i);
-    } else if (typeof data === 'number')
+    } else if (typeof data === 'number') {
         // byte/character to aray buffer
         str = String.fromCharCode(data);
         data = new Uint8Array([data]);
-
+    }
+    
     if (!(data instanceof Uint8Array))
         throw 'Invalid data in sendData().';
 

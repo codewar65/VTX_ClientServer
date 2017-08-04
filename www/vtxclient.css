@@ -1,78 +1,13 @@
-/* dafault font */
-@font-face {
-    font-family:    "UVGA16";
-    src:            url("UVGA16.woff") format("woff");
-}
-
-/* fonts for alternates - remove the ones you don't need */
-@font-face {
-    font-family:    "MICROKNIGHT";
-    src:            url("MICROKNIGHT.woff") format("woff");
-}
-@font-face {
-    font-family:    "MICROKNIGHTPLUS";
-    src:            url('MICROKNIGHTPLUS.woff') format('woff');
-}
-@font-face {
-    font-family:    "MOSOUL";
-    src:            url("MOSOUL.woff") format("woff");
-}
-@font-face {
-    font-family:    "P0TNOODLE";
-    src:            url("P0TNOODLE.woff") format("woff");
-}
-@font-face {
-    font-family:    "TOPAZ";
-    src:            url("TOPAZ.woff") format("woff");
-}
-@font-face {
-    font-family:    "TOPAZPLUS";
-    src:            url("TOPAZPLUS.woff") format("woff");
-}
-@font-face {
-    font-family:    "C640";
-    src:            url("C640.woff") format("woff");
-}
-@font-face {
-    font-family:    "C641";
-    src:            url("C641.woff") format("woff");
-}
-@font-face {
-    font-family:    "C1280";
-    src:            url("C1280.woff") format("woff");
-}
-@font-face {
-    font-family:    "C1281";
-    src:            url("C1281.woff") format("woff");
-}
-@font-face {
-    font-family:    "ATARI";
-    src:            url("ATARI.woff") format("woff");
-}
-
 body {
-    font-family:    UVGA16;
-    font-size:      16px;
-    padding-top:    1em;
-    padding-bottom: 1em;
-    left:           0;
-    right:          0;
-    position: relative;
+    padding:        16px;
 }
 
-/* rows of text */
-.vtx {
-    position:       relative;
-    left:           0px;
-    line-height:    1em;
-    height:         1em;
-    vertical-align: top;
-    overflow:       hidden;
-    text-overflow:  clip;
-}
-
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
+/* don't mess with these too much. */
 /* the console page */
 #vtxpage {
+    font-family:    UVGA16;
+    font-size:      16px;
     min-height:     94vh;
     margin:         0px auto;
     padding:        0px;
@@ -93,6 +28,17 @@ body {
     z-index:        10;
 }
 
+/* rows of text */
+.vtx {
+    position:       relative;
+    left:           0px;
+    line-height:    1em;
+    height:         1em;
+    vertical-align: top;
+    overflow:       hidden;
+    text-overflow:  clip;
+}
+
 /* for fading on ul/dl */
 .fade {
     opacity:    .5;
@@ -108,3 +54,5 @@ body {
             user-select: none; /* Non-prefixed version, currently
                                   supported by Chrome and Opera */
 }
+/* end needed stuff */
+/*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/

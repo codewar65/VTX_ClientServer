@@ -48,7 +48,7 @@ Sequences (# : to be implemented)
             5  - Codepage 866 (c) Russian
             6  - ISO-8859-9 Turkish
             7  - haik8 codepage (use only with armscii8 screenmap)
-            8  - ISO-8859-8 Hebrew
+#           8  - ISO-8859-8 Hebrew
             9  - Ukrainian font koi8-u
             10 - ISO-8859-15 West European, (thin)
             11 - ISO-8859-4 Baltic (VGA 9bit mapped)
@@ -72,11 +72,11 @@ Sequences (# : to be implemented)
             29 - Ukrainian font cp866u
             30 - ISO-8859-1 West European, (thin)
             31 - Codepage 1131 Belarusian, (swiss)
-#           32 - Commodore 64 (UPPER)
-#           33 - Commodore 64 (Lower)
-#           34 - Commodore 128 (UPPER)
-#           35 - Commodore 128 (Lower)
-#           36 - Atari
+            32 - Commodore 64 (UPPER)
+            33 - Commodore 64 (Lower)
+            34 - Commodore 128 (UPPER)
+            35 - Commodore 128 (Lower)
+            36 - Atari
             37 - P0T NOoDLE (Amiga) 
             38 - mO'sOul (Amiga)    
             39 - MicroKnight Plus (Amiga)
@@ -372,4 +372,21 @@ Colors
      16 - 231       6 x 6 x 6 colors.
     232 - 255       Grays.
 
-* : to be implemented    
+    
+ATASCII
+=======    
+    0x1C : Cursor up (CTRL + -)
+    0x1D : Cursor down (CTRL + =)
+    0x1E : Cursor left (CTRL + +)
+    0x1F : Cursor right (CTRL + *)
+    0x7D : Clear screen (CTRL + < or SHIFT + <)
+    0x7E : Backspace
+    0x7F : Tab
+    0x9B : Return
+    0x9C : Delete line (SHIFT + Backspace)
+    0x9D : Insert line (SHIFT + >)
+    0x9E : Clear tabstop (CTRL + Tab)
+    0x9F : Set Tabstop (SHIFT + Tab)
+    0xFD : Bell (CTRL + 2)
+    0xFE : Delete (CTRL + Backspace)
+    0xFF : Insert (CTRL + >)
