@@ -1,26 +1,62 @@
 /* dafault font */
-@font-face {    font-family: u_vga16;           src: url("u_vga16.woff") format("woff");}
+@font-face {
+    font-family:    "UVGA16";
+    src:            url("UVGA16.woff") format("woff");
+}
 
 /* fonts for alternates - remove the ones you don't need */
-@font-face {    font-family: MicroKnight;       src: url("MicroKnight.woff") format("woff");}
-@font-face {    font-family: MicroKnightPlus;   src: url('MicroKnightPlus.woff') format('woff');}
-@font-face {    font-family: mOsOul;            src: url("mOsOul.woff") format("woff");}
-@font-face {    font-family: P0T-NOoDLE;        src: url("P0T-NOoDLE.woff") format("woff");}
-@font-face {    font-family: Topaz;             src: url("Topaz_a1200.woff") format("woff");}
-@font-face {    font-family: TopazPlus;         src: url("TopazPlus_a1200.woff") format("woff");}
-@font-face {    font-family: c64_0;             src: url("c64_0.woff") format("woff");}
-@font-face {    font-family: c64_1;             src: url("c64_1.woff") format("woff");}
-@font-face {    font-family: c128_0;            src: url("c128_0.woff") format("woff");}
-@font-face {    font-family: c128_1;            src: url("c128_1.woff") format("woff");}
-@font-face {    font-family: atari;             src: url("atari.woff") format("woff");}
+@font-face {
+    font-family:    "MICROKNIGHT";
+    src:            url("MICROKNIGHT.woff") format("woff");
+}
+@font-face {
+    font-family:    "MICROKNIGHTPLUS";
+    src:            url('MICROKNIGHTPLUS.woff') format('woff');
+}
+@font-face {
+    font-family:    "MOSOUL";
+    src:            url("MOSOUL.woff") format("woff");
+}
+@font-face {
+    font-family:    "P0TNOODLE";
+    src:            url("P0TNOODLE.woff") format("woff");
+}
+@font-face {
+    font-family:    "TOPAZ";
+    src:            url("TOPAZ.woff") format("woff");
+}
+@font-face {
+    font-family:    "TOPAZPLUS";
+    src:            url("TOPAZPLUS.woff") format("woff");
+}
+@font-face {
+    font-family:    "C640";
+    src:            url("C640.woff") format("woff");
+}
+@font-face {
+    font-family:    "C641";
+    src:            url("C641.woff") format("woff");
+}
+@font-face {
+    font-family:    "C1280";
+    src:            url("C1280.woff") format("woff");
+}
+@font-face {
+    font-family:    "C1281";
+    src:            url("C1281.woff") format("woff");
+}
+@font-face {
+    font-family:    "ATARI";
+    src:            url("ATARI.woff") format("woff");
+}
 
 body {
-    font-family:    u_vga16;
+    font-family:    UVGA16;
     font-size:      16px;
     padding-top:    1em;
     padding-bottom: 1em;
     left:           0;
-    right:          0;    
+    right:          0;
     position: relative;
 }
 

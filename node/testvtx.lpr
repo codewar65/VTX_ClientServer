@@ -649,7 +649,7 @@ begin
     + ' Font Support');
   PrintLn;
 
-  PrintLn(#27'[1;37 D'#27'[2;38 D'#27'[3;40 D'#27'[4;41 D');
+  Print(#27'[1;33 D'#27'[2;36 D'#27'[3;37 D'#27'[4;38 D'#27'[5;39 D'#27'[6;40 D'#27'[7;41 D'#27'[8;42 D');
   PrintLn(#27'[94mFont Select command allows the VTX client switch to alternate defined');
   PrintLn('fonts / codepage combinations.');
   PrintLn;
@@ -659,11 +659,15 @@ begin
   PrintLn('    f : the font number preset. 0 = default codepage defined at start of client');
   PrintLn('        (typically CP437). Others are listed in '+URL(9,1,1,'http://cvs.synchro.net/cgi-bin/viewcvs.cgi/*checkout*/src/conio/cterm.txt')+'cterm.txt.');
   PrintLn;
-  PrintLn(#27'[93mCSI 10-19 m'#27'[94m: Select font to begin using for text.');
+  PrintLn(#27'[93mCSI 10-19 m'#27'[94m: Select font to begin using for text.'#27'[93m');
   PrintLn;
-  PrintLn('    '#27'[95;11mP0T NOoOLE (Amiga)      '#27'[12mmO''sOul (Amiga)');
+  PrintLn('    '#27'[11mCommodore 64            '#27'[12mAtari');
   PrintLn;
-  PrintLn('    '#27'[13mTopaz Plus (Amiga)      '#27'[14mMicroKnight (Amiga)');
+  PrintLn('    '#27'[13mP0T-NOoDLE              '#27'[14mmOsOul');
+  PrintLn;
+  PrintLn('    '#27'[15mMicroKnight Plus        '#27'[16mTopaz Plus');
+  PrintLn;
+  PrintLn('    '#27'[17mMicroKnight             '#27'[18mTopaz');
   PrintLn;
 
   Print(#27'[10m'+SGR(ANSI_GREEN) + 'Press '+HOTSPOT(3,1,0,'Q')+'['

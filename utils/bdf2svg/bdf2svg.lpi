@@ -31,6 +31,11 @@
         <CommandLineParams Value="-r microknightplus_v1.0.raw -o microknightplus_v1.0.svg"/>
       </local>
     </RunParams>
+    <RequiredPackages Count="1">
+      <Item1>
+        <PackageName Value="LazUtils"/>
+      </Item1>
+    </RequiredPackages>
     <Units Count="1">
       <Unit0>
         <Filename Value="bdf2svg.lpr"/>

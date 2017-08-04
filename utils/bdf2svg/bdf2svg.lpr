@@ -6,7 +6,7 @@ uses
   {$IFDEF UNIX}{$IFDEF UseCThreads}
   cthreads,
   {$ENDIF}{$ENDIF}
-  strutils, Classes, SysUtils;
+  FileUtil, strutils, Classes, SysUtils;
 
 const
   MULT = 32;
@@ -122,7 +122,11 @@ begin
     + '-o <output svg file>' + CRLF
     + '-9 : 9 bits wide from 8 bit set' + CRLF
     + '-s <start glyph num>' + CRLF
-    + '-e <end glyph num>');
+    + '-e <end glyph num>'  + CRLF
+  	+ '-c : commodore encoding / PETSCII' + CRLF
+    + '-d : double height (8x8 -> 8x16)' + CRLF
+    + '-a : raw encoding (0-255 = $e000-$e0ff)' + CRLF
+    );
 end;
 
 
@@ -144,12 +148,13 @@ begin
 end;
 
 var
+  also : integer;
   imgchecksum : 		integer;
-  i, j : 						integer;
+  i : 							integer;
   arg : 						string;
   bdfname,
   svgname : 				string;
-  rawname, fname : 	string;
+  rawname : 				string;
   state : 					integer;
   startglyph,
   endglyph : 				integer;
@@ -160,33 +165,30 @@ var
   vals : 						TStringArray;
   charname : 				string;					// current glyph name
   enc : 						integer;				// current glyph code point
-  x, y : 						integer;
-  sx, sy, ex, ey : 	integer;
-  sc, ec : 					TCorner;
-  c0, c1, c2, c3 : 	boolean;
 	poly : 						TStickArray;
-  removed : 				boolean;
   font_name,
   weight_name,
   slant,
   style_name,
   face_name : 			string;
+  fname :						string;
   font_ascent,
   font_descent : 		integer;
   default_char,
   cap_height,
   x_height : 				integer;
-	path : 						string;
   dx, dy : 					integer;
   height : 					integer;
   vga9 : 						boolean;				// switch for carry over to bit 9 on special characters
   double : 					boolean;				// switch for expanding 8x8 to 8x16
   truewidth : 			integer;
-  pixw : 						integer;				// last column pixel width
   chr : 						integer;
   fontbank : 				integer;				// bank # in raw file
-  cbmmapping :			boolean;				// map characters as commodore.
+  cbmmapping :			boolean;				// map characters as commodore. E000-E0FF PETSCII
+  rawmapping :			boolean; 				// map to E000-E0FF
   seekto :					longint;
+  base : integer;
+  allglyphs : 			TStringList;
 
 const
   cp437 : array [0..255] of integer = (
@@ -224,6 +226,309 @@ const
     $00B0, $2219, $00B7, $221A, $207F, $00B2, $25A0, $00A0
   );
 
+// generate svg font glyph for chr using current info.
+function generate(truewidth : integer; enc : integer) : string;
+var
+  i, j : 						integer;
+  x, y : 						integer;
+  pixw : 						integer;
+  sx, sy :					integer;
+  ex, ey : 					integer;
+  sc, ec : 					TCorner;
+  c0, c1, c2, c3 : 	boolean;
+  path : 						string;
+  removed :					boolean;
+
+begin
+	// convert to sticks
+  path := '';
+  if (enc >= startglyph) and (enc <= endglyph) then
+  begin
+ 		setlength(pile, 0);
+    for y := 0 to h - 1 do
+    begin
+    	for x := 0 to w - 1 do
+      begin
+ 				if GetPixel(x, y) then
+        begin
+
+          pixw := 1;
+          if vga9 and VGA9Char(enc) and (x = 7) then
+            pixw := 2;
+
+          //  a 0 b
+          // 3 [ ] 1   corners
+          //  d 2 c
+          // pixel on. add sticks.
+          c0 := GetPixel(x, y - 1);
+          c1 := GetPixel(x + 1, y);
+          c2 := GetPixel(x, y + 1);
+          c3 := GetPixel(x - 1, y);
+
+          //   -X-
+          //  |   |
+          //   ---
+          sc := LowerRight;
+          if c3 or c0 then
+            sc := EndPoint;
+          ec := LowerLeft;
+          if c0 or c1 then
+            ec := EndPoint;
+ 					AddStick(pile, x, y, sc, x + pixw, y, ec);
+
+           //   ---
+           //  |   X
+           //   ---
+           sc := LowerLeft;
+           if c0 or c1 then
+             sc := EndPoint;
+           ec := UpperLeft;
+           if c1 or c2 then
+             ec := EndPoint;
+           AddStick(pile, x + pixw, y, sc, x + pixw, y + 1, ec);
+
+           //   ---
+           //  |   |
+           //   -X-
+           sc := UpperLeft;
+           if c1 or c2 then
+             sc := EndPoint;
+           ec := UpperRight;
+           if c2 or c3 then
+             ec := EndPoint;
+           AddStick(pile, x + pixw, y + 1, sc, x, y + 1, ec);
+
+           //   ---
+           //  X   |
+           //   ---
+           sc := UpperRight;
+           if c2 or c3 then
+             sc := EndPoint;
+           ec := LowerRight;
+             if c3 or c0 then
+           ec := EndPoint;
+           AddStick(pile, x, y + 1, sc, x, y, ec);
+      	end;
+    	end; // for x
+		end; // for y
+		// all sticks added.
+
+    // write start of this chardef.
+		if enc = default_char then
+ 			path := '<missing-glyph '
+         + 'horiz-adv-x=''' + inttostr(truewidth * MULT) + ''' '
+         + 'd='''
+    else
+    begin
+//      if enc < 256 then
+// 	     	path := '<glyph unicode=''' + Format('&#x%2.2x;', [enc])
+//           + ''' horiz-adv-x=''' + inttostr(truewidth * MULT) + ''' '
+//           + 'd='''
+//      else
+ 	      path := '<glyph unicode=''' + Format('&#x%4.4x;', [enc])
+ 	        + ''' horiz-adv-x=''' + inttostr(truewidth * MULT) + ''' '
+           + 'd=''';
+    end;
+
+    // pluck out polygons until sticks in pile are gone.
+    // mind the corners
+    while length(pile) > 0 do
+    begin
+    	// get a stick off top of pile
+      setlength(poly, 0);
+
+      sx := pile[0].x1;
+      sy := pile[0].y1;
+      sc := pile[0].corner1;
+
+      ex := pile[0].x2;
+      ey := pile[0].y2;
+      ec := pile[0].corner2;
+
+      AddStick(poly, pile[0]);
+      RemoveStick(pile, 0);
+
+      // find connecting sticks
+      repeat
+        i := length(pile) - 1;
+        while i >= 0 do
+   	  	begin
+
+ 					if (ex = pile[i].x1) and (ey = pile[i].y1) and (ec = pile[i].corner1) then
+ 	      	begin
+          	// adjust end point.
+          	ex := pile[i].x2;
+          	ey := pile[i].y2;
+          	ec := pile[i].corner2;
+
+            // move to poly.
+            AddStick(poly, pile[i]);
+            RemoveStick(pile, i);
+            break;
+          end;
+
+          if (ex = pile[i].x2) and (ey = pile[i].y2) and (ec = pile[i].corner2) then
+          begin
+            // adjust end point
+            ex := pile[i].x1;
+            ey := pile[i].y1;
+            ec := pile[i].corner1;
+
+ 						// move reverse to poly.
+            AddStick(poly,
+              pile[i].x2, pile[i].y2, pile[i].corner2,
+              pile[i].x1, pile[i].y1, pile[i].corner1);
+            RemoveStick(pile, i);
+            break;
+          end;
+          dec(i);
+        end;
+      until (sx = ex) and (sy = ey);
+
+     	// remove midpoints
+     	repeat
+        removed := false;
+        for i := 0 to length(poly) - 2 do
+        begin
+ 					for j := i + 1 to length(poly) - 1 do
+          begin
+          	if (poly[i].x1 = poly[i].x2) and
+					 		(poly[i].x2 = poly[j].x1) and
+              (poly[j].x1 = poly[j].x2) and
+              (poly[i].y2 = poly[j].y1) then
+            begin
+            	// combine
+              poly[i].x2 := poly[j].x2;
+              poly[i].y2 := poly[j].y2;
+              poly[i].corner2 := poly[j].corner2;
+              RemoveStick(poly, j);
+              removed := true;
+            end;
+
+            if (poly[i].y1 = poly[i].y2) and
+ 							(poly[i].y2 = poly[j].y1) and
+              (poly[j].y1 = poly[j].y2) and
+              (poly[i].x2 = poly[j].x1) then
+            begin
+              // combine
+              poly[i].x2 := poly[j].x2;
+              poly[i].y2 := poly[j].y2;
+              poly[i].corner2 := poly[j].corner2;
+              RemoveStick(poly, j);
+              removed := true;
+            end;
+            if removed then break;
+          end;
+         	if removed then break;
+       	end;
+     	until not removed;
+
+ 			// output this poly path
+     	//    from V----------------V to
+     	//<path d="M0,0h200v200h-200z"/></missing-glyph>
+     	// logic for using H and V instead of L
+     	dy := poly[0].y2 - poly[0].y1;
+     	case poly[0].corner1 of
+         EndPoint:
+           path += 'M' + format('%d,%d',   [ (poly[0].x1 * MULT),     ((h - poly[0].y1) * MULT) ]);
+
+         UpperLeft:
+           if dy = 0 then
+             path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT) - 1, ((h - poly[0].y1) * MULT) ])
+           else
+             path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT), 	   ((h - poly[0].y1) * MULT) + 1 ]);
+
+         UpperRight:
+           if dy = 0 then
+             path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT) + 1, ((h - poly[0].y1) * MULT) ])
+           else
+             path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT),     ((h - poly[0].y1) * MULT) + 1 ]);
+
+         LowerRight:
+         	if dy = 0 then
+             path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT) + 1, ((h - poly[0].y1) * MULT) ])
+           else
+             path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT),     ((h - poly[0].y1) * MULT) - 1 ]);
+
+         LowerLeft:
+           if dy = 0 then
+             path += 'M' + format('%d,%d',
+               [ (poly[0].x1 * MULT) - 1, ((h - poly[0].y1) * MULT) ])
+           else
+             path += 'M' + format('%d,%d',
+ 	      			[ (poly[0].x1 * MULT),     ((h - poly[0].y1) * MULT) - 1 ]);
+     	end;
+
+ 			for i := 0 to length(poly) - 1 do
+     	begin
+       	dy := poly[i].y2 - poly[i].y1;
+       	case poly[i].corner2 of
+           EndPoint:
+             path += format(' L%d,%d',
+               [ (poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) ]);
+
+           UpperLeft:
+             if dy = 0 then
+ 	            path += format(' L%d,%d L%d,%d',
+ 		            [ (poly[i].x2 * MULT) - 1, ((h - poly[i].y2) * MULT),
+ 		              (poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) + 1 ])
+             else
+ 	            path += format(' L%d,%d L%d,%d',
+ 		           	[ (poly[i].x2 * MULT), 		 ((h - poly[i].y2) * MULT) + 1,
+ 	  	         		(poly[i].x2 * MULT) - 1, ((h - poly[i].y2) * MULT) ]);
+
+           UpperRight:
+             if dy = 0 then
+ 	            path += format(' L%d,%d L%d,%d',
+ 		           	[ (poly[i].x2 * MULT) + 1, ((h - poly[i].y2) * MULT),
+ 		           		(poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) + 1 ])
+             else
+ 	            path += format(' L%d,%d L%d,%d',
+ 		           	[ (poly[i].x2 * MULT), 		 ((h - poly[i].y2) * MULT) + 1,
+ 	  	         		(poly[i].x2 * MULT) + 1, ((h - poly[i].y2) * MULT) ]);
+
+           LowerRight:
+             if dy = 0 then
+ 	            path += format(' L%d,%d L%d,%d',
+ 		           	[ (poly[i].x2 * MULT) + 1, ((h - poly[i].y2) * MULT),
+ 		         		  (poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) - 1 ])
+             else
+ 	            path += format(' L%d,%d L%d,%d',
+ 		            [ (poly[i].x2 * MULT), 		 ((h - poly[i].y2) * MULT) - 1,
+ 	  	            (poly[i].x2 * MULT) + 1, ((h - poly[i].y2) * MULT) ]);
+
+           LowerLeft:
+             if dy = 0 then
+ 	            path += format(' L%d,%d L%d,%d',
+ 		            [ (poly[i].x2 * MULT) - 1, ((h - poly[i].y2) * MULT),
+ 		              (poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) - 1 ])
+             else
+ 	            path += format(' L%d,%d L%d,%d',
+ 		            [ (poly[i].x2 * MULT), 		 ((h - poly[i].y2) * MULT) - 1,
+ 	  	            (poly[i].x2 * MULT) - 1, ((h - poly[i].y2) * MULT) ]);
+         end;
+       end;
+
+     	// remove the last L#,# and make it autoclose
+ 			for i := length(path) - 1 downto 0 do
+     	begin
+       	if path.Chars[i] = 'L' then
+       	begin
+         	dx := i;
+         	break;
+       	end;
+     	end;
+     	path := path.substring(0, dx) + 'Z';
+		end;
+ 	  // write end of chardef.
+ 		if enc = default_char then
+ 			path := '''></missing-glyph>'
+ 	  else
+ 		  path += '''></glyph>';
+  end;
+  result := path;
+end;
+
 begin
   writeln('bdf2svg - convert bsd bitmap font to svg vector font.' + CRLF
   	+ '(c) 2017 Dan Mecklenburg Jr.' + CRLF);
@@ -239,6 +544,7 @@ begin
   double := false;
   fontbank := 0;
   cbmmapping := false;
+  rawmapping := false;
   for i := 1 to argc - 1 do
   begin
     	arg := argv[i];
@@ -257,6 +563,7 @@ begin
         '-9': vga9 := true;  	// 9 pixels wide
         '-D': double := true;	// double height of 8x8 font
         '-C': cbmmapping := true;
+        '-A': rawmapping := true;
         else
           case state of
             0:
@@ -384,8 +691,8 @@ begin
 	            writeln(fout, '      </font-face>');
 	          end;
 
-	        'SIZE':
-	          height := strtoint(vals[1]);
+//	        'SIZE':
+//	          height := strtoint(vals[1]);
 
 	        'X_HEIGHT':
 	          x_height := strtoint(vals[1]);
@@ -456,296 +763,8 @@ begin
 	            end;
 	            // bitmap image for glyph loaded.
 
-	            // convert to sticks
-	            if (enc >= startglyph) and (enc <= endglyph) then
-	            begin
-								setlength(pile, 0);
-	              for y := 0 to h - 1 do
-	              begin
-	              	for x := 0 to w - 1 do
-	                begin
-										if GetPixel(x, y) then
-	                  begin
+							writeln(fout, generate(truewidth, enc));
 
-	                    pixw := 1;
-	                    if vga9 and VGA9Char(enc) and (x = 7) then
-	                    	pixw := 2;
-
-	                    //  a 0 b
-	                    // 3 [ ] 1   corners
-	                    //  d 2 c
-
-	                    // pixel on. add sticks.
-	                    c0 := GetPixel(x, y - 1);
-	                    c1 := GetPixel(x + 1, y);
-	                    c2 := GetPixel(x, y + 1);
-	                    c3 := GetPixel(x - 1, y);
-
-	                    //   -X-
-	                    //  |   |
-	                    //   ---
-	                    sc := LowerRight;
-	                    if c3 or c0 then
-	                    	sc := EndPoint;
-	                    ec := LowerLeft;
-	                    if c0 or c1 then
-	                    	ec := EndPoint;
-											AddStick(pile, x, y, sc, x + pixw, y, ec);
-
-	                    //   ---
-	                    //  |   X
-	                    //   ---
-	                    sc := LowerLeft;
-	                    if c0 or c1 then
-	                    	sc := EndPoint;
-	                    ec := UpperLeft;
-	                    if c1 or c2 then
-	                    	ec := EndPoint;
-	                    AddStick(pile, x + pixw, y, sc, x + pixw, y + 1, ec);
-
-	                    //   ---
-	                    //  |   |
-	                    //   -X-
-	                    sc := UpperLeft;
-	                    if c1 or c2 then
-	                    	sc := EndPoint;
-	                    ec := UpperRight;
-	                    if c2 or c3 then
-	                    	ec := EndPoint;
-	                    AddStick(pile, x + pixw, y + 1, sc, x, y + 1, ec);
-
-	                    //   ---
-	                    //  X   |
-	                    //   ---
-	                    sc := UpperRight;
-	                    if c2 or c3 then
-	                    	sc := EndPoint;
-	                    ec := LowerRight;
-	                    if c3 or c0 then
-	                    	ec := EndPoint;
-	                    AddStick(pile, x, y + 1, sc, x, y, ec);
-	                  end;
-	                end; // for x
-	              end; // for y
-	              // all sticks added.
-
-								// write start of this chardef.
-								if enc = default_char then
-									write(fout, '      <missing-glyph '
-	              		+ 'horiz-adv-x=''' + inttostr(truewidth * MULT) + ''' '
-	                	+ 'd=''')
-	              else
-	              begin
-	                if enc < 256 then
-			              write(fout, '      <glyph unicode=''' + Format('&#x%2.2x;', [enc])
-		              		+ ''' horiz-adv-x=''' + inttostr(truewidth * MULT) + ''' '
-	                    + 'd=''')
-	                else
-			              write(fout, '      <glyph unicode=''' + Format('&#x%4.4x;', [enc])
-	  	              	+ ''' horiz-adv-x=''' + inttostr(truewidth * MULT) + ''' '
-	                    + 'd=''');
-	              end;
-	              path := '';
-
-	              // pluck out polygons until sticks in pile are gone.
-	              // mind the corners
-	              while length(pile) > 0 do
-	              begin
-	                // get a stick off top of pile
-	                setlength(poly, 0);
-
-	                sx := pile[0].x1;
-	                sy := pile[0].y1;
-	                sc := pile[0].corner1;
-
-	                ex := pile[0].x2;
-	                ey := pile[0].y2;
-	                ec := pile[0].corner2;
-
-	                AddStick(poly, pile[0]);
-	                RemoveStick(pile, 0);
-
-	                // find connecting sticks
-	                repeat
-	                  i := length(pile) - 1;
-	                  while i >= 0 do
-	  	              begin
-
-											if (ex = pile[i].x1) and (ey = pile[i].y1) and (ec = pile[i].corner1) then
-		                  begin
-	                      // adjust end point.
-	                      ex := pile[i].x2;
-	                      ey := pile[i].y2;
-	                      ec := pile[i].corner2;
-
-	                      // move to poly.
-	                      AddStick(poly, pile[i]);
-	                      RemoveStick(pile, i);
-	                      break;
-	                    end;
-
-	                    if (ex = pile[i].x2) and (ey = pile[i].y2) and (ec = pile[i].corner2) then
-	                    begin
-	                      // adjust end point
-	                      ex := pile[i].x1;
-	                      ey := pile[i].y1;
-	                      ec := pile[i].corner1;
-
-												// move reverse to poly.
-	                      AddStick(poly,
-	                      	pile[i].x2, pile[i].y2, pile[i].corner2,
-	                      	pile[i].x1, pile[i].y1, pile[i].corner1);
-	                      RemoveStick(pile, i);
-	                      break;
-	                    end;
-	                    dec(i);
-	                  end;
-	                until (sx = ex) and (sy = ey);
-
-	                // remove midpoints
-	                repeat
-	                  removed := false;
-	                  for i := 0 to length(poly) - 2 do
-	                  begin
-											for j := i + 1 to length(poly) - 1 do
-	                    begin
-	                      if (poly[i].x1 = poly[i].x2) and
-													 (poly[i].x2 = poly[j].x1) and
-	                         (poly[j].x1 = poly[j].x2) and
-	                         (poly[i].y2 = poly[j].y1) then
-	                      begin
-	                        // combine
-	                        poly[i].x2 := poly[j].x2;
-	                        poly[i].y2 := poly[j].y2;
-	                        poly[i].corner2 := poly[j].corner2;
-	                        RemoveStick(poly, j);
-	                        removed := true;
-	                      end;
-
-	                      if (poly[i].y1 = poly[i].y2) and
-													 (poly[i].y2 = poly[j].y1) and
-	                         (poly[j].y1 = poly[j].y2) and
-	                         (poly[i].x2 = poly[j].x1) then
-	                      begin
-	                        // combine
-	                        poly[i].x2 := poly[j].x2;
-	                        poly[i].y2 := poly[j].y2;
-	                        poly[i].corner2 := poly[j].corner2;
-	                        RemoveStick(poly, j);
-	                        removed := true;
-	                      end;
-	                      if removed then break;
-	                    end;
-	                    if removed then break;
-	                  end;
-	                until not removed;
-
-									// output this poly path
-	                //    from V----------------V to
-		              //<path d="M0,0h200v200h-200z"/></missing-glyph>
-	                // logic for using H and V instead of L
-	                dy := poly[0].y2 - poly[0].y1;
-	                case poly[0].corner1 of
-	                  EndPoint:
-	                    path += 'M' + format('%d,%d',   [ (poly[0].x1 * MULT),     ((h - poly[0].y1) * MULT) ]);
-
-	                  UpperLeft:
-	                    if dy = 0 then
-	                    	path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT) - 1, ((h - poly[0].y1) * MULT) ])
-	                    else
-		                  	path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT), 	   ((h - poly[0].y1) * MULT) + 1 ]);
-
-	                  UpperRight:
-	                    if dy = 0 then
-	                    	path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT) + 1, ((h - poly[0].y1) * MULT) ])
-	                    else
-		                  	path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT),     ((h - poly[0].y1) * MULT) + 1 ]);
-
-	                  LowerRight:
-	                    if dy = 0 then
-	                    	path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT) + 1, ((h - poly[0].y1) * MULT) ])
-	                    else
-		                  	path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT),     ((h - poly[0].y1) * MULT) - 1 ]);
-
-	                  LowerLeft:
-	                    if dy = 0 then
-	                    	path += 'M' + format('%d,%d',
-	                    		[ (poly[0].x1 * MULT) - 1, ((h - poly[0].y1) * MULT) ])
-	                    else
-		                  	path += 'M' + format('%d,%d',
-	  	                		[ (poly[0].x1 * MULT),     ((h - poly[0].y1) * MULT) - 1 ]);
-	                end;
-
-									for i := 0 to length(poly) - 1 do
-	                begin
-	                  dy := poly[i].y2 - poly[i].y1;
-	                  case poly[i].corner2 of
-	                    EndPoint:
-	                      path += format(' L%d,%d',
-	                      		[ (poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) ]);
-
-	                    UpperLeft:
-	                      if dy = 0 then
-		                      path += format(' L%d,%d L%d,%d',
-			                    	[ (poly[i].x2 * MULT) - 1, ((h - poly[i].y2) * MULT),
-			                    		(poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) + 1 ])
-	                      else
-		                      path += format(' L%d,%d L%d,%d',
-			                    	[ (poly[i].x2 * MULT), 		 ((h - poly[i].y2) * MULT) + 1,
-		  	                  		(poly[i].x2 * MULT) - 1, ((h - poly[i].y2) * MULT) ]);
-
-	                    UpperRight:
-	                      if dy = 0 then
-		                      path += format(' L%d,%d L%d,%d',
-			                    	[ (poly[i].x2 * MULT) + 1, ((h - poly[i].y2) * MULT),
-			                    		(poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) + 1 ])
-	                      else
-		                      path += format(' L%d,%d L%d,%d',
-			                    	[ (poly[i].x2 * MULT), 		 ((h - poly[i].y2) * MULT) + 1,
-		  	                  		(poly[i].x2 * MULT) + 1, ((h - poly[i].y2) * MULT) ]);
-
-	                    LowerRight:
-	                      if dy = 0 then
-		                      path += format(' L%d,%d L%d,%d',
-			                    	[ (poly[i].x2 * MULT) + 1, ((h - poly[i].y2) * MULT),
-			                    		(poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) - 1 ])
-	                      else
-		                      path += format(' L%d,%d L%d,%d',
-			                    	[ (poly[i].x2 * MULT), 		 ((h - poly[i].y2) * MULT) - 1,
-		  	                  		(poly[i].x2 * MULT) + 1, ((h - poly[i].y2) * MULT) ]);
-
-	                    LowerLeft:
-	                      if dy = 0 then
-		                      path += format(' L%d,%d L%d,%d',
-			                    	[ (poly[i].x2 * MULT) - 1, ((h - poly[i].y2) * MULT),
-			                    		(poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) - 1 ])
-	                      else
-		                      path += format(' L%d,%d L%d,%d',
-			                    	[ (poly[i].x2 * MULT), 		 ((h - poly[i].y2) * MULT) - 1,
-		  	                  		(poly[i].x2 * MULT) - 1, ((h - poly[i].y2) * MULT) ]);
-	                  end;
-	                end;
-
-	                // remove the last L#,# and make it autoclose
-									for i := length(path) - 1 downto 0 do
-	                begin
-	                  if path.Chars[i] = 'L' then
-	                  begin
-	                    dx := i;
-		                  break;
-	                  end;
-	                end;
-	                path := path.substring(0, dx) + 'Z';
-
-	              end;
-
-	              // write end of chardef.
-								if enc = default_char then
-									writeln(fout, path + '''></missing-glyph>')
-	              else
-		              writeln(fout, path + '''></glyph>');
-
-	            end;
 	          end;
 	      end;
 	    end;
@@ -757,6 +776,7 @@ begin
   begin
 		// raw binary file (256 characters)
     bin := tfilestream.create(rawname, fmOpenRead);
+		fname := ExtractFileNameWithoutExt(svgname);
 
     // skip to fontbank
     seekto := fontbank * 16 * 256;
@@ -766,7 +786,6 @@ begin
     height := 16;
     x_height := 16;
     cap_height := 16;
-    default_char := 0;
     font_name := rawname;
     weight_name := 'Medium';
     slant := 'R';
@@ -786,7 +805,8 @@ begin
 
     writeln(fout, '    <font id="font" horiz-adv-x="0">');
     writeln(fout, '      <font-face');
-    writeln(fout, '        font-family="' + face_name + '"');
+    writeln(fout, '        font-family="' + fname + '"');
+    //writeln(fout, '        font-family="' + face_name + '"');
     writeln(fout, '        font-weight="' + weight_name + '"');
     writeln(fout, '        font-style="' + style_name + '"');
     writeln(fout, '        units-per-em="' + inttostr(height * MULT) + '"');
@@ -795,30 +815,82 @@ begin
   	writeln(fout, '        ascent="' + inttostr(height * MULT) + '"');
   	writeln(fout, '        descent="' + inttostr(0 * MULT) + '">');
     writeln(fout, '        <font-face-src>');
-    writeln(fout, '          <font-face-name name="' + face_name + '"/>');
+    writeln(fout, '          <font-face-name name="' + fname + '"/>');
+    //writeln(fout, '          <font-face-name name="' + face_name + '"/>');
     writeln(fout, '        </font-face-src>');
     writeln(fout, '      </font-face>');
+
+    default_char := -1;
+		writeln(fout, '<missing-glyph '
+       + 'horiz-adv-x=''' + inttostr(truewidth * MULT) + ''' '
+       + 'd=''''></missing-glyph>');
+
+    allglyphs := TStringList.Create();
 
     for chr := 0 to 255 do
 		begin
 
+      also := -1;
+     	base := -1;
       if cbmmapping then
       begin
-				if chr < 32 then
-        	enc := 64 + chr
-        else if chr < 64 then
-        	enc := chr
-        else if chr < 96 then
-        	enc := chr - 64 + 96
-        else
-        	enc := chr - 96 + 224;
+        // map commodore rom chars to petscii codepoints
+        // 	move 0x00 - 0x1F  to  0x40 - 0x5F
+        //	move 0x20 - 0x3F	to	0x20 - 0x3F
+        //	move 0x40 - 0x5F	to	0x60 - 0x7F / 0xC0 - 0xDF
+        //	move 0x60 - 0x7F	to 	0xA0 - 0xBF / 0xE0 - 0xFF
+        case chr of
+          $00..$1F:
+            begin
+    					base := chr + $40;
+              enc := chr + $E040;
+            end;
+          $20..$3f:
+            begin
+    					base := chr;
+              enc := chr + $E000;
+            end;
+         	$40..$5F:
+            begin
+              base := chr - $40 + $60;
+              enc := chr - $40 + $E060;
+              also := chr - $40 + $E0C0;
+            end;
+          $60..$7F:
+            begin
+              enc := chr - $60 + $E0A0;
+              also := chr - $60 + $E0E0;
+            end;
+          else
+            // don't need reversed glyphs
+            break;
+        end;
+
 			end
+      else if rawmapping then
+      begin
+        case chr of
+          $00..$1F:
+            begin
+              enc := chr + $E000;
+            end;
+          $20..$7F:
+            begin
+    					base := chr;
+              enc := chr + $E000;
+            end;
+          $80..$FF:
+            begin
+              enc := chr + $E000;
+            end;
+        end;
+      end
       else
       begin
-    	  if chr < 32 then
-					enc := $2400 + chr
-	      else
-	    	 	enc := chr;
+    	  if (chr >= 32) then
+					enc := chr
+        else
+	   	 		enc := chr + $2400;
       end;
 
       writeln('Character : ' + inttostr(enc));
@@ -838,300 +910,20 @@ begin
   	    begin
     	   	img[i] := bin.readbyte;
       	  imgchecksum += img[i];
-	      end;
+        end;
 
-      if (chr < 32) and (imgchecksum = 0) then
-      begin
-      	enc := -1;	// skip
-      end;
-
-      // convert to sticks
- 	    if (enc >= startglyph) and (enc <= endglyph) then
- 	    begin
- 				setlength(pile, 0);
- 	      for y := 0 to h - 1 do
- 	      begin
- 	        for x := 0 to w - 1 do
- 	        begin
- 						if GetPixel(x, y) then
- 	          begin
-
- 	            pixw := 1;
- 	            if vga9 and VGA9Char(enc) and (x = 7) then
- 	              pixw := 2;
-
- 	            //  a 0 b
- 	            // 3 [ ] 1   corners
- 	            //  d 2 c
- 	            // pixel on. add sticks.
- 	            c0 := GetPixel(x, y - 1);
- 	            c1 := GetPixel(x + 1, y);
- 	            c2 := GetPixel(x, y + 1);
- 	            c3 := GetPixel(x - 1, y);
-
- 	            //   -X-
- 	            //  |   |
- 	            //   ---
- 	            sc := LowerRight;
- 	            if c3 or c0 then
- 	              sc := EndPoint;
- 	            ec := LowerLeft;
- 	            if c0 or c1 then
- 	              ec := EndPoint;
- 							AddStick(pile, x, y, sc, x + pixw, y, ec);
-
- 	            //   ---
- 	            //  |   X
- 	            //   ---
- 	            sc := LowerLeft;
- 	            if c0 or c1 then
- 	              sc := EndPoint;
- 	            ec := UpperLeft;
- 	            if c1 or c2 then
- 	              ec := EndPoint;
- 	            AddStick(pile, x + pixw, y, sc, x + pixw, y + 1, ec);
-
- 	            //   ---
- 	            //  |   |
- 	            //   -X-
- 	            sc := UpperLeft;
- 	            if c1 or c2 then
- 	              sc := EndPoint;
- 	            ec := UpperRight;
- 	            if c2 or c3 then
- 	              ec := EndPoint;
- 	            AddStick(pile, x + pixw, y + 1, sc, x, y + 1, ec);
-
- 	            //   ---
- 	            //  X   |
- 	            //   ---
- 	            sc := UpperRight;
- 	            if c2 or c3 then
- 	              sc := EndPoint;
- 	            ec := LowerRight;
- 	              if c3 or c0 then
- 	            ec := EndPoint;
- 	            AddStick(pile, x, y + 1, sc, x, y, ec);
- 	          end;
- 	        end; // for x
- 	      end; // for y
- 	      // all sticks added.
-
- 				// write start of this chardef.
- 				if enc = default_char then
- 					write(fout, '      <missing-glyph '
- 	          + 'horiz-adv-x=''' + inttostr(truewidth * MULT) + ''' '
- 	          + 'd=''')
- 	      else
- 	      begin
- 	        if enc < 256 then
- 			      write(fout, '      <glyph unicode=''' + Format('&#x%2.2x;', [enc])
- 		          + ''' horiz-adv-x=''' + inttostr(truewidth * MULT) + ''' '
- 	            + 'd=''')
- 	        else
- 			      write(fout, '      <glyph unicode=''' + Format('&#x%4.4x;', [enc])
- 	  	        + ''' horiz-adv-x=''' + inttostr(truewidth * MULT) + ''' '
- 	            + 'd=''');
- 	      end;
- 	      path := '';
-
- 	              // pluck out polygons until sticks in pile are gone.
- 	              // mind the corners
-	 	    while length(pile) > 0 do
-	 	    begin
-	 	      // get a stick off top of pile
-	 	      setlength(poly, 0);
-
-	 	      sx := pile[0].x1;
-	 	      sy := pile[0].y1;
-	 	      sc := pile[0].corner1;
-
-	 	      ex := pile[0].x2;
-	 	      ey := pile[0].y2;
-	 	      ec := pile[0].corner2;
-
-	 	      AddStick(poly, pile[0]);
-	 	      RemoveStick(pile, 0);
-
-	 	      // find connecting sticks
-	 	      repeat
-	 	        i := length(pile) - 1;
-	 	        while i >= 0 do
-	 	  	    begin
-
-	 						if (ex = pile[i].x1) and (ey = pile[i].y1) and (ec = pile[i].corner1) then
-	 		        begin
-	 	            // adjust end point.
-	 	            ex := pile[i].x2;
-	 	            ey := pile[i].y2;
-	 	            ec := pile[i].corner2;
-
-	 	            // move to poly.
-	 	            AddStick(poly, pile[i]);
-	 	            RemoveStick(pile, i);
-	 	            break;
-	 	          end;
-
-	 	          if (ex = pile[i].x2) and (ey = pile[i].y2) and (ec = pile[i].corner2) then
-	 	          begin
-	 	            // adjust end point
-	 	            ex := pile[i].x1;
-	 	            ey := pile[i].y1;
-	 	            ec := pile[i].corner1;
-
-	 							// move reverse to poly.
-	 	            AddStick(poly,
-	 	              pile[i].x2, pile[i].y2, pile[i].corner2,
-	 	              pile[i].x1, pile[i].y1, pile[i].corner1);
-	 	            RemoveStick(pile, i);
-	 	            break;
-	 	          end;
-	 	          dec(i);
-	 	        end;
-	 	      until (sx = ex) and (sy = ey);
-
- 	      	// remove midpoints
- 	      	repeat
- 	          removed := false;
- 	          for i := 0 to length(poly) - 2 do
- 	          begin
- 							for j := i + 1 to length(poly) - 1 do
- 	            begin
- 	              if (poly[i].x1 = poly[i].x2) and
- 									(poly[i].x2 = poly[j].x1) and
- 	                (poly[j].x1 = poly[j].x2) and
- 	                (poly[i].y2 = poly[j].y1) then
- 	              begin
- 	                // combine
- 	                poly[i].x2 := poly[j].x2;
- 	                poly[i].y2 := poly[j].y2;
- 	                poly[i].corner2 := poly[j].corner2;
- 	                RemoveStick(poly, j);
- 	                removed := true;
- 	              end;
-
- 	              if (poly[i].y1 = poly[i].y2) and
- 									(poly[i].y2 = poly[j].y1) and
- 	                (poly[j].y1 = poly[j].y2) and
- 	                (poly[i].x2 = poly[j].x1) then
- 	              begin
- 	                // combine
- 	                poly[i].x2 := poly[j].x2;
- 	                poly[i].y2 := poly[j].y2;
- 	                poly[i].corner2 := poly[j].corner2;
- 	                RemoveStick(poly, j);
- 	                removed := true;
- 	              end;
- 	              if removed then break;
- 	            end;
- 	          	if removed then break;
- 	        	end;
- 	      	until not removed;
-
- 					// output this poly path
- 	      	//    from V----------------V to
- 		    	//<path d="M0,0h200v200h-200z"/></missing-glyph>
- 	      	// logic for using H and V instead of L
- 	      	dy := poly[0].y2 - poly[0].y1;
- 	      	case poly[0].corner1 of
- 	          EndPoint:
- 	            path += 'M' + format('%d,%d',   [ (poly[0].x1 * MULT),     ((h - poly[0].y1) * MULT) ]);
-
- 	          UpperLeft:
- 	            if dy = 0 then
- 	              path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT) - 1, ((h - poly[0].y1) * MULT) ])
- 	            else
- 		            path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT), 	   ((h - poly[0].y1) * MULT) + 1 ]);
-
- 	          UpperRight:
- 	            if dy = 0 then
- 	              path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT) + 1, ((h - poly[0].y1) * MULT) ])
- 	            else
- 		            path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT),     ((h - poly[0].y1) * MULT) + 1 ]);
-
- 	          LowerRight:
- 	          	if dy = 0 then
- 	              path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT) + 1, ((h - poly[0].y1) * MULT) ])
- 	            else
- 		            path += 'M' + format('%d,%d', [ (poly[0].x1 * MULT),     ((h - poly[0].y1) * MULT) - 1 ]);
-
- 	          LowerLeft:
- 	            if dy = 0 then
- 	              path += 'M' + format('%d,%d',
- 	                [ (poly[0].x1 * MULT) - 1, ((h - poly[0].y1) * MULT) ])
- 	            else
- 		            path += 'M' + format('%d,%d',
- 	  	      			[ (poly[0].x1 * MULT),     ((h - poly[0].y1) * MULT) - 1 ]);
- 	      	end;
-
- 					for i := 0 to length(poly) - 1 do
- 	      	begin
- 	        	dy := poly[i].y2 - poly[i].y1;
- 	        	case poly[i].corner2 of
-	 	          EndPoint:
-	 	            path += format(' L%d,%d',
-	 	              [ (poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) ]);
-
-	 	          UpperLeft:
-	 	            if dy = 0 then
-	 		            path += format(' L%d,%d L%d,%d',
-	 			            [ (poly[i].x2 * MULT) - 1, ((h - poly[i].y2) * MULT),
-	 			              (poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) + 1 ])
-	 	            else
-	 		            path += format(' L%d,%d L%d,%d',
-	 			           	[ (poly[i].x2 * MULT), 		 ((h - poly[i].y2) * MULT) + 1,
-	 		  	         		(poly[i].x2 * MULT) - 1, ((h - poly[i].y2) * MULT) ]);
-
-	 	          UpperRight:
-	 	            if dy = 0 then
-	 		            path += format(' L%d,%d L%d,%d',
-	 			           	[ (poly[i].x2 * MULT) + 1, ((h - poly[i].y2) * MULT),
-	 			           		(poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) + 1 ])
-	 	            else
-	 		            path += format(' L%d,%d L%d,%d',
-	 			           	[ (poly[i].x2 * MULT), 		 ((h - poly[i].y2) * MULT) + 1,
-	 		  	         		(poly[i].x2 * MULT) + 1, ((h - poly[i].y2) * MULT) ]);
-
-	 	          LowerRight:
-	 	            if dy = 0 then
-	 		            path += format(' L%d,%d L%d,%d',
-	 			           	[ (poly[i].x2 * MULT) + 1, ((h - poly[i].y2) * MULT),
-	 			         		  (poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) - 1 ])
-	 	            else
-	 		            path += format(' L%d,%d L%d,%d',
-	 			            [ (poly[i].x2 * MULT), 		 ((h - poly[i].y2) * MULT) - 1,
-	 		  	            (poly[i].x2 * MULT) + 1, ((h - poly[i].y2) * MULT) ]);
-
-	 	          LowerLeft:
-	 	            if dy = 0 then
-	 		            path += format(' L%d,%d L%d,%d',
-	 			            [ (poly[i].x2 * MULT) - 1, ((h - poly[i].y2) * MULT),
-	 			              (poly[i].x2 * MULT),     ((h - poly[i].y2) * MULT) - 1 ])
-	 	            else
-	 		            path += format(' L%d,%d L%d,%d',
-	 			            [ (poly[i].x2 * MULT), 		 ((h - poly[i].y2) * MULT) - 1,
-	 		  	            (poly[i].x2 * MULT) - 1, ((h - poly[i].y2) * MULT) ]);
- 		        end;
-	 	      end;
-
- 	      	// remove the last L#,# and make it autoclose
- 					for i := length(path) - 1 downto 0 do
- 	      	begin
- 	        	if path.Chars[i] = 'L' then
- 	        	begin
- 	          	dx := i;
- 		        	break;
- 	        	end;
- 	      	end;
- 	      	path := path.substring(0, dx) + 'Z';
-				end;
-     	  // write end of chardef.
-     		if enc = default_char then
-     			writeln(fout, path + '''></missing-glyph>')
-     	  else
-     		  writeln(fout, path + '''></glyph>');
-    	end;
+      allglyphs.Add(generate(truewidth, enc));
+      if base >= 0 then
+	      allglyphs.Add(generate(truewidth, base));
+      if also >= 0 then
+      	allglyphs.Add(generate(truewidth, also));
     end;
+
+		allglyphs.Sort;
+
+    for i := 0 to allglyphs.Count-1 do
+    	writeln(fout, allglyphs[i]);
+
     bin.free;
 
   end;

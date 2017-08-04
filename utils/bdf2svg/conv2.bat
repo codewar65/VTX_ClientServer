@@ -1,27 +1,28 @@
 @echo off
 
-bdf2svg -c -d -f 0 -r c64.bin      -o c64_0.svg
-bdf2svg -c -d -f 1 -r c64.bin      -o c64_1.svg
-bdf2svg -c -d -f 0 -r c128.bin     -o c128_0.svg
-bdf2svg -c -d -f 1 -r c128.bin     -o c128_1.svg
-bdf2svg -c -d -f 0 -r vic20.bin    -o vic20_0.svg
-bdf2svg -c -d -f 1 -r vic20.bin    -o vic20_1.svg
-bdf2svg -c -d -f 0 -r superpet.bin -o superpet_0.svg
-bdf2svg -c -d -f 1 -r superpet.bin -o superpet_1.svg
-bdf2svg -c -d -f 0 -r pet-1.bin    -o pet-1.svg
-
+REM - convert to WOFF
 echo Open($1) > conv.pe
-echo Generate($1:r+'.ttf') >> conv.pe
+rem echo Generate($1:r+'.ttf') >> conv.pe
 echo Generate($1:r+'.woff') >> conv.pe
 
-"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe c64_0.svg
-"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe c64_1.svg
-"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe c128_0.svg
-"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe c128_1.svg
-"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe vic20_0.svg
-"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe vic20_1.svg
-"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe superpet_0.svg
-"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe superpet_1.svg
-"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe pet-1.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe MICROKNIGHTPLUS.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe MICROKNIGHT.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe MOSOUL.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe P0TNOODLE.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe TOPAZPLUS.svg
+rem "c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe TOPAZPLUS_A500.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe TOPAZ.svg
+rem "c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe TOPAZ_A500.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe UVGA16.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe C640.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe C641.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe C1280.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe C1281.svg
+rem "c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe vic20_0.svg
+rem "c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe vic20_1.svg
+rem "c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe superpet_0.svg
+rem "c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe superpet_1.svg
+rem "c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe pet-1.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe ATARI.svg
 
 del conv.pe
