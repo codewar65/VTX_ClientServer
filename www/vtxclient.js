@@ -275,8 +275,12 @@ var
     modeCBMShift = true,        // PETSCII shift enabled
     modeDOORWAY = false,        // DOORWAY mode
     modeAutoWrap = true,        // Autowrap Mode
-
     modeNextGlyph = false,      // if DOORWAY mode, print glyph associated with this byte!
+
+    // scroll region info.
+    regionTopRow,               // top row of scroll region.
+    regionBottomRow,            // bottom row of scroll region.
+    modeRegionOrigin,           // origin in region?
     
     // display buffer.
     conBuffer = '',             // console output buffer. (use string for now).
@@ -1418,297 +1422,394 @@ var
 
     // http://invisible-island.net/xterm/xterm-function-keys.html
     // http://ansi-bbs.org/ansi-bbs2/index.ssjs
-    keyvals = {
+    // TODO : split into separate tables for each shiftstate.
+    keysS0C0A0 = {  // Normal keys
 
-        //  null,       let browser handle key
-        //  < 0,        special action
-        //  = 0,        attempt to block completely
-        //  > 0,        send ascii
-        //  string,     send string
-        //  function,   execute
-
-        //    NORMAL  SHIFT    CTRL        C+S     ALT     S+A     C+A    C+S+A
-         0: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // windows - ie
-         8: [ function (){
-                return cbm?0x14:0x08;
-            },          0,      0,          0,      0,      0,      0,      0 ], // backspace
-         9: [ function (){ // toggle text / gfx modes
+        0:  0,                  // windows - ie
+        8:  function (){        // backspace
+                return cbm?0x14:0x08; }, 
+        9:  function (){        // tab
                 if (cbm) { 
+                    // toggle text / gfx modes
                     conFontNum ^= 0x1;
                     renderAll();
                     return 0;
                 } else 
-                    return x09;
-            },          function(){ 
-                            return modeDOORWAY?'\x00\x0F':0;
-                        },      0,          0,      0,      0,      0,      0 ], // tab
-        12: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // clear (numpad5 numlk off)
-        13: [ CR,       function () {
-                            return cbm?0x8d:0;
-                        },      0,          0,      0,      0,      0,      0 ], // enter
-        16: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // shift
-        17: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // ctrl
-        18: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // alt
-        19: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // pause/break
-        20: [ DO_CAPLK, 0,      0,          0,      0,      0,      0,      0 ], // caps lock
-        27: [ function () { // run/stop
-                return cbm?0x03:0x1B;
-            },          0,      0,          0,      0,      0,      0,      0 ], // esc
-        32: [ ' ',      '\xa0', 0,          0,      0,      0,      0,      0 ], // spacebar
-        33: [ function(){
-                return modeDOORWAY?'\x00\x49':CSI+'V';
-            },          0,      function(){
-                                    return modeDOORWAY?'\x00\x84':0;
-                                },          0,      0,      0,      0,      0 ], // pgup
-        34: [ function(){
-                return modeDOORWAY?'\x00\x51':CSI+'U';
-            },          0,      function(){ 
-                                    return modeDOORWAY?'\x00\x76':0;
-                                },          0,      0,      0,      0,      0 ], // pgdn
-        35: [ function(){ // text
-                return modeDOORWAY?'\x00\x4F':(cbm?0x0E:CSI+'K');
-            },          function(){ // graphics
-                            return cbm?0x8E:0;
-                        },      function(){
-                                    return modeDOORWAY?'\x00\x75':0;
-                                },          0,      0,      0,      0,      0 ], // end
-        36: [ function () { // home
-                return modeDOORWAY?'\x00\x47':(cbm?0x13:CSI+'H');
-            },          function(){ // clr
-                            return cbm?0x93:0;
-                        },      function(){ 
-                                    return modeDOORWAY?'/x00/x77':0;
-                                },          0,      0,      0,      0,      0 ], // home
-        37: [ function () {
-                return modeDOORWAY?'\x00\x4B':(cbm?0x9D:CSI+'D');
-            },          0,      function(){
-                                    return modeDOORWAY?'\x00\x73':0;
-                                },          0,      0,      0,      0,      0 ], // left
-        38: [ function () {
-                return modeDOORWAY?'\x00\x48':(cbm?0x91:CSI+'A');
-            },          0,      0,          0,      0,      0,      0,      0 ], // up
-        39: [ function () {
-                return modeDOORWAY?'\x00\x4D':(cbm?0x1D:CSI+'C');
-            },          0,      function(){
-                                    return modeDOORWAY?'\x00\x74':0;
-                                },          0,      0,      0,      0,      0 ], // right
-        40: [ function () {
-                return modeDOORWAY?'\x00\x50':(cbm?0x11:CSI+'B');
-            },          0,      0,          0,      0,      0,      0,      0 ], // down
-        45: [ function (){
-                return modeDOORWAY?'\x00\x52':(cbm?0x94:CSI+'@');
-            },          0,      0,          0,      0,      0,      0,      0 ], // insert
-        46: [ function (){
-                return cbm?0x14:0x7f;
-            },          0,      0,          0,      0,      0,      null,   0 ], // delete
-        48: [ '0',      ')',    function(){ // rev off
-                                    return cbm?0x92:0;
-                                },          0,      0,      0,      0,      0 ], // 0
-        49: [ '1',      '!',    function(){ // black
-                                    return cbm?0x90:0;
-                                },          0,      function(){ // orange
-                                                        return cbm?0x81:0;
-                                                    },      0,      0,      0 ], // 1
-        50: [ '2',      '@',    function(){ // white
-                                    return cbm?0x05:0;
-                                },          0,      function(){ // brown
-                                                        return cbm?0x95:0;
-                                                    },      0,      0,      0 ], // 2
-        51: [ '3',      '#',    function(){ // red
-                                    return cbm?0x1C:0;
-                                },          0,      function(){ // lt red
-                                                        return cbm?0x96:0;
-                                                    },      0,      0,      0 ], // 3
-        52: [ '4',      '$',    function(){ // cyan
-                                    return cbm?0x9f:0;
-                                },          0,      function(){ // dk gray
-                                                        return cbm?0x97:0;
-                                                    },      0,      0,      0 ], // 4
-        53: [ '5',      '%',    function(){ // purple
-                                    return cbm?0x9c:0;
-                                },          0,      function(){ // gray
-                                                        return cbm?0x98:0;
-                                                    },      0,      0,      0 ], // 5
-        54: [ '6',      '^',    function(){ // green
-                                    return cbm?0x1e:0;
-                                },          0,      function(){ // lt green
-                                                        return cbm?0x99:0;
-                                                    },      0,      0,      0 ], // 6
-        55: [ '7',      '&',    function(){ // blue
-                                    return cbm?0x1f:0;
-                                },          0,      function(){ // lt blue
-                                                        return cbm?0x9a:0;
-                                                    },      0,      0,      0 ], // 7
-        56: [ '8',      '*',    function(){ // yellow
-                                    return cbm?0x9e:0;
-                                },          0,      function(){ // lt gray
-                                                        return cbm?0x9b:0;
-                                                    },      0,      0,      0 ], // 8
-        57: [ '9',      '(',    function(){ // rev on
-                                    return cbm?0x12:0;
-                                },          0,      0,      0,      0,      0 ], // 9
-        59: [ ';',      ':',    0,          0,      0,      0,      0,      0 ], // ;: - firefox
-        61: [ '=',      '+',    0,          0,      0,      0,      0,      0 ], // =+ - firefox
-        65: [ 'a',      'A',    0x01,       0,      0,      0,      0,      0 ], // a
-        66: [ 'b',      'B',    0x02,       0,      0,      0,      0,      0 ], // b
-        67: [ 'c',      'C',    null,       0,      0,      0,      0,      0 ], // c - browser copy
-        68: [ 'd',      'D',    0x04,       0,      0,      0,      0,      0 ], // d
-        69: [ 'e',      'E',    0x05,       0,      0,      0,      0,      0 ], // e
-        70: [ 'f',      'F',    0x06,       0,      0,      0,      0,      0 ], // f
-        71: [ 'g',      'G',    0x07,       0,      0,      0,      0,      0 ], // g
-        72: [ 'h',      'H',    0x08,       0,      0,      0,      0,      0 ], // h
-        73: [ 'i',      'I',    0x09,       0,      0,      0,      0,      0 ], // i
-        74: [ 'j',      'J',    0x0a,       0,      0,      0,      0,      0 ], // j
-        75: [ 'k',      'K',    0x0b,       0,      0,      0,      0,      0 ], // k
-        76: [ 'l',      'L',    0x0c,       0,      0,      0,      0,      0 ], // l
-        77: [ 'm',      'M',    0x0d,       0,      0,      0,      0,      0 ], // m
-        78: [ 'n',      'N',    null,       0,      0,      0,      0,      0 ], // n - browser new window
-        79: [ 'o',      'O',    0x0f,       0,      0,      0,      0,      0 ], // o
-        80: [ 'p',      'P',    0x10,       0,      0,      0,      0,      0 ], // p
-        81: [ 'q',      'Q',    0x11,       0,      0,      0,      0,      0 ], // q
-        82: [ 'r',      'R',    0x12,       0,      0,      0,      0,      0 ], // r
-        83: [ 's',      'S',    0x13,       0,      0,      0,      0,      0 ], // s
-        84: [ 't',      'T',    null,       0,      0,      0,      0,      0 ], // t - browser new tab
-        85: [ 'u',      'U',    0x15,       0,      0,      0,      0,      0 ], // u
-        86: [ 'v',      'V',    null,       0,      0,      0,      0,      0 ], // v - browser paste
-        87: [ 'w',      'W',    null,       0,      0,      0,      0,      0 ], // w - browser close window
-        88: [ 'x',      'X',    0x18,       0,      0,      0,      0,      0 ], // x
-        89: [ 'y',      'Y',    0x19,       0,      0,      0,      0,      0 ], // y
-        90: [ 'z',      'Z',    0x1a,       0,      0,      0,      0,      0 ], // z
-        91: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // left win
-        92: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // right win
-        93: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // select
-        96: [ '0',      0,      0,          0,      0,      0,      0,      0 ], // numpad0
-        97: [ '1',      0,      0,          0,      0,      0,      0,      0 ], // numpad1
-        98: [ '2',      0,      0,          0,      0,      0,      0,      0 ], // numpad2
-        99: [ '3',      0,      0,          0,      0,      0,      0,      0 ], // numpad3
-       100: [ '4',      0,      0,          0,      0,      0,      0,      0 ], // numpad4
-       101: [ '5',      0,      0,          0,      0,      0,      0,      0 ], // numpad5
-       102: [ '6',      0,      0,          0,      0,      0,      0,      0 ], // numpad6
-       103: [ '7',      0,      0,          0,      0,      0,      0,      0 ], // numpad7
-       104: [ '8',      0,      0,          0,      0,      0,      0,      0 ], // numpad8
-       105: [ '9',      0,      0,          0,      0,      0,      0,      0 ], // numpad9
-       106: [ '*',      0,      0,          0,      0,      0,      0,      0 ], // multiply
-       107: [ '+',      0,      0,          0,      0,      0,      0,      0 ], // add (use for enter on VT modes)
-       109: [ '-',      0,      0,          0,      0,      0,      0,      0 ], // subtract
-       110: [ '.',      0,      0,          0,      0,      0,      0,      0 ], // decimal
-       111: [ '/',      0,      0,          0,      0,      0,      0,      0 ], // divide
-       112: [ function(){
-                return modeDOORWAY?'\x00\x3B':(cbm?0x85:ESC+'OP');
-            },          function(){
-                            return modeDOORWAY?'\x00\x54':0;
-                        },      function(){
-                                    return modeDOORWAY?'\x00\x5E':0;
-                                },          0,      function(){
-                                                        return modeDOORWAY?'\x00\x68':0;
-                                                    },      0,      0,      0 ], // f1
-       113: [ function(){
-                return modeDOORWAY?'\x00\x3C':(cbm?0x89:ESC+'OQ');
-            },          function(){
-                            return modeDOORWAY?'\x00\x55':0;
-                        },      function(){
-                                    return modeDOORWAY?'\x00\x5F':0;
-                                },          0,      function(){
-                                                        return modeDOORWAY?'\x00\x69':0;
-                                                    },      0,      0,      0 ], // f2
-       114: [ function(){
-                return modeDOORWAY?'\x00\x3D':(cbm?0x86:ESC+'OR');
-            },          function(){
-                            return modeDOORWAY?'\x00\x56':0;
-                        },      function(){
-                                    return modeDOORWAY?'\x00\x60':0;
-                                },          0,      function(){
-                                                        return modeDOORWAY?'\x00\x6A':0;
-                                                    },      0,      0,      0 ], // f3
-       115: [ function(){
-                return modeDOORWAY?'\x00\x3E':(cbm?0x8A:ESC+'OS');
-            },          function(){
-                            return modeDOORWAY?'\x00\x57':0;
-                        },      function(){
-                                    return modeDOORWAY?'\x00\x61':0;
-                                },          0,      function(){
-                                                        return modeDOORWAY?'\x00\x6B':0;
-                                                    },      0,      0,      0 ], // f4
-       116: [ function(){
-                return modeDOORWAY?'\x00\x3F':(cbm?0x87:ESC+'Ot');
-            },          null,   null,       0,      function(){
-                                                        return modeDOORWAY?'\x00\x6C':0;
-                                                    },      0,      0,      0 ], // f5 - browser refresh
-       117: [ function(){
-                return modeDOORWAY?'\x00\x40':(cbm?0x8B:CSI+'17~');
-            },          function(){
-                            return modeDOORWAY?'\x00\x59':0;
-                        },      function(){
-                                    return modeDOORWAY?'\x00\x63':0;
-                                },          0,      function(){
-                                                        return modeDOORWAY?'\x00\x6D':0;
-                                                    },      0,      0,      0 ], // f6
-       118: [ function(){
-                return modeDOORWAY?'\x00\x41':(cbm?0x88:CSI+'18~');
-            },          function(){
-                            return modeDOORWAY?'\x00\x5A':0;
-                        },      function(){
-                                    return modeDOORWAY?'\x00\x64':0;
-                                },          0,      function(){
-                                                        return modeDOORWAY?'\x00\x6E':0;
-                                                    },      0,      0,      0 ], // f7
-       119: [ function(){
-                return modeDOORWAY?'\x00\x42':(cbm?0x8C:CSI+'19~');
-            },          function(){
-                            return modeDOORWAY?'\x00\x5B':0;
-                        },      function(){
-                                    return modeDOORWAY?'\x00\x65':0;
-                                },          0,      function(){
-                                                        return modeDOORWAY?'\x00\x6F':0;
-                                                    },      0,      0,      0 ], // f8
-       120: [ function(){
-                return modeDOORWAY?'\x00\x43':CSI+'20~';
-            },          function(){
-                            return modeDOORWAY?'\x00\x5C':0;
-                        },      function(){
-                                    return modeDOORWAY?'\x00\x66':0;
-                                },          0,      function(){
-                                                        return modeDOORWAY?'\x00\x70':0;
-                                                    },      0,      0,      0 ], // f9
-       121: [ function(){
-                return modeDOORWAY?'\x00\x44':CSI+'21~';
-            },          function(){
-                            return modeDOORWAY?'\x00\x5D':0;
-                        },      function(){
-                                    return modeDOORWAY?'\x00\x67':0;
-                                },          0,      function(){
-                                                        return modeDOORWAY?'\x00\x71':0;
-                                                    },      0,      0,      0 ], // f10
-       122: [ CSI+'23~',0,      0,          0,      0,      0,      0,      0 ], // f11 - browser full screen
-       123: [ CSI+'24~',0 ,     0,          0,      0,      0,      0,      0 ], // f12
-       124: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F13
-       125: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F14
-       126: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F15 / Help
-       127: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F16 / Do
-       128: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F17
-       129: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F18
-       130: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F19
-       131: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F20
-       132: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F21
-       133: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F22
-       134: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F23
-       135: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F24
-       144: [ DO_NUMLK, 0,      0,          0,      0,      0,      0,      0 ], // numlock
-       145: [ DO_SCRLK, 0,      0,          0,      0,      0,      0,      0 ], // scrolllock
-       173: [ '-',      '_',    0,          0,      0,      0,      0,      0 ], // -_ (firefox)
-       186: [ ';',      ':',    0,          0,      0,      0,      0,      0 ], // ;:
-       187: [ '=',      '+',    0,          0,      0,      0,      0,      0 ], // =+
-       188: [ ',',      '<',    0,          0,      0,      0,      0,      0 ], // ,<
-       189: [ '-',      '_',    0,          0,      0,      0,      0,      0 ], // -
-       190: [ '.',      '>',    0,          0,      0,      0,      0,      0 ], // .
-       191: [ '/',      '?',    0,          0,      0,      0,      0,      0 ], // /
-       192: [ '`',      '~',    0,          0,      0,      0,      0,      0 ], // `
-       219: [ '[',      '{',    0x1b,       0,      0,      0,      0,      0 ], // [
-       220: [ '\\',     '|',    0x1c,       0,      0,      0,      0,      0 ], // '\'
-       221: [ ']',      '}',    0x1d,       0,      0,      0,      0,      0 ], // ]
-       222: [ '\'',     '"',    0,          0,      0,      0,      0,      0 ], // '
-       255: [ 0,        0,      0,          0,      0,      0,      0,      0 ] // windows - chrome/opera
+                    return x09; }, 
+        12: 0,                  // clear (numpad5 numlk off)
+        13: CR,                 // enter
+        16: 0,                  // shift        
+        17: 0,                  // ctrl
+        18: 0,                  // alt
+        19: 0,                  // pause/break
+        20: DO_CAPLK,           // caps lock
+        27: function () {       // esc
+                // run/stop cbm
+                return cbm?0x03:0x1B; },
+        32: ' ',                // spacebar
+        33: function(){         // pgup
+                return modeDOORWAY?'\x00\x49':CSI+'V'; },
+        34: function(){         // pgdn
+                return modeDOORWAY?'\x00\x51':CSI+'U'; },          
+        35: function(){         // end
+                // text in cbm
+                return modeDOORWAY?'\x00\x4F':(cbm?0x0E:CSI+'K'); },
+        36: function () {       // home
+                return modeDOORWAY?'\x00\x47':(cbm?0x13:CSI+'H'); },
+        37: function () {       // left arrow
+                return modeDOORWAY?'\x00\x4B':(cbm?0x9D:CSI+'D'); },
+        38: function () {       // up arrow
+                return modeDOORWAY?'\x00\x48':(cbm?0x91:CSI+'A'); },
+        39: function () {       // right arrow
+                return modeDOORWAY?'\x00\x4D':(cbm?0x1D:CSI+'C'); },
+        40: function () {       // down arrow
+                return modeDOORWAY?'\x00\x50':(cbm?0x11:CSI+'B'); },
+        45: function (){        // insert
+                return modeDOORWAY?'\x00\x52':(cbm?0x94:CSI+'@'); },
+        46: function (){        // delete
+                return cbm?0x14:0x7f; },
+        48: '0',                // 0
+        49: '1',                // 1
+        50: '2',                // 2
+        51: '3',                // 3
+        52: '4',                // 4
+        53: '5',                // 5
+        54: '6',                // 6
+        55: '7',                // 7
+        56: '8',                // 8
+        57: '9',                // 9
+        59: ';',                // ;: - firefox
+        61: '=',                // =+ - firefox
+        65: 'a',                // a
+        66: 'b',                // b
+        67: 'c',                // c - browser copy
+        68: 'd',                // d
+        69: 'e',                // e
+        70: 'f',                // f
+        71: 'g',                // g
+        72: 'h',                // h
+        73: 'i',                // i
+        74: 'j',                // j
+        75: 'k',                // k
+        76: 'l',                // l
+        77: 'm',                // m
+        78: 'n',                // n - browser new window
+        79: 'o',                // o
+        80: 'p',                // p
+        81: 'q',                // q
+        82: 'r',                // r
+        83: 's',                // s
+        84: 't',                // t - browser new tab
+        85: 'u',                // u
+        86: 'v',                // v - browser paste
+        87: 'w',                // w - browser close window
+        88: 'x',                // x
+        89: 'y',                // y
+        90: 'z',                // z
+        91: 0,                  // left win
+        92: 0,                  // right win
+        93: 0,                  // select
+        96: '0',                // numpad0
+        97: '1',                // numpad1
+        98: '2',                // numpad2
+        99: '3',                // numpad3
+       100: '4',                // numpad4
+       101: '5',                // numpad5
+       102: '6',                // numpad6
+       103: '7',                // numpad7
+       104: '8',                // numpad8
+       105: '9',                // numpad9
+       106: '*',                // multiply
+       107: '+',                // add (use for enter on VT modes)
+       109: '-',                // subtract
+       110: '.',                // decimal
+       111: '/',                // divide
+       112: function(){         // f1
+                return modeDOORWAY?'\x00\x3B':(cbm?0x85:ESC+'OP'); },
+       113: function(){         // f2
+                return modeDOORWAY?'\x00\x3C':(cbm?0x89:ESC+'OQ'); },
+       114: function(){         // f3
+                return modeDOORWAY?'\x00\x3D':(cbm?0x86:ESC+'OR'); },
+       115: function(){         // f4
+                return modeDOORWAY?'\x00\x3E':(cbm?0x8A:ESC+'OS'); },
+       116: function(){         // f5 - browser refresh
+                return modeDOORWAY?'\x00\x3F':(cbm?0x87:ESC+'Ot'); },
+       117: function(){         // f6
+                return modeDOORWAY?'\x00\x40':(cbm?0x8B:CSI+'17~'); },
+       118: function(){         // f7
+                return modeDOORWAY?'\x00\x41':(cbm?0x88:CSI+'18~'); },
+       119: function(){         // f8
+                return modeDOORWAY?'\x00\x42':(cbm?0x8C:CSI+'19~'); },
+       120: function(){         // f9
+                return modeDOORWAY?'\x00\x43':CSI+'20~'; },
+       121: function(){         // f10
+                return modeDOORWAY?'\x00\x44':CSI+'21~'; },
+       122: CSI+'23~',          // f11 - browser full screen
+       123: CSI+'24~',          // f12
+       
+       124: 0,                  // gui F13
+       125: 0,                  // gui F14
+       126: 0,                  // gui F15 / Help
+       127: 0,                  // gui F16 / Do
+       128: 0,                  // gui F17
+       129: 0,                  // gui F18
+       130: 0,                  // gui F19
+       131: 0,                  // gui F20
+       132: 0,                  // gui F21
+       133: 0,                  // gui F22
+       134: 0,                  // gui F23
+       135: 0,                  // gui F24
+       144: DO_NUMLK,           // numlock
+       145: DO_SCRLK,           // scrolllock
+       173: '-',                // -_ (firefox)
+       186: ';',                // ;:
+       187: '=',                // =+
+       188: ',',                // ,<
+       189: '-',                // -
+       190: '.',                // .
+       191: '/',                // /
+       192: '`',                // `
+       219: '[',                // [
+       220: '\\',               // '\'
+       221: ']',                // ]
+       222: '\'',               // '
+       255: 0,                  // windows - chrome/opera
+    },    
+    keysS1C0A0 = {  // SHIFTed keys.
+    
+         9: function(){         // tab
+                return modeDOORWAY?'\x00\x0F':0; },
+        13: function(){         // enter
+                return cbm?0x8d:0; },
+        32: '\xa0',             // spacebar
+        35: function(){         // end
+                // graphics cbm
+                return cbm?0x8E:0; },
+        36: function(){         // home
+                // clr cbm
+                return cbm?0x93:0; },
+        48: ')',                // 0
+        49: '!',                // 1
+        50: '@',                // 2
+        51: '#',                // 3
+        52: '$',                // 4
+        53: '%',                // 5
+        54: '^',                // 6
+        55: '&',                // 7
+        56: '*',                // 8
+        57: '(',                // 9
+        59: ':',                // ;: - firefox
+        61: '+',                // =+ - firefox
+        65: 'A',                // a
+        66: 'B',                // b
+        67: 'C',                // c - browser copy
+        68: 'D',                // d
+        69: 'E',                // e
+        70: 'F',                // f
+        71: 'G',                // g
+        72: 'H',                // h
+        73: 'I',                // i
+        74: 'J',                // j
+        75: 'K',                // k
+        76: 'L',                // l
+        77: 'M',                // m
+        78: 'N',                // n - browser new window
+        79: 'O',                // o
+        80: 'P',                // p
+        81: 'Q',                // q
+        82: 'R',                // r
+        83: 'S',                // s
+        84: 'T',                // t - browser new tab
+        85: 'U',                // u
+        86: 'V',                // v - browser paste
+        87: 'W',                // w - browser close window
+        88: 'X',                // x
+        89: 'Y',                // y
+        90: 'Z',                // z
+       112: function(){         // f1
+                return modeDOORWAY?'\x00\x54':0; },
+       113: function(){         // f2
+                return modeDOORWAY?'\x00\x55':0; },
+       114: function(){         // f3
+                return modeDOORWAY?'\x00\x56':0; },
+       115: function(){         // f4
+                return modeDOORWAY?'\x00\x57':0; },
+       116: null,               // f5 - browser refresh
+       117: function(){         // f6
+                return modeDOORWAY?'\x00\x59':0; },
+       118: function(){         // f7
+                return modeDOORWAY?'\x00\x5A':0; },
+       119: function(){         // f8
+                return modeDOORWAY?'\x00\x5B':0; },
+       120: function(){         // f9
+                return modeDOORWAY?'\x00\x5C':0; },
+       121: function(){         // f10
+                return modeDOORWAY?'\x00\x5D':0; },
+       173: '_',                // -_ (firefox)
+       186: ':',                // ;:
+       187: '+',                // =+
+       188: '<',                // ,<
+       189: '_',                // -
+       190: '>',                // .
+       191: '?',                // /
+       192: '~',                // `
+       219: '{',                // [
+       220: '|',                // '\'
+       221: '}',                // ]
+       222: '"'                 // '
     },
+    keysS0C1A0 = {  // CTRLed keys.
+        33: function(){         // pgup
+                return modeDOORWAY?'\x00\x84':0; },
+        34: function(){         // pgdn
+                return modeDOORWAY?'\x00\x76':0; },
+        35: function(){         // end
+                return modeDOORWAY?'\x00\x75':0; },
+        36: function(){         // home
+                return modeDOORWAY?'/x00/x77':0; },
+        37: function(){         // left
+                return modeDOORWAY?'\x00\x73':0; }, 
+        39: function(){         // right
+                return modeDOORWAY?'\x00\x74':0; }, 
+        48: function(){         // 0
+                // rev off
+                return cbm?0x92:0; },
+        49: function(){          // 1
+                // black
+                return cbm?0x90:0; },
+        50: function(){         // 2
+                // white    
+                return cbm?0x05:0; },
+        51: function(){         // 3
+                // red
+                return cbm?0x1C:0; },
+        52: function(){         // 4
+                // cyan
+                return cbm?0x9f:0; },
+        53: function(){         // 5
+                // purple
+                return cbm?0x9c:0; },
+        54: function(){         // 6
+                // green
+                return cbm?0x1e:0; },
+        55: function(){         // 7
+                // blue
+                return cbm?0x1f:0; },
+        56: function(){         // 8
+                // yellow
+                return cbm?0x9e:0; },
+        57: function(){         // 9
+                // rev on
+                return cbm?0x12:0; },
+        65: 0x01,               // a
+        66: 0x02,               // b
+        67: null,               // c - browser copy
+        68: 0x04,               // d
+        69: 0x05,               // e
+        70: 0x06,               // f
+        71: 0x07,               // g
+        72: 0x08,               // h
+        73: 0x09,               // i
+        74: 0x0a,               // j
+        75: 0x0b,               // k
+        76: 0x0c,               // l
+        77: 0x0d,               // m
+        78: null,               // n - browser new window
+        79: 0x0f,               // o
+        80: 0x10,               // p
+        81: 0x11,               // q
+        82: 0x12,               // r
+        83: 0x13,               // s
+        84: null,               // t - browser new tab
+        85: 0x15,               // u
+        86: null,               // v - browser paste
+        87: null,               // w - browser close window
+        88: 0x18,               // x
+        89: 0x19,               // y
+        90: 0x1a,               // z
+       112: function(){         // f1
+                return modeDOORWAY?'\x00\x5E':0; },
+       113: function(){         // f2
+                return modeDOORWAY?'\x00\x5F':0; },
+       114: function(){         // f3
+                return modeDOORWAY?'\x00\x60':0; },
+       115: function(){         // f4
+                return modeDOORWAY?'\x00\x61':0; },
+       116: null,               // f5 - browser refresh
+       117: function(){         // f6
+                return modeDOORWAY?'\x00\x63':0; },
+       118: function(){         // f7
+                return modeDOORWAY?'\x00\x64':0; },
+       119: function(){         // f8
+                return modeDOORWAY?'\x00\x65':0; },
+       120: function(){         // f9
+                return modeDOORWAY?'\x00\x66':0; },
+       121: function(){         // f10
+                return modeDOORWAY?'\x00\x67':0; },
+       219: 0x1b,               // [
+       220: 0x1c,               // '\'
+       221: 0x1d,               // ]
+    },
+    keysS1C1A0 = {  // SHIFT+CTRL keys. (currently empty)
+    }, 
+    keysS0C0A1 = {  // ALTed keys.                  
+        49: function(){             // 1
+                // orange
+                return cbm?0x81:0; },       
+        50: function(){             // 2
+                // brown
+                return cbm?0x95:0; },
+        51: function(){             // 3
+                // lt red
+                return cbm?0x96:0; },
+        52: function(){             // 4
+                // dk gray
+                return cbm?0x97:0; },
+        53: function(){             // 5
+                // gray
+                return cbm?0x98:0; },
+        54: function(){             // 6
+                // lt green
+                return cbm?0x99:0; },
+        55: function(){             // 7
+                // lt blue
+                return cbm?0x9a:0; },
+        56: function(){             // 8
+                // lt gray
+                return cbm?0x9b:0; },
+       112: function(){             // F1
+                return modeDOORWAY?'\x00\x68':0; },
+       113: function(){             // F2
+                return modeDOORWAY?'\x00\x69':0; },
+       114: function(){             // F3
+                return modeDOORWAY?'\x00\x6A':0; },
+       115: function(){             // F4
+                return modeDOORWAY?'\x00\x6B':0; },
+       116: function(){             // F5
+                return modeDOORWAY?'\x00\x6C':0; },
+       117: function(){             // f6
+                return modeDOORWAY?'\x00\x6D':0; },
+       118: function(){             // f7
+                return modeDOORWAY?'\x00\x6E':0; },
+       119: function(){             // f8
+                return modeDOORWAY?'\x00\x6F':0; },
+       120: function(){             // f9
+                return modeDOORWAY?'\x00\x70':0; },
+       121: function(){             // f10
+                return modeDOORWAY?'\x00\x71':0; },
+    },
+    keysS1C0A1 = {  // SHIFT+ALTed keus. (currently empty)
+    },
+    keysS0C1A1 = {  // CTRL+ALTed keys.
+        46: null        // delete
+    },
+    keysS1C1A1 = {  // SHIFT+CTRL+ALTed keys.  (currently empty)
+    },
+
+    keyVals = [
+        keysS0C0A0, keysS1C0A0, keysS0C1A0, keysS1C1A0, 
+        keysS0C0A1, keysS1C0A1, keysS0C1A1, keysS1C1A1 ],
+    
     shiftState, ctrlState, altState,
     numState, capState, scrState;
 }
@@ -1989,7 +2090,7 @@ function keyDown(e) {
             stateIdx ^= 1;
     }
     
-    ka = keyvals[kc][stateIdx];
+    ka = keyVals[stateIdx][kc];
     if (ka == null) {
         // let browser handle it.
         return (e.returnValue = true);
@@ -2107,9 +2208,17 @@ function insRow(rownum) {
         if (hs.row >= rownum)
             conHotSpots.row++;
     }
+    trimHistory();
+}
+
+// remove excess rows from top.
+function trimHistory(){
+    var 
+        els, 
+        p, 
+        i, 
+        hs;
     
-    // remove excess
-    var els, p;
     while (conRowAttr.length > vtxdata.crtHistory) {
         els = document.getElementsByClassName('vtx');
         p = els[0].parentNode;
@@ -2118,6 +2227,15 @@ function insRow(rownum) {
         conText.splice(0, 1);
         conCellAttr.splice(0, 1);
         crsrRow--;
+
+        i = conHotSpots.length;
+        while (i--) {
+            hs = conHotSpot[i];
+            hs.row--;
+            if (hs.row < 0) {
+                conHostSpots.splics(i,1);
+            }
+        }
     }
 }
 
@@ -3026,18 +3144,7 @@ function expandToRow(rownum) {
             conCellAttr[conCellAttr.length] = [];
             conText[conText.length] = '';
         }
-        
-        // remove excess
-        var els, p;
-        while (conRowAttr.length > vtxdata.crtHistory) {
-            els = document.getElementsByClassName('vtx');
-            p = els[0].parentNode;
-            p.removeChild(els[0]);
-            conRowAttr.splice(0, 1);
-            conText.splice(0, 1);
-            conCellAttr.splice(0, 1);
-            crsrRow--;
-        }
+        trimHistory();
     }
 }
 
@@ -4374,7 +4481,7 @@ function conPrintChar(chr) {
         crsrSkipTime = new Date().getTime();
         conPutChar(crsrRow, crsrCol, chr, cellAttr);
         crsrCol++;
-        if (modeAutoWrap) {
+        if (!modeAutoWrap) {
             if (crsrCol >= crtCols)
                 crsrCol--;
         } else { 
