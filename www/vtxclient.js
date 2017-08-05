@@ -273,7 +273,11 @@ var
     modeNoBlink = false,        // CSI ?35 h/l to disallow blink.
     modeSpeed = 0,              // baud emulation speed.
     modeCBMShift = true,        // PETSCII shift enabled
+    modeDOORWAY = false,        // DOORWAY mode
+    modeAutoWrap = true,        // Autowrap Mode
 
+    modeNextGlyph = false,      // if DOORWAY mode, print glyph associated with this byte!
+    
     // display buffer.
     conBuffer = '',             // console output buffer. (use string for now).
 
@@ -1428,7 +1432,16 @@ var
          8: [ function (){
                 return cbm?0x14:0x08;
             },          0,      0,          0,      0,      0,      0,      0 ], // backspace
-         9: [ '\x09',   0,      0,          0,      0,      0,      0,      0 ], // tab
+         9: [ function (){ // toggle text / gfx modes
+                if (cbm) { 
+                    conFontNum ^= 0x1;
+                    renderAll();
+                    return 0;
+                } else 
+                    return x09;
+            },          function(){ 
+                            return modeDOORWAY?'\x00\x0F':0;
+                        },      0,          0,      0,      0,      0,      0 ], // tab
         12: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // clear (numpad5 numlk off)
         13: [ CR,       function () {
                             return cbm?0x8d:0;
@@ -1442,35 +1455,50 @@ var
                 return cbm?0x03:0x1B;
             },          0,      0,          0,      0,      0,      0,      0 ], // esc
         32: [ ' ',      '\xa0', 0,          0,      0,      0,      0,      0 ], // spacebar
-        33: [ CSI+'V',  0,      0,          0,      0,      0,      0,      0 ], // pgup
-        34: [ CSI+'U',  0,      0,          0,      0,      0,      0,      0 ], // pgdn
+        33: [ function(){
+                return modeDOORWAY?'\x00\x49':CSI+'V';
+            },          0,      function(){
+                                    return modeDOORWAY?'\x00\x84':0;
+                                },          0,      0,      0,      0,      0 ], // pgup
+        34: [ function(){
+                return modeDOORWAY?'\x00\x51':CSI+'U';
+            },          0,      function(){ 
+                                    return modeDOORWAY?'\x00\x76':0;
+                                },          0,      0,      0,      0,      0 ], // pgdn
         35: [ function(){ // text
-                return cbm?0x0E:CSI+'K';
+                return modeDOORWAY?'\x00\x4F':(cbm?0x0E:CSI+'K');
             },          function(){ // graphics
                             return cbm?0x8E:0;
-                        },      0,          0,      0,      0,      0,      0 ], // end
+                        },      function(){
+                                    return modeDOORWAY?'\x00\x75':0;
+                                },          0,      0,      0,      0,      0 ], // end
         36: [ function () { // home
-                return cbm?0x13:CSI+'H';
+                return modeDOORWAY?'\x00\x47':(cbm?0x13:CSI+'H');
             },          function(){ // clr
                             return cbm?0x93:0;
-                        },      0,          0,      0,      0,      0,      0 ], // home
+                        },      function(){ 
+                                    return modeDOORWAY?'/x00/x77':0;
+                                },          0,      0,      0,      0,      0 ], // home
         37: [ function () {
-                return cbm?0x9D:CSI+'D';
-            },          0,      0,          0,      0,      0,      0,      0 ], // left
+                return modeDOORWAY?'\x00\x4B':(cbm?0x9D:CSI+'D');
+            },          0,      function(){
+                                    return modeDOORWAY?'\x00\x73':0;
+                                },          0,      0,      0,      0,      0 ], // left
         38: [ function () {
-                return cbm?0x91:CSI+'A';
+                return modeDOORWAY?'\x00\x48':(cbm?0x91:CSI+'A');
             },          0,      0,          0,      0,      0,      0,      0 ], // up
         39: [ function () {
-                return cbm?0x1D:CSI+'C';
-            },          0,      0,          0,      0,      0,      0,      0 ], // right
+                return modeDOORWAY?'\x00\x4D':(cbm?0x1D:CSI+'C');
+            },          0,      function(){
+                                    return modeDOORWAY?'\x00\x74':0;
+                                },          0,      0,      0,      0,      0 ], // right
         40: [ function () {
-                return cbm?0x11:CSI+'B';
+                return modeDOORWAY?'\x00\x50':(cbm?0x11:CSI+'B');
             },          0,      0,          0,      0,      0,      0,      0 ], // down
-        45: [ function(){
-                return cbm?0x94:CSI+'@';
+        45: [ function (){
+                return modeDOORWAY?'\x00\x52':(cbm?0x94:CSI+'@');
             },          0,      0,          0,      0,      0,      0,      0 ], // insert
-        46: [
-            function (){
+        46: [ function (){
                 return cbm?0x14:0x7f;
             },          0,      0,          0,      0,      0,      null,   0 ], // delete
         48: [ '0',      ')',    function(){ // rev off
@@ -1566,31 +1594,91 @@ var
        110: [ '.',      0,      0,          0,      0,      0,      0,      0 ], // decimal
        111: [ '/',      0,      0,          0,      0,      0,      0,      0 ], // divide
        112: [ function(){
-                return cbm?0x85:ESC+'OP';
-            },          0,      0,          0,      0,      0,      0,      0 ], // f1
+                return modeDOORWAY?'\x00\x3B':(cbm?0x85:ESC+'OP');
+            },          function(){
+                            return modeDOORWAY?'\x00\x54':0;
+                        },      function(){
+                                    return modeDOORWAY?'\x00\x5E':0;
+                                },          0,      function(){
+                                                        return modeDOORWAY?'\x00\x68':0;
+                                                    },      0,      0,      0 ], // f1
        113: [ function(){
-                return cbm?0x89:ESC+'OQ';
-            },          0,      0,          0,      0,      0,      0,      0 ], // f2
+                return modeDOORWAY?'\x00\x3C':(cbm?0x89:ESC+'OQ');
+            },          function(){
+                            return modeDOORWAY?'\x00\x55':0;
+                        },      function(){
+                                    return modeDOORWAY?'\x00\x5F':0;
+                                },          0,      function(){
+                                                        return modeDOORWAY?'\x00\x69':0;
+                                                    },      0,      0,      0 ], // f2
        114: [ function(){
-                return cbm?0x86:ESC+'OR';
-            },          0,      0,          0,      0,      0,      0,      0 ], // f3
+                return modeDOORWAY?'\x00\x3D':(cbm?0x86:ESC+'OR');
+            },          function(){
+                            return modeDOORWAY?'\x00\x56':0;
+                        },      function(){
+                                    return modeDOORWAY?'\x00\x60':0;
+                                },          0,      function(){
+                                                        return modeDOORWAY?'\x00\x6A':0;
+                                                    },      0,      0,      0 ], // f3
        115: [ function(){
-                return cbm?0x8A:ESC+'OS';
-            },          0,      0,          0,      0,      0,      0,      0 ], // f4
+                return modeDOORWAY?'\x00\x3E':(cbm?0x8A:ESC+'OS');
+            },          function(){
+                            return modeDOORWAY?'\x00\x57':0;
+                        },      function(){
+                                    return modeDOORWAY?'\x00\x61':0;
+                                },          0,      function(){
+                                                        return modeDOORWAY?'\x00\x6B':0;
+                                                    },      0,      0,      0 ], // f4
        116: [ function(){
-                return cbm?0x87:ESC+'Ot';
-            },          null,   null,       0,      0,      0,      0,      0 ], // f5 - browser refresh
+                return modeDOORWAY?'\x00\x3F':(cbm?0x87:ESC+'Ot');
+            },          null,   null,       0,      function(){
+                                                        return modeDOORWAY?'\x00\x6C':0;
+                                                    },      0,      0,      0 ], // f5 - browser refresh
        117: [ function(){
-                return cbm?0x8B:CSI+'17~';
-            },          0,      0,          0,      0,      0,      0,      0 ], // f6
+                return modeDOORWAY?'\x00\x40':(cbm?0x8B:CSI+'17~');
+            },          function(){
+                            return modeDOORWAY?'\x00\x59':0;
+                        },      function(){
+                                    return modeDOORWAY?'\x00\x63':0;
+                                },          0,      function(){
+                                                        return modeDOORWAY?'\x00\x6D':0;
+                                                    },      0,      0,      0 ], // f6
        118: [ function(){
-                return cbm?0x88:CSI+'18~';
-            },          0,      0,          0,      0,      0,      0,      0 ], // f7
+                return modeDOORWAY?'\x00\x41':(cbm?0x88:CSI+'18~');
+            },          function(){
+                            return modeDOORWAY?'\x00\x5A':0;
+                        },      function(){
+                                    return modeDOORWAY?'\x00\x64':0;
+                                },          0,      function(){
+                                                        return modeDOORWAY?'\x00\x6E':0;
+                                                    },      0,      0,      0 ], // f7
        119: [ function(){
-                return cbm?0x8C:CSI+'19~';
-            },          0,      0,          0,      0,      0,      0,      0 ], // f8
-       120: [ CSI+'20~',0,      0,          0,      0,      0,      0,      0 ], // f9
-       121: [ CSI+'21~',0,      0,          0,      0,      0,      0,      0 ], // f10
+                return modeDOORWAY?'\x00\x42':(cbm?0x8C:CSI+'19~');
+            },          function(){
+                            return modeDOORWAY?'\x00\x5B':0;
+                        },      function(){
+                                    return modeDOORWAY?'\x00\x65':0;
+                                },          0,      function(){
+                                                        return modeDOORWAY?'\x00\x6F':0;
+                                                    },      0,      0,      0 ], // f8
+       120: [ function(){
+                return modeDOORWAY?'\x00\x43':CSI+'20~';
+            },          function(){
+                            return modeDOORWAY?'\x00\x5C':0;
+                        },      function(){
+                                    return modeDOORWAY?'\x00\x66':0;
+                                },          0,      function(){
+                                                        return modeDOORWAY?'\x00\x70':0;
+                                                    },      0,      0,      0 ], // f9
+       121: [ function(){
+                return modeDOORWAY?'\x00\x44':CSI+'21~';
+            },          function(){
+                            return modeDOORWAY?'\x00\x5D':0;
+                        },      function(){
+                                    return modeDOORWAY?'\x00\x67':0;
+                                },          0,      function(){
+                                                        return modeDOORWAY?'\x00\x71':0;
+                                                    },      0,      0,      0 ], // f10
        122: [ CSI+'23~',0,      0,          0,      0,      0,      0,      0 ], // f11 - browser full screen
        123: [ CSI+'24~',0 ,     0,          0,      0,      0,      0,      0 ], // f12
        124: [ 0,        0,      0,          0,      0,      0,      0,      0 ], // gui F13
@@ -1681,12 +1769,22 @@ function bootVTX() {
             margin:             '0px' },
             'Test 1..2..3..');
         document.body.appendChild(testDiv);
-        while (testDiv.clientWidth < 4);
+        while (testDiv.clientWidth < 24);
         document.body.removeChild(testDiv);
     }
 
+    // format the TITLE tag - only if empty or missing.
+    var t = document.getElementsByTagName('title')[0];
+    if (!t)
+        hd.appendChild(domElement('title',{},{},vtxdata.sysName));
+    else {
+        if (!t.innerText || (t.innerText == ''))
+            t.innerText = vtxdata.sysName
+    }
+        
+    
     // when all fonts loaded call initDisplay
-    initDisplay();
+    window.setTimeout(initDisplay, 500);
 }
 
 // string splice - why this is not standard is beyond me.
@@ -2623,6 +2721,8 @@ function redrawRow(rownum){
     var
         cnv, ctx, row, size, width, w, h, x, y, i, l;
 
+    expandToRow(rownum);    // in case..
+    
     // redraw this entire row
     l = conText[rownum].length;
     for (i = 0; i < l; i++)
@@ -2655,7 +2755,7 @@ function renderCell(rownum, colnum, forcerev) {
     var
         row, size, width, w, h, x, cnv, drawtxt,
         ctx, attr, ch, tfg, tbg, tbold, stroke, tmp,
-        tfnt;
+        tblinks, tfnt;
 
     // quick range check
     if (rownum > conRowAttr.length)         return;
@@ -2693,16 +2793,22 @@ function renderCell(rownum, colnum, forcerev) {
     tbg = (attr >> 8) & 0xff;
     tfnt = ((attr & A_CELL_FONT_MASK) >> 28) & 0xF;
 
-    // convert to proper glyph # for font used by this char
-    ch = String.fromCharCode(getUnicode(conFontCP[tfnt], ch.charCodeAt(0)));
-    
-    if (tfnt > 0)
-        nop();
-
     tbold  = attr & A_CELL_BOLD;
     if (modeNoBold) // CSI ?32 h / l
         tbold = 0;
-
+    
+    tblinks = attr & (A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
+    // move bold / blink to proper font if mode is on
+    if (modeBoldFont && tbold)
+        tfnt = 1;
+    if (modeBlinkFont && tblinks) 
+        tfnt = 2;
+    if (modeBoldFont && tbold && modeBlinkFont && tblinks)
+        tfnt = 3;
+    
+    // convert to proper glyph # for font used by this char
+    ch = String.fromCharCode(getUnicode(conFontCP[tfnt], ch.charCodeAt(0)));
+    
     if (attr & A_CELL_REVERSE) {
         tmp = tfg;
         tfg = tbg;
@@ -2725,10 +2831,11 @@ function renderCell(rownum, colnum, forcerev) {
     // fix iCE colors
     if (modeBlinkBright
         && (tbg < 8)
-        && (attr & (A_CELL_BLINKSLOW | A_CELL_BLINKFAST))) {
+        && tblinks) {
         // high intensity background / force blink off
         tbg += 8;
         attr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
+        tblinks = 0;
     }
 
     // fix transparents
@@ -3099,20 +3206,20 @@ function initDisplay() {
         conFontNum = 0;
         switch (vtxdata.codePage) {
             case 'VIC20':
-                conFont[0] = 'VIC201';
-                conFont[1] = 'VIC200';
+                conFont[0] = 'VIC200';
+                conFont[1] = 'VIC201';
                 cbmColors = vic20Colors;
                 break;
                 
             case 'C64':
-                conFont[0] = 'C641';
-                conFont[1] = 'C640';
+                conFont[0] = 'C640';
+                conFont[1] = 'C641';
                 cbmColors = c64Colors;
                 break;
                 
             case 'C128':
-                conFont[0] = 'C1281';
-                conFont[1] = 'C1280';
+                conFont[0] = 'C1280';
+                conFont[1] = 'C1281';
                 cbmColors = c128Colors;
                 break;
         }
@@ -3265,7 +3372,10 @@ function initDisplay() {
     }
     ws.onclose = function() {
         modeSpeed = 0;
-        conBufferOut('\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
+        conBufferOut(
+            cbm
+            ?'\r\rDISCONNECTED.\r'
+            :'\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
         document.body.style['cursor'] = 'default';
         setBulbs();
     }
@@ -3321,11 +3431,26 @@ function initDisplay() {
         }
     }
     ws.onerror = function(error) {
-        conBufferOut('\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
+        conBufferOut(
+            cbm
+            ?'\r\rERROR : ' + error.reason.toUpper() + '\r'
+            :'\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
         setBulbs();
     }
     conBufferOut(initStr);
-    return;
+    
+    // key events
+    addListener(document, 'keydown', keyDown);
+    addListener(document, 'keyup', keyUp);
+    addListener(document, 'keypress', keyPress);
+    // mouse events
+    addListener(document, 'mouseup', mouseUp);
+    addListener(document, 'mousedown', mouseDown);
+    addListener(document, 'click', click);
+    addListener(document, 'mousemove', mouseMove);
+    // copy paste events
+    addListener(document, 'beforepaste', beforePaste);
+    addListener(document, 'paste', paste);
 }
 
 function UFT8ArrayToStr(array) {
@@ -3367,18 +3492,6 @@ function UFT8ArrayToStr(array) {
 // light it up
 addListener(window, 'load', bootVTX);
 //addListener(document, 'DOMContentLoaded', bootVTX);
-// key events
-addListener(document, 'keydown', keyDown);
-addListener(document, 'keyup', keyUp);
-addListener(document, 'keypress', keyPress);
-// mouse events
-addListener(document, 'mouseup', mouseUp);
-addListener(document, 'mousedown', mouseDown);
-addListener(document, 'click', click);
-addListener(document, 'mousemove', mouseMove);
-// copy paste events
-addListener(document, 'beforepaste', beforePaste);
-addListener(document, 'paste', paste);
 
 function fadeScreen(fade) {
     var
@@ -4259,9 +4372,14 @@ function conPrintChar(chr) {
         crsrSkipTime = new Date().getTime();
         conPutChar(crsrRow, crsrCol, chr, cellAttr);
         crsrCol++;
-        if (crsrCol == colsOnRow(crsrRow)) {
-            crsrCol = 0;
-            crsrRow++
+        if (modeAutoWrap) {
+            if (crsrCol >= crtCols)
+                crsrCol--;
+        } else { 
+            if (crsrCol == colsOnRow(crsrRow)) {
+                crsrCol = 0;
+                crsrRow++
+            }
         }
         lastChar = chr;
     }
@@ -4484,158 +4602,171 @@ function conCharOut(chr) {
     } else {
         // ANSI ---------------------------------------------------------------
         // do all normal ctrls first
-        switch (chr) {
-            case 7:     // bell
-                soundBell.pause();
-                soundBell.play();
-                break;
+        
+        if (modeNextGlyph){
+            // print glyph AS IS
+            conPrintChar(chr);
+            crsrrender = true;
+            modeNextGlyph = false;
+        } else {
+            switch (chr) {
+                case 0:     // nul
+                    if (modeDOORWAY)
+                        modeNextGlyph = true;
+                    break;
+                
+                case 7:     // bell
+                    soundBell.pause();
+                    soundBell.play();
+                    break;
 
-            case 8:     // backspace
-                if (crsrCol > 0) {
+                case 8:     // backspace
+                    if (crsrCol > 0) {
+                        expandToRow(crsrRow);
+                        expandToCol(crsrRow, crsrCol);
+                        crsrCol--;
+                        delChar(crsrRow, crsrCol);
+                        crsrrender = true;
+                    }
+                    break;
+    
+                case 9:     // horz tab
+                    crsrCol = ((crsrCol >> 3) + 1) << 3;
+                    if (crsrCol > colsOnRow(crsrRow))
+                        crsrCol = colsOnRow(crsrRow);
+                    crsrrender = true;
+                    break;
+    
+                case 10:    // linefeed
+                    if (!modeVTXANSI)  // LF dont CR!  lol
+                        crsrCol = 0;    // for BBS/ANSI.SYS mode
+                    crsrRow++;
+                    crsrrender = true;
+                    break;
+    
+                case 13:    // carriage return
+                    crsrCol = 0;
+                    crsrrender = true;
+                    break;
+    
+                case 127:   // delete
                     expandToRow(crsrRow);
                     expandToCol(crsrRow, crsrCol);
-                    crsrCol--;
                     delChar(crsrRow, crsrCol);
+                    redrawRow(crsrRow);
                     crsrrender = true;
-                }
-                break;
-
-            case 9:     // horz tab
-                crsrCol = ((crsrCol >> 3) + 1) << 3;
-                if (crsrCol > colsOnRow(crsrRow))
-                    crsrCol = colsOnRow(crsrRow);
-                crsrrender = true;
-                break;
-
-            case 10:    // linefeed
-                if (!modeVTXANSI)  // LF dont CR!  lol
-                    crsrCol = 0;    // for BBS/ANSI.SYS mode
-                crsrRow++;
-                crsrrender = true;
-                break;
-
-            case 13:    // carriage return
-                crsrCol = 0;
-                crsrrender = true;
-                break;
-
-            case 127:   // delete
-                expandToRow(crsrRow);
-                expandToCol(crsrRow, crsrCol);
-                delChar(crsrRow, crsrCol);
-                redrawRow(crsrRow);
-                crsrrender = true;
-                break;
-
-            default:
-                switch (ansiState) {
-                    case 0:
-                        // not in an sequence.
-                        if (chr == 27)
-                            ansiState = 1
-                        else {
-                            // convert to codepage
-                            conPrintChar(chr);
-                            crsrrender = true;
-                        }
-                        break;
-
-                    case 1:
-                        // start of ansi sequence
-                        if (chr == 0x5B) {
-                            // ESC [ - CSI
-                            parms = '';
-                            interm = '';
-                            ansiState = 2
-                        }
-                        else if (chr == 0x23)
-                            // ESC # - row attr
-                            ansiState = 3
-                        else if (chr == 0x5F) {
-                            // ESC _ - sprite def
-                            apcstr = '';
-                            ansiState = 4
-                        }
-                        else
-                            // unrecognized - abort sequence
-                            ansiState = 0;
-                        break;
-
-                    case 2:
-                        // start of CSI (ESC [)
-                        // collect parameters until either intermediate or final
-                        if ((chr >= 0x30) && (chr <= 0x3F))
-                            parms += String.fromCharCode(chr)
-                        else if ((chr >= 0x20) && (chr <= 0x2F)) {
-                            // intermediate byte
-                            interm = String.fromCharCode(chr);
-                            ansiState = 5;
-                        } else if ((chr >= 0x40) && (chr <= 0x7E)) {
-                            // final byte
-                            ansiState = 0;
-                            doCSI = true;
-                        } else
-                            // unrecognized - abort sequence
-                            ansiState = 0;
-                        break
-
-                    case 3:
-                        // start of row attr (ESC #)
-                        // get single byte (0,1,9)
-                        if (chr == 0x30 || chr == 0x31) {
-                            // marquee off/on
-                            if (chr == 0x30) {
-                                conRowAttr[crsrRow] &= ~A_ROW_MARQUEE;
-                                getRowElement(crsrRow).firstChild.classList.remove('marquee')
-                            } else {
-                                conRowAttr[crsrRow] |= A_ROW_MARQUEE;
-                                getRowElement(crsrRow).firstChild.classList.add('marquee');
+                    break;
+    
+                default:
+                    switch (ansiState) {
+                        case 0:
+                            // not in an sequence.
+                            if (chr == 27)
+                                ansiState = 1
+                            else {
+                                // convert to codepage
+                                conPrintChar(chr);
+                                crsrrender = true;
                             }
-                        } else if (chr == 0x39) {
-                            // reset row.
-                            conRowAttr[crsrRow] = defRowAttr;
-                        } // else unrecognized
-                        adjustRow(crsrRow);
-                        ansiState = 0;
-                        break;
+                            break;
 
-                    case 4:
-                        // start of sprite def APC (ESC _)
-                        // read until ST (ESC \)
-                        // '0' [ ; n [ ; base64 ]] ST
-                        if ((chr >= 0x20) && (chr <= 0x7E))
-                            apcstr += String.fromCharCode(chr)
-                        else if (chr == 0x1B)
-                            // advance to finish reading string terminator (ST)
-                            ansiState = 6
-                        else
-                            // unrecognized - abort sequence
-                            ansiState = 0;
-                        break;
+                        case 1:
+                            // start of ansi sequence
+                            if (chr == 0x5B) {
+                                // ESC [ - CSI
+                                parms = '';
+                                interm = '';
+                                ansiState = 2
+                            }
+                            else if (chr == 0x23)
+                                // ESC # - row attr
+                                ansiState = 3
+                            else if (chr == 0x5F) {
+                                // ESC _ - sprite def
+                                apcstr = '';
+                                ansiState = 4
+                            }
+                            else
+                                // unrecognized - abort sequence
+                                ansiState = 0;
+                            break;
 
-                    case 5:
-                        // collecting intermediate bytes
-                        if ((chr >= 0x20) && (chr <= 0x2F))
-                            interm += String.fromCharCode(chr)
-                        else if ((chr >= 0x40) && (chr <= 0x7E)) {
-                            // command?
-                            ansiState = 0;
-                            doCSI = true;
-                        } else
-                            // unrecognized - abort sequence
-                            ansiState = 0;
-                        break;
+                        case 2:
+                            // start of CSI (ESC [)
+                            // collect parameters until either intermediate or final
+                            if ((chr >= 0x30) && (chr <= 0x3F))
+                                parms += String.fromCharCode(chr)
+                            else if ((chr >= 0x20) && (chr <= 0x2F)) {
+                                // intermediate byte
+                                interm = String.fromCharCode(chr);
+                                ansiState = 5;
+                            } else if ((chr >= 0x40) && (chr <= 0x7E)) {
+                                // final byte
+                                ansiState = 0;
+                                doCSI = true;
+                            } else
+                                // unrecognized - abort sequence
+                                ansiState = 0;
+                            break
 
-                    case 6:
-                        // confirm ST on APC sprite def
-                        if (chr == 0x5C) {
-                            // valid ST - process
-                            doAPC = true;
-                        }
-                        ansiState = 0;
-                        break;
-                }
-                break;
+                        case 3:
+                            // start of row attr (ESC #)
+                            // get single byte (0,1,9)
+                            if (chr == 0x30 || chr == 0x31) {
+                                // marquee off/on
+                                if (chr == 0x30) {
+                                    conRowAttr[crsrRow] &= ~A_ROW_MARQUEE;
+                                    getRowElement(crsrRow).firstChild.classList.remove('marquee')
+                                } else {
+                                    conRowAttr[crsrRow] |= A_ROW_MARQUEE;
+                                    getRowElement(crsrRow).firstChild.classList.add('marquee');
+                                }
+                            } else if (chr == 0x39) {
+                                // reset row.
+                                conRowAttr[crsrRow] = defRowAttr;
+                            } // else unrecognized
+                            adjustRow(crsrRow);
+                            ansiState = 0;
+                            break;
+
+                        case 4:
+                            // start of sprite def APC (ESC _)
+                            // read until ST (ESC \)
+                            // '0' [ ; n [ ; base64 ]] ST
+                            if ((chr >= 0x20) && (chr <= 0x7E))
+                                apcstr += String.fromCharCode(chr)
+                            else if (chr == 0x1B)
+                                // advance to finish reading string terminator (ST)
+                                ansiState = 6
+                            else
+                                // unrecognized - abort sequence
+                                ansiState = 0;
+                            break;
+
+                        case 5:
+                            // collecting intermediate bytes
+                            if ((chr >= 0x20) && (chr <= 0x2F))
+                                interm += String.fromCharCode(chr)
+                            else if ((chr >= 0x40) && (chr <= 0x7E)) {
+                                // command?
+                                ansiState = 0;
+                                doCSI = true;
+                            } else
+                                // unrecognized - abort sequence
+                                ansiState = 0;
+                            break;
+
+                        case 6:
+                            // confirm ST on APC sprite def
+                            if (chr == 0x5C) {
+                                // valid ST - process
+                                doAPC = true;
+                            }
+                            ansiState = 0;
+                            break;
+                    }
+                    break;
+            }
         }
 
         if (doCSI) {
@@ -5250,11 +5381,11 @@ function conCharOut(chr) {
                 case 0x6C:  // l - reset mode
                     parm[0] = parm[0].toString();
                     switch (parm[0]) {
-                        case '?50':
-                            // VTX / ANSIBBS mode flip
-                            modeVTXANSI = (chr == 0x68);
+                        case '?7':
+                            // autowrap mode
+                            modeAutoWrap = (chr == 0x68);
                             break;
-
+                            
                         case '?25':
                             // hide / show cursor
                             modeCursor = (chr == 0x68);
@@ -5283,6 +5414,16 @@ function conCharOut(chr) {
                         case '?35':
                             // '?35' : blink disabled
                             modeNoBlink = (chr == 0x68);
+                            break;
+                            
+                        case '?50':
+                            // VTX / ANSIBBS mode flip
+                            modeVTXANSI = (chr == 0x68);
+                            break;
+
+                        case '255':
+                            // 255 : DOORWAY mode
+                            modeDOORWAY = (chr == 0x68);
                             break;
                     }
                     break;
@@ -5485,6 +5626,7 @@ function conCharOut(chr) {
 
                 default:
                     // unsupported - ignore
+console.log('unsupported ansi : CSI ' + String.fromCharCode(chr));
                     break;
             }
         } else if (doAPC) {

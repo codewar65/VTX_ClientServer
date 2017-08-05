@@ -193,7 +193,7 @@ Softfonts - Built in bitmap font to vector font converter using method in bdf2sv
 
 ## To Do($) / To Fix(!) / Investigate(?)
 
-* Merge row size, row background, and page/cursor attributes into one ESC sequence group.
+$ Merge row size, row background, and page/cursor attributes into one ESC sequence group.
 
 ? Look at row sizing controls. See if can match VT ESC # sequences. Or move ESC # 0 / ESC # 6 to VTX codes. 
   Defined existing VT codes:
@@ -204,8 +204,6 @@ Softfonts - Built in bitmap font to vector font converter using method in bdf2sv
     ESC # 8	Alignment display, fill screen with E's
 
 ? Add codes to reset page, row, and cursor attributes to default. (works like CSI 0 m).
-
-! Move hotspots on delrow / insrow.
 
 $ Move sprite commands.
 
@@ -228,7 +226,5 @@ $ Client handshake with server.
 ? WSS / certificate &| poor-mans client<->server encryption with rotating keys.
 
 ? VT100 compatibily mode.
-
-? Row size scales effect height only?
 
 ? Built in audio object. Cmds to set volume / play / stop / rewind / set stream URL. 
