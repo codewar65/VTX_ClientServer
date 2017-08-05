@@ -1,5 +1,6 @@
+
 body {
-    padding:        16px;
+    padding:        1em;
 }
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-*/
@@ -7,7 +8,7 @@ body {
 /* the console page */
 #vtxpage {
     font-family:    UVGA16;
-    font-size:      16px;
+    font-size:      24px;
     min-height:     94vh;
     margin:         0px auto;
     padding:        0px;

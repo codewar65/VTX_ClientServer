@@ -33,7 +33,7 @@
 
         codes for restore cursor attr, restore page attr
 
-        finish PETSCII if term = 'PETSCII' / use cbmColors palette
+        finish PETSCII if term = 'PETSCII' / use c64Colors palette
 
 CBM keys
     Left CTRL is the Commodore key
@@ -181,11 +181,22 @@ var
         '#808080', '#8A8A8A', '#949494', '#9E9E9E', '#A8A8A8', '#B2B2B2',
         '#BCBCBC', '#C6C6C6', '#D0D0D0', '#DADADA', '#E4E4E4', '#EEEEEE'
     ],
-    // commodore 64/128 colors
-    cbmColors = [
+    cbmColors,
+    // commodore colors
+    vic20Colors = [ // vic-20 in 22 column mode
+        '#000000', '#FFFFFF', '#782922', '#87D6DD', '#AA5FB6', '#55A049',
+        '#40318D', '#BFCE72', '#AA7449', '#EAB489', '#B86962', '#C7FFFF',
+        '#EA9FF6', '#94E089', '#8071CC', '#FFFFB2', '#000000' // fake black
+    ],
+    c64Colors = [   // C64/C128 in 40 column mode
         '#000000', '#FFFFFF', '#68372B', '#70A4B2', '#6F3D86', '#588D43',
         '#352879', '#B8C76F', '#6F4F25', '#433900', '#9A6759', '#444444',
         '#6C6C6C', '#9AD284', '#6C5EB5', '#959595', '#000000' // fake black
+    ],
+    c128Colors = [  // C128 colors in 80 column mode
+        '#000000', '#303030', '#EA311B', '#FC601C', '#36C137', '#77EC7C', 
+        '#1C49D9', '#4487EF', '#BBC238', '#E9F491', '#D974DA', '#EECFED',
+		'#68C8C2', '#B2F0EC', '#BECEBC', '#FFFFFF', '#000000' // fake black
     ],
 
     // strings that get transmogrified by the HTTP server.
@@ -1872,6 +1883,12 @@ function keyDown(e) {
     if ((kc >= 65) && (kc <= 90) && (stateIdx < 2) && capState)
         stateIdx ^= 1;
 
+    // reverse for PETSCII
+    if (cbm) {
+        if ((kc >= 65) && (kc <= 90))
+            stateIdx ^= 1;
+    }
+    
     ka = keyvals[kc][stateIdx];
     if (ka == null) {
         // let browser handle it.
@@ -1990,6 +2007,18 @@ function insRow(rownum) {
         if (hs.row >= rownum)
             conHotSpots.row++;
     }
+    
+        // remove excess
+        var els, p;
+        while (conRowAttr.length > vtxdata.crtHistory) {
+            els = document.getElementsByClassName('vtx');
+            p = els[0].parentNode;
+            p.removeChild(els[0]);
+            conRowAttr.splice(0, 1);
+            conText.splice(0, 1);
+            conCellAttr.splice(0, 1);
+            crsrRow--;
+        }
 }
 
 // delete a character at position
@@ -2882,15 +2911,22 @@ function expandToCol(rownum, colnum) {
 function expandToRow(rownum) {
     if (rownum >= conRowAttr.length) {
         while (rownum > getMaxRow()) {
-            //document.body.appendChild(createNewRow());
             textDiv.appendChild(createNewRow());
+            
             conRowAttr[conRowAttr.length] = 0x002C0000;
             conCellAttr[conCellAttr.length] = [];
             conText[conText.length] = '';
         }
+        
         // remove excess
+        var els, p;
         while (conRowAttr.length > vtxdata.crtHistory) {
-            delRow(0);
+            els = document.getElementsByClassName('vtx');
+            p = els[0].parentNode;
+            p.removeChild(els[0]);
+            conRowAttr.splice(0, 1);
+            conText.splice(0, 1);
+            conCellAttr.splice(0, 1);
             crsrRow--;
         }
     }
@@ -3065,16 +3101,19 @@ function initDisplay() {
             case 'VIC20':
                 conFont[0] = 'VIC201';
                 conFont[1] = 'VIC200';
+                cbmColors = vic20Colors;
                 break;
                 
             case 'C64':
                 conFont[0] = 'C641';
                 conFont[1] = 'C640';
+                cbmColors = c64Colors;
                 break;
                 
             case 'C128':
                 conFont[0] = 'C1281';
                 conFont[1] = 'C1280';
+                cbmColors = c128Colors;
                 break;
         }
         conFontCP[0] = 'RAW';
@@ -4299,6 +4338,7 @@ function conCharOut(chr) {
                     crsrCol--;
                 delChar(crsrRow, crsrCol);
                 redrawRow(crsrRow);
+                crsrrender = true;
                 break;
 
             case 28: // red
@@ -4484,6 +4524,7 @@ function conCharOut(chr) {
                 expandToCol(crsrRow, crsrCol);
                 delChar(crsrRow, crsrCol);
                 redrawRow(crsrRow);
+                crsrrender = true;
                 break;
 
             default:
@@ -5508,6 +5549,10 @@ function doWriteBuffer() {
 // do all writing here.
 function conBufferOut(data) {
     conBuffer += data;
+    if (modeSpeed == 0) {
+        conStrOut(conBuffer);
+        conBuffer = '';
+    }
 }
 
 // write string using current attributes at cursor position. ###CALL conBufferOut!###
