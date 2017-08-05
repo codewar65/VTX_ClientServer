@@ -2108,17 +2108,17 @@ function insRow(rownum) {
             conHotSpots.row++;
     }
     
-        // remove excess
-        var els, p;
-        while (conRowAttr.length > vtxdata.crtHistory) {
-            els = document.getElementsByClassName('vtx');
-            p = els[0].parentNode;
-            p.removeChild(els[0]);
-            conRowAttr.splice(0, 1);
-            conText.splice(0, 1);
-            conCellAttr.splice(0, 1);
-            crsrRow--;
-        }
+    // remove excess
+    var els, p;
+    while (conRowAttr.length > vtxdata.crtHistory) {
+        els = document.getElementsByClassName('vtx');
+        p = els[0].parentNode;
+        p.removeChild(els[0]);
+        conRowAttr.splice(0, 1);
+        conText.splice(0, 1);
+        conCellAttr.splice(0, 1);
+        crsrRow--;
+    }
 }
 
 // delete a character at position
