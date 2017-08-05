@@ -1772,6 +1772,8 @@ function bootVTX() {
         while (testDiv.clientWidth < 24);
         document.body.removeChild(testDiv);
     }
+    // wait for the required data.
+    while (!vtxdata);
 
     // format the TITLE tag - only if empty or missing.
     var t = document.getElementsByTagName('title')[0];
@@ -3367,18 +3369,6 @@ function initDisplay() {
     // test websocket connect
     ws = new WebSocket(wsConnect, ['telnet']);
     ws.binaryType = "arraybuffer";
-    ws.onopen = function() {
-        setBulbs();
-    }
-    ws.onclose = function() {
-        modeSpeed = 0;
-        conBufferOut(
-            cbm
-            ?'\r\rDISCONNECTED.\r'
-            :'\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
-        document.body.style['cursor'] = 'default';
-        setBulbs();
-    }
     ws.onmessage = function(e) {
         // binary data in.
         var
@@ -3429,6 +3419,18 @@ function initDisplay() {
                 }
                 break;
         }
+    }
+    ws.onopen = function() {
+        setBulbs();
+    }
+    ws.onclose = function() {
+        modeSpeed = 0;
+        conBufferOut(
+            cbm
+            ?'\r\rDISCONNECTED.\r'
+            :'\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
+        document.body.style['cursor'] = 'default';
+        setBulbs();
     }
     ws.onerror = function(error) {
         conBufferOut(
