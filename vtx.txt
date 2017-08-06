@@ -171,8 +171,8 @@ Sequences (# : to be implemented)
     CSI n 'h' : Set Mode (SM).
         n = '?50' : turns on 'real' ANSI mode.
        
-#           '255' : DOORWAY mode on.
-#           '?6' : 1,1=ul of scrolling region
+            '255' : DOORWAY mode on.
+            '?6' : 1,1=ul of scrolling region
             '?7' : auto wrap on
             '?25' : cursor on
             '?31' : bold uses font 1
@@ -183,8 +183,8 @@ Sequences (# : to be implemented)
 
     CSI n 'l' : Reset Mode (RM).
         n = '?50' : turns off 'real' ANSI mode.
-#           '255' : DOORWAY mode off.
-#           '?6' : 1,1=ul of scrolling region
+            '255' : DOORWAY mode off.
+            '?6' : 1,1=ul of scrolling region
             '?7' : auto wrap off
             '?25' : cursor hide
             '?31' : bold uses font 0
@@ -268,9 +268,9 @@ Sequences (# : to be implemented)
         p1 : nil,0,1 = host transmit, 2=host recieve, 3=printer, 4=modem hi, 5=modem lo
         p2 : nil,0=unlimited, 1=300, 2=600, 3=1200, 4=2400, 5=4800, 6=9600, 7=19200, 8=38400, 9=57600, 10=76800, 11=115200
 
-#   CSI t ; b 'r' : Set scroll window (DECSTBM).
-#       t = top row number
-#       b = bottom row number
+    CSI t ; b 'r' : Set scroll window (DECSTBM).
+        t = top row number
+        b = bottom row number
 
     CSI s : Save cursor position.
     CSI u : Restore cursor position.

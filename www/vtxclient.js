@@ -204,6 +204,7 @@ var
     codePage = vtxdata.codePage,    // '@CodePage@',
     wsConnect = vtxdata.wsConnect,  // 'ws://@InternetIP@:@WSPort@',
     crtCols = vtxdata.crtCols,      // @Columns@,        // columns side of row on crt.
+    crtRows = vtxdata.crtRows,
     xScale = vtxdata.xScale,        // @XScale@,          // scale everything this much on x.
     term = vtxdata.term,            // '@Terminal@',        // ANSI or PETSCII
     cbm = (vtxdata.term == 'PETSCII'),
@@ -394,6 +395,7 @@ var
     _SPACE   = 0x20,
     _C       = 0x43,
     _G       = 0x47,
+    _DEL     = 0x7F,
     _SHY     = 0x2010,
 
     // special char codes and sequences
@@ -1441,7 +1443,9 @@ var
         16: 0,                  // shift        
         17: 0,                  // ctrl
         18: 0,                  // alt
-        19: 0,                  // pause/break
+//        19: 0,                  // pause/break
+        19: '\x1B[',            // (CSI shortcut)
+        
         20: DO_CAPLK,           // caps lock
         27: function () {       // esc
                 // run/stop cbm
@@ -2257,7 +2261,12 @@ function insChar(rownum, colnum, chr) {
 
 // create blank HTML row
 function createNewRow() {
-    return domElement('div', { className: 'vtx' });
+    var
+        el = domElement('div', { className: 'vtx' }),
+        cnv = domElement('canvas');
+    
+    //el.appendChild(cnv);
+    return el;
 }
 
 // is this character a printable? (add )
@@ -2842,7 +2851,7 @@ function redrawRow(rownum){
         cnv, ctx, row, size, width, w, h, x, y, i, l;
 
     expandToRow(rownum);    // in case..
-    
+
     // redraw this entire row
     l = conText[rownum].length;
     for (i = 0; i < l; i++)
@@ -2853,8 +2862,18 @@ function redrawRow(rownum){
     size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
     width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
     w = xScale * colSize * size * width;     // width of char
+    h = fontSize * size;            // height of char
     x = w * l;                  // left pos of char on canv
+    
     cnv = row.firstChild;
+    if (!cnv) {
+        cnv = domElement(
+            'canvas',
+            {   width:  crtCols * w,
+                height: (h + 16) },
+            {   zIndex: '50' });
+        row.appendChild(cnv);
+    }
     ctx = cnv.getContext('2d');
     ctx.clearRect(x, 0, cnv.width - x, cnv.height);
 }
@@ -4498,13 +4517,15 @@ function conPrintChar(chr) {
 function conCharOut(chr) {
     var
         def,
-        i, l,               // generic idx, length
+        i, j, l,            // generic idx, length
         r, c, v,            // row, col idx
+        hs,                 // hotspot 
         crsrrender = false, // redraw cursor?
         doCSI = false,      // execute compiled CSI at end?
         doAPC = false,      // execute compiled APC at end?
         parm,
-        els, div, img;      // for svg sprite creation
+        els, div, img,      // for svg sprite creation
+        fromRow, toRow;     // indexes for scrolling.
 
     if (cbm) {
         // PETSCII ------------------------------------------------------------
@@ -4719,17 +4740,17 @@ function conCharOut(chr) {
             modeNextGlyph = false;
         } else {
             switch (chr) {
-                case 0:     // nul
+                case _NUL:     // null
                     if (modeDOORWAY)
                         modeNextGlyph = true;
                     break;
                 
-                case 7:     // bell
+                case _BEL:     // bell
                     soundBell.pause();
                     soundBell.play();
                     break;
 
-                case 8:     // backspace
+                case _BS:     // backspace
                     if (crsrCol > 0) {
                         expandToRow(crsrRow);
                         expandToCol(crsrRow, crsrCol);
@@ -4739,26 +4760,26 @@ function conCharOut(chr) {
                     }
                     break;
     
-                case 9:     // horz tab
+                case _HT:     // horz tab
                     crsrCol = ((crsrCol >> 3) + 1) << 3;
                     if (crsrCol > colsOnRow(crsrRow))
                         crsrCol = colsOnRow(crsrRow);
                     crsrrender = true;
                     break;
     
-                case 10:    // linefeed
+                case _LF:    // linefeed
                     if (!modeVTXANSI)  // LF dont CR!  lol
                         crsrCol = 0;    // for BBS/ANSI.SYS mode
                     crsrRow++;
                     crsrrender = true;
                     break;
     
-                case 13:    // carriage return
+                case _CR:    // carriage return
                     crsrCol = 0;
                     crsrrender = true;
                     break;
     
-                case 127:   // delete
+                case _DEL:   // delete
                     expandToRow(crsrRow);
                     expandToCol(crsrRow, crsrCol);
                     delChar(crsrRow, crsrCol);
@@ -4770,7 +4791,7 @@ function conCharOut(chr) {
                     switch (ansiState) {
                         case 0:
                             // not in an sequence.
-                            if (chr == 27)
+                            if (chr == _ESC)
                                 ansiState = 1
                             else {
                                 // convert to codepage
@@ -4907,8 +4928,13 @@ function conCharOut(chr) {
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
                     crsrRow -= parm[0];
-                    if (crsrRow < 0)
-                        crsrRow = 0;
+                    if (modeRegionOrigin) {
+                        if (crsrRow < regionTopRow)
+                            crsrRow = regionTopRow;
+                    } else {
+                        if (crsrRow < 0)
+                            crsrRow = 0;
+                    }
                     crsrrender = true;
                     break;
 
@@ -4916,6 +4942,10 @@ function conCharOut(chr) {
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
                     crsrRow += parm[0];
+                    if (modeRegionOrigin) {
+                        if (crsrRow > regionBottomRow)
+                            crsrRow = regionBottomRow;
+                    } 
                     crsrrender = true;
                     break;
 
@@ -5163,6 +5193,7 @@ function conCharOut(chr) {
                                 conCellAttr.length = crsrRow + 1;
                                 conText.length = crsrRow + 1;
                             }
+                            // TODO clear hotspots
                             break;
 
                         case 1:
@@ -5179,6 +5210,7 @@ function conCharOut(chr) {
                                 adjustRow(crsrRow);
                                 redrawRow(crsrRow);
                             }
+                            // TODO clear hotspots
                             break;
 
                         case 2:
@@ -5223,6 +5255,7 @@ function conCharOut(chr) {
                             conCellAttr[crsrRow].length = crsrCol;
                             conText[crsrRow] = conText[crsrRow].substring(0, crsrCol);
                             redrawRow(crsrRow);
+                            // TODO clear hotspots
                             break;
 
                         case 1:
@@ -5230,6 +5263,7 @@ function conCharOut(chr) {
                             for (c = 0; c <= crsrCol; c++)
                                 conPutChar(crsrRow, c, 32, defCellAttr);
                             redrawRow(crsrRow);
+                            // TODO clear hotspots
                             break;
 
                         case 2:
@@ -5237,6 +5271,7 @@ function conCharOut(chr) {
                             conText[crsrRow] = '';
                             conCellAttr[crsrRow] = [];
                             redrawRow(crsrRow);
+                            // TODO clear hotspots
                             break;
                     }
                     break;
@@ -5263,6 +5298,75 @@ function conCharOut(chr) {
                     redrawRow(crsrRow);
                     break;
 
+                // move contents in conArrays and redraw rows
+                // move any hotspots within region.
+                // do not move conRowAttrs.
+                case 0x53:  // S - Scroll Up (SU). Scroll up.
+                    expandToRow(crtRows);
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    if (modeRegionOrigin) {
+                        fromRow = regionTopRow;
+                        toRow = regionBottomRow;
+                    } else {
+                        fromRow = 0; 
+                        toRow = conRowAttr.length - 1;
+                    }
+                    for (i = 0; i < parm[0]; i++) {
+                        for (j = fromRow; j < toRow; j++) {
+                            conText[j] = conText[j + 1];
+                            conCellAttr[j] = conCellAttr[j + 1];
+                            redrawRow(j);
+                        }
+                        // clear bottow row
+                        conText[toRow] = '';
+                        conCellAttr[toRow] = [];
+                        redrawRow(toRow);
+
+                        // move / clear hotspots                        
+                        for (j = conHotSpots.length-1; j >= 0; j--) {
+                            hs = conHotSpots[j];
+                            if (hs.row == fromRow)
+                                conHotSpots.splice(i,1);
+                            if ((hs.row >= fromRow) && (hs.row <= toRow))
+                                hs.row--;
+                        }
+                    }
+                    break;
+                    
+                case 0x54:  // T - Scroll Down (SD). Scroll down.
+                    expandToRow(crtRows);
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    if (modeRegionOrigin) {
+                        fromRow = regionTopRow;
+                        toRow = regionBottomRow;
+                    } else {
+                        fromRow = 0; 
+                        toRow = conRowAttr.length - 1;
+                    }
+                    for (i = 0; i < parm[0]; i++) {
+                        for (j = toRow; j > fromRow; j--) {
+                            conText[j] = conText[j - 1];
+                            conCellAttr[j] = conCellAttr[j - 1];
+                            redrawRow(j);
+                        }
+                        // clear top row
+                        conText[fromRow] = '';
+                        conCellAttr[fromRow] = [];
+                        redrawRow(fromRow);
+
+                        // move / clear hotspots                        
+                        for (j = conHotSpots.length-1; j >= 0; j--) {
+                            hs = conHotSpots[j];
+                            if (hs.row == toRow)
+                                conHotSpots.splice(i,1);
+                            if ((hs.row >= fromRow) && (hs.row <= toRow))
+                                hs.row++;
+                        }
+                    }
+                    break;
+                    
                 case 0x58:  // X - ECH - erase n characters
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
@@ -5465,7 +5569,6 @@ function conCharOut(chr) {
 
                 case 0x63:  // c - device attributes
                     parm = fixParams(parm, [0]);
-                    parm[0] = minMax(parm[0], 0, 999);
                     if (parm[0] == 0) {
                         // request device
                         sendData(CSI + '?50;86;84;88c'); // reply for VTX
@@ -5480,7 +5583,10 @@ function conCharOut(chr) {
                     parm[1] = minMax(parm[1], 1, 999);
                     while (l < 2)
                         parm[l++] = 1;
-                    crsrRow = parm[0] - 1;
+                    if (modeRegionOrigin)
+                        crsrRow = regionTopRow + parm[0] - 1
+                    else
+                        crsrRow = parm[0] - 1;
                     crsrCol = parm[1] - 1;
                     expandToRow(crsrRow);
                     crsrrender = true;
@@ -5490,6 +5596,11 @@ function conCharOut(chr) {
                 case 0x6C:  // l - reset mode
                     parm[0] = parm[0].toString();
                     switch (parm[0]) {
+                        case '?6':
+                            // origin in region?
+                            modeRegionOrigin = (chr == 0x68);
+                            break;
+                            
                         case '?7':
                             // autowrap mode
                             modeAutoWrap = (chr == 0x68);
@@ -5530,8 +5641,8 @@ function conCharOut(chr) {
                             modeVTXANSI = (chr == 0x68);
                             break;
 
-                        case '255':
-                            // 255 : DOORWAY mode
+                        case '=255':
+                            // =255 : DOORWAY mode
                             modeDOORWAY = (chr == 0x68);
                             break;
                     }
@@ -5719,6 +5830,18 @@ function conCharOut(chr) {
                         if (parm[0] < 2) {
                             modeSpeed = bauds[parm[1]] * 100;
                         }
+                    } else if (interm == '') {
+                        // CSI t ; b 'r' : Set scroll window (DECSTBM).
+                        if (parm.length == 0) {
+                            regionTopRow = 0;
+                            regionBottomRow = crtRows - 1;
+                        } else {
+                            parm = fixParams(parm, [ 1, 1 ]);
+                            parm[0] = minMax(parm[0], 1, crtRows);
+                            parm[1] = minMax(parm[1], parm[0], crtRows);
+                            regionTopRow = parm[0] - 1;
+                            regionBottomRow = parm[1] - 1;
+                        }
                     }
                     break;
 
@@ -5735,7 +5858,7 @@ function conCharOut(chr) {
 
                 default:
                     // unsupported - ignore
-console.log('unsupported ansi : CSI ' + String.fromCharCode(chr));
+                    //console.log('unsupported ansi : CSI ' + String.fromCharCode(chr));
                     break;
             }
         } else if (doAPC) {
