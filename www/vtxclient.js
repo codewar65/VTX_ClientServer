@@ -34,7 +34,20 @@
 
         Codes for restore cursor attr, restore page attr
 
+        Add Audio Object
 
+    HOTSPOTATTR
+    
+        00000000 00000000 00000000 00000000
+        BBBBBBBB FFFFFFFF bbbbbbbb ffffffff
+        
+        f : mouseover foreground color
+        b : mouseover background color
+        F : click foreground color
+        B : click background color
+
+        default = 0x0C0F070B
+        
     PAGEATTR
 
         bbbbbbbb BBBBBBBB
@@ -241,6 +254,8 @@ var
     defCellAttr,                // default cell attributes.
     lastChar,                   // last printable character outputed.
     lastHotSpot = null,         // last mouseover hotspot
+    hotspotAttr = 0x0C0F040B,   // hotspot colors
+    audio,                      // audio element
 
     termState,                  // TERMSTATE_...
 
@@ -276,7 +291,7 @@ var
     modeRegionOrigin,           // origin in region?
     
     // display buffer.
-    conBuffer = '',             // console output buffer. (use string for now).
+    conBuffer = '',             // console output buffer. 
 
     // Attrs are integer arrays, base 0 (i.e.: row 1 = index 0)
     conRowAttr  = [],           // row attributes array of number
@@ -285,7 +300,7 @@ var
     conHotSpots = [],           // clickable hotspots
     spriteDefs = [],            // sprite definitions
 
-    // array 0..9
+    // array 0..15 (0-9:ANSI selectable,10/11:special,12-15:reserved)
     conFont = [],               // the 10 fonts used for CSI 10-19 m
     conFontCP = [],             // associated code page for font.
     conFontNum = 0,             // current font being used.
@@ -2006,7 +2021,7 @@ function mouseMove(e) {
             // draw this one
             for (y = 0; y < hs.height; y++)
                 for (x = 0; x < hs.width; x++)
-                    renderCell(hs.row+y, hs.col+x, hs.hilite);
+                    renderCell(hs.row+y, hs.col+x, hs.hilite?1:0);
         }
         document.body.style['cursor'] = 'pointer'
     } else {
@@ -2023,6 +2038,7 @@ function mouseMove(e) {
 
 function click(e) {
     var
+        x, y,
         hs;
 
     // for now, just fix meta key states
@@ -2035,6 +2051,11 @@ function click(e) {
 
     hs = getHotSpot(e);
     if (hs) {
+        // draw this one
+        for (y = 0; y < hs.height; y++)
+            for (x = 0; x < hs.width; x++)
+                renderCell(hs.row+y, hs.col+x, hs.hilite?2:0);
+
         // clicked on hotspot.
         switch (hs.type) {
             case 0:
@@ -2880,7 +2901,8 @@ function renderAll() {
 // render an individual row, col. if forcerev, invert (twice if need be)
 // This is the only place we need to convert a character to unicode for
 // display!!
-function renderCell(rownum, colnum, forcerev) {
+// hilight = 0:none, 1:mouse over, 2:mouse click
+function renderCell(rownum, colnum, hilight) {
     var
         row, size, width, w, h, x, cnv, drawtxt,
         ctx, attr, ch, tfg, tbg, tbold, stroke, tmp,
@@ -2891,7 +2913,7 @@ function renderCell(rownum, colnum, forcerev) {
     if (rownum > conRowAttr.length)         return;
     if (colnum >= conText[rownum].length)   return;
 
-    forcerev = forcerev || false;
+    hilight = hilight || false;
     size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
     width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
     w = xScale * colSize * size * width;     // width of char
@@ -2952,12 +2974,6 @@ function renderCell(rownum, colnum, forcerev) {
         tbold = false;
     }
 
-    // force highlight (for mouse selections)
-    if (forcerev) {
-        tbg = 4;
-        tfg = 15;
-    }
-
     // fix iCE colors
     if (modeBlinkBright
         && (tbg < 8)
@@ -2968,6 +2984,15 @@ function renderCell(rownum, colnum, forcerev) {
         tblinks = 0;
     }
 
+    // force highlight (for mouse selections)
+    if (hilight == 1) {
+        tbg = (hotspotAttr >>  8) & 0xFF;
+        tfg = (hotspotAttr      ) & 0xFF;
+    } else if (hilight == 2) {
+        tbg = (hotspotAttr >> 24) & 0xFF;
+        tfg = (hotspotAttr >> 16) & 0xFF;
+    }
+    
     // fix transparents
     if (tfg == 0) tfg = 16;
     if ((tbg == 0) && !modeVTXANSI) tbg = 16;
@@ -3497,7 +3522,18 @@ function initDisplay() {
 
     pageDiv.appendChild(ctrlDiv);
 
-    // test websocket connect
+    // add audio element for sound.
+    audio = domElement(
+        'audio',
+        {   id:         'vtxaudio',
+            preload:    'none', 
+            volume:     '0.3', 
+            src:        '/;' },
+        {   width:      '0px',
+            height:     '0px' });
+    pageDiv.appendChild(audio);
+    
+    // websocket connect
     ws = new WebSocket(wsConnect, ['telnet']);
     ws.binaryType = "arraybuffer";
     ws.onmessage = function(e) {
@@ -3561,6 +3597,7 @@ function initDisplay() {
             ?'\r\rDISCONNECTED.\r'
             :'\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
         document.body.style['cursor'] = 'default';
+        audio.pause();
         setBulbs();
     }
     ws.onerror = function(error) {
@@ -4632,7 +4669,8 @@ function conCharOut(chr) {
         crsrrender = false, // redraw cursor?
         doCSI = false,      // execute compiled CSI at end?
         doAPC = false,      // execute compiled APC at end?
-        parm,
+        parm,               // parameters
+        str,
         els, div, img,      // for svg sprite creation
         fromRow, toRow;     // indexes for scrolling.
 
@@ -4990,12 +5028,12 @@ function conCharOut(chr) {
                                 // ESC # 3 - double wide/high, top
                                 conRowAttr[crsrRow] &= 
                                     ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
-                                conRowAttr[crsrRow] |= (A_ROW_DOUBLETOP | A_ROW_WIDTH200 | A_ROW_SIZE100);
+                                conRowAttr[crsrRow] |= (A_ROW_DOUBLETOP | A_ROW_WIDTH200);
                             } else if (chr == 0x34) {
                                 // ESC # 4 - double wide/high, bottom
                                 conRowAttr[crsrRow] &= 
                                     ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
-                                conRowAttr[crsrRow] |= (A_ROW_DOUBLEBOTTOM | A_ROW_WIDTH200 | A_ROW_SIZE100);
+                                conRowAttr[crsrRow] |= (A_ROW_DOUBLEBOTTOM | A_ROW_WIDTH200);
                             } else if (chr == 0x35) {
                                 // ESC # 5 - single wide/high
                                 conRowAttr[crsrRow] &= 
@@ -5005,10 +5043,18 @@ function conCharOut(chr) {
                                 // ESC # 6 - single high / double wide
                                 conRowAttr[crsrRow] &= 
                                     ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
-                                conRowAttr[crsrRow] |= (A_ROW_WIDTH200 | A_ROW_SIZE100);
+                                conRowAttr[crsrRow] |= (A_ROW_WIDTH200);
                             } else if (chr == 0x39) {
                                 // ESC # 9 - reset row
                                 conRowAttr[crsrRow] = defRowAttr;
+                            } else if (chr == 0x32) { // single wide, double high, top
+                                conRowAttr[crsrRow] &= 
+                                    ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
+                                conRowAttr[crsrRow] |= (A_ROW_DOUBLETOP | A_ROW_WIDTH100);
+                            } else if (chr == 0x37) { // single wide, double high, bottom
+                                conRowAttr[crsrRow] &= 
+                                    ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
+                                conRowAttr[crsrRow] |= (A_ROW_DOUBLEBOTTOM | A_ROW_WIDTH100);
                             }
                             adjustRow(crsrRow);
                             ansiState = 0;
@@ -5597,20 +5643,37 @@ function conCharOut(chr) {
                                 pageAttr = setPageAttrBackground(pageAttr, i);
                                 pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
                                 break;
+
+                            case 5: // CSI '5' ; f ; b '^' : Set hotspot mouseover colors.
+                                hotspotAttr &= 0xFFFF0000;
+                                hotspotAttr |= (
+                                    (parm[1] & 0xFF) |
+                                    ((parm[2] & 0xFF) << 8)
+                                );
+                                break;
+                                
+                            case 6: // CSI '6' ; f ; b '^' : Set hotspot click colors.
+                                hotspotAttr &= 0x0000FFFF;
+                                hotspotAttr |= (
+                                    ((parm[1] & 0xFF) << 16) |
+                                    ((parm[2] & 0xFF) << 24)
+                                );
+                                break;
                         }
                     }
                     crsrrender = true;
                     break;
 
                 case 0x5F:  // _ - Display/Hide Sprite | CSI '0'; s ; n ; w ; h ; z _
-                    parm = fixParams(parm, [ 0, 1, 1, 1, 1, 0 ]);
-                    parm[1] = minMax(parm[1], 1, 64, 1);    // sprint #
-                    parm[2] = minMax(parm[2], 1, 64, 1);    // def #
-                    parm[3] = minMax(parm[3], 1, 999, 1);   // w
-                    parm[4] = minMax(parm[4], 1, 999, 1);   // h
-                    parm[5] = minMax(parm[5], 0, 1, 0);     // z
                     if (parm[0] == 0) {
+                        // Sprite commands
                         // '0' - sprite display / remove commands
+                        parm = fixParams(parm, [ 0, 1, 1, 1, 1, 0 ]);
+                        parm[1] = minMax(parm[1], 1, 64, 1);    // sprint #
+                        parm[2] = minMax(parm[2], 1, 64, 1);    // def #
+                        parm[3] = minMax(parm[3], 1, 999, 1);   // w
+                        parm[4] = minMax(parm[4], 1, 999, 1);   // h
+                        parm[5] = minMax(parm[5], 0, 1, 0);     // z
                         if (l == 1) {
                             // remove all sprites
                             els = document.getElementsByClassName('sprite');
@@ -5658,6 +5721,31 @@ function conCharOut(chr) {
                                 pageDiv.insertBefore(div, textDiv)
                             else
                                 textDiv.appendChild(div);
+                        }
+                    } else if (parm[0] == 1) {
+                        // Audio commands
+                        switch (parm[1]) {
+                            case 0: // load audio from object (see APC 1 ST)
+                                break;
+                                
+                            case 1: // load audio from URL
+                                str = '';
+                                for (i = 2; i < l; i++)
+                                    str += String.fromCharCode(parm[i]);
+                                audio.src = str;
+                                break;
+                                
+                            case 2: // set volume
+                                audio.volume = (parm[2]?(parm[2]/100):0.25);
+                                break;
+                                
+                            case 3: // play
+                                audio.play();
+                                break;
+                                
+                            case 4: // stop/pause
+                                audio.pause();
+                                break;
                         }
                     }
                     break;

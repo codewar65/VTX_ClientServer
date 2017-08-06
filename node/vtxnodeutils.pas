@@ -103,6 +103,11 @@ function UNICODE(n : integer) : string;
 function URL(w, h, l : integer; urlstr : string) : string;
 function HOTSPOT(w, h, l : integer; hotstr : string) : string;
 
+function SOUNDSET(urlstr : string) : string;
+function SOUNDPLAY : string;
+function SOUNDSTOP : string;
+function SOUNDVOL(v : integer) : string;
+
 function RGBToANSI(red, green, blue : byte) : integer;
 function SGR(fgcolor : integer) : string;
 function SGR(fgcolor, bgcolor : integer) : string;
@@ -511,6 +516,36 @@ begin
   result := CSI + '0;' + inttostr(w)
   	+ ';' + inttostr(h)
   	+ ';' + inttostr(l) + str + '\';
+end;
+
+function SOUNDSET(urlstr : string) : string;
+var
+  str : string;
+  i : integer;
+  c : integer;
+begin
+ 	str := '';
+  for i := 0 to length(urlstr)-1 do
+  begin
+    c := ord(urlstr.Chars[i]);
+  	str += ';' + inttostr(c);
+  end;
+  result := CSI + '1;1' + str + '_';
+end;
+
+function SOUNDPLAY : string;
+begin
+  result := CSI + '1;3_';
+end;
+
+function SOUNDSTOP : string;
+begin
+  result := CSI + '1;4_';
+end;
+
+function SOUNDVOL(v : integer) : string;
+begin
+  result := CSI + '1;2;' + inttostr(v) + '_';
 end;
 
 function VTXCtrlBreak(CtrlBreak : boolean) : boolean;

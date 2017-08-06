@@ -129,6 +129,16 @@ Sequences (# : to be implemented)
     CSI 0 ; s '_' : Remove sprite number s {0}
     CSI 0 ; '_' : Remove all sprites.
 
+*   CSI 1 ; 0 ; n '_' : Load audio from defined audio object. (See APC '1' ST command)
+*   CSI 1 ; 1 ; a [ ; ... ; a ] '_' : Load audio from stream URL.
+*   CSI 1 ; 2 ; v '_' : Set volume v=(0-100) default:25
+*   CSU 1 ; 3 '_' : Play audio.
+*   CSI 1 ; 4 '_' : Stop/pause audio.
+*       a : unicode ascii value of character in string to send.
+*       n : preloaded audio number (See APC '1' ST)
+*       v : volumn (0-100)
+*       o : loop (0 or 1)
+
     CSI t ; w ; h ; l ; a [ ; ... ; a ] \ : Define clickable region on screen at cursor
             position of size w(idth) and h(eight). values a1 .. upto the _ are
             ascii codes for what the hot spot will send if clicked. The terminal
@@ -147,12 +157,11 @@ Sequences (# : to be implemented)
     CSI '2' ; o '^' : Set cursor orientation. o = (0:horizontal, 1:vertical) {0}
     CSI '3' ; c '^' : Set page border color.  c = (0-255) {0}
     CSI '4' ; c '^' : Set page background color. c = (0-255) {0}
-    CSI '5' ; f ; b '^' : Set hotspot mouseover colors. *
-    CSI '6' ; f ; b '^' : Set hotspot click colors. *
-    
+    CSI '5' ; f ; b '^' : Set hotspot mouseover colors. 
+    CSI '6' ; f ; b '^' : Set hotspot click colors. 
 
     CSI s ; w '[' : Set Row Size. Alter the geometry of the current row. Overall scale is
-            applied first then width scale.
+            applied first then width scale. See also ESC # commands for sizing.
         s : overall scale. 0=25%, 1=50%, 2=75%, 3=100%, 4=125%, 5=150%, 6=175%, 7=200%. {3}
         w : width scale. 0=50%, 1=100%, 2=150%, 3=200%. {1}
 
@@ -283,16 +292,21 @@ Sequences (# : to be implemented)
     ESC '#' n : Set Row Attributes.
         n = 0 : Row Marquee off
             1 : Row Marquee on
+            2 : single wide / double high - top half (as with BBC Micro)
             3 : double wide / double high - top half
             4 : double wide / double high - bottom half
             5 : single wide / single high
             6 : double wide / single high
+            7 : single wide / double high - bottom half (as with BBC Micro)
             9 : Reset all row attributes (size and background.)
 
     ACP '0;' n ';' g ST : Define sprite n as Base64 SVG g.
     ACP '0;' n ST : Clear definitions for sprite n.
     ACP '0' ST : Clear all sprite definitions.
 
+*   ACP '1;' n ';' g ST : Define audio n as Base64 oog g.
+*   ACP '1;' n ST : Clear definitions for audio n.
+*   ACP '1' ST : Clear all audio definitions.
 
 Keyboard Mapping
 ================

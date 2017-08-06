@@ -3,6 +3,10 @@ program testvtx;
 uses
   SysUtils, VTXNodeUtils;
 
+var
+  vol : integer = 25;
+  play : boolean = false;
+
 function Menu : string;
 var
   key : string;
@@ -41,7 +45,7 @@ begin
 
   PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'7')+'['
   	+ SGR(ANSI_YELLOW) + '7' + SGR(ANSI_BROWN)
-    + ']' + SGR(ANSI_LTBLUE) + ' Sprites');
+    + ']' + SGR(ANSI_LTBLUE) + ' Sprites.');
 
   PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'8')+'['
   	+ SGR(ANSI_YELLOW) + '8' + SGR(ANSI_BROWN)
@@ -59,6 +63,10 @@ begin
   	+ SGR(ANSI_YELLOW) + 'B' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Font Selection.');
 
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'B')+'['
+  	+ SGR(ANSI_YELLOW) + 'C' + SGR(ANSI_BROWN)
+    + ']' + SGR(ANSI_LTBLUE) + ' Audio.');
+
   Print(UP(11) + SGR(ANSI_LTGREEN));
   PrintLn(RIGHT(30) + 'This is a demonstration of the VTX web and');
   PrintLn(RIGHT(30) + 'websocket server, VTX web browser client, and');
@@ -71,15 +79,43 @@ begin
   PrintLn(RIGHT(30) + 'This demo will display the ANSI code sequences');
   PrintLn(RIGHT(30) + 'supported by the VTX client.');
 
-  Print(DOWN(2) + SGR(ANSI_GREEN) + ' Select Screen or ' + SGR(ANSI_BROWN)
+  printLn(DOWN(2) + SGR(ANSI_YELLOW) + ' Now with '#27'[6mAudio! '
+  	+ #27'[5;26mPress ' + HOTSPOT(3,1,1,'P') + '[P] to play/stop, '
+  	+	HOTSPOT(3,1,1,'+') + '[+]/' + HOTSPOT(3,1,1,'-') + '[-] for volume. '+SGR(ANSI_LTRED)+'(Dawn Radio)');
+  println;
+
+  Print(SGR(ANSI_GREEN) + ' Select Screen or ' + SGR(ANSI_BROWN)
   	+ HOTSPOT(3,1,0,'Q')+'[' + SGR(ANSI_YELLOW) + 'Q'
     + SGR(ANSI_BROWN) + ']' + SGR(ANSI_GREEN)
     + 'uit : ');
 
+
   result := '';
   repeat
     key := upCase(GetKey);
-    if Pos(key, 'Q123456789AB') <> 0 then
+
+    if key = 'P' then
+    begin
+    	if play then
+      	Print(SOUNDSTOP)
+   		else
+        Print(SOUNDPLAY);
+      play := not play;
+    end
+    else if key = '+' then
+   	begin
+    	vol += 5;
+	    if vol > 100 then vol := 100;
+    	Print(SOUNDVOL(vol));
+    end
+    else if key = '-' then
+    begin
+    	vol -= 5;
+	    if vol < 0 then vol := 0;
+    	Print(SOUNDVOL(vol));
+    end;
+
+    if Pos(key, 'Q123456789ABC') <> 0 then
       result := key;
   until result <> '';
 end;
@@ -678,6 +714,48 @@ begin
   until key = 'Q';
 end;
 
+procedure PageC;
+var
+  key : string;
+begin
+  Print(VTXMODE + CLS + HOME + SGR(ANSI_LTCYAN, [SGR_RESET]));
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 50)
+    + ' Audio Support');
+  PrintLn;
+
+  PrintLn(#27'[94mAudio commands allow the VTX client to play either an audio object');
+  PrintLn('or a streaming URL.');
+  PrintLn;
+
+  PrintLn('Audio definition sequences are as follows:');
+  PrintLn;
+  PrintLn(#27'[93mAPC 1 ST '#27'[94m: Clear all audio definitions.');
+  PrintLn(#27'[93mAPC 1;'#27'[3ma'#27'[23m ST '#27'[94m: Clear a audio definition number a (1-64).');
+  PrintLn(#27'[93mAPC 1;'#27'[3ma;data'#27'[23m ST '#27'[94m: Define audio object a with data (Base64 file text).');
+  PrintLn;
+
+  PrintLn('To play audio:');
+  PrintLn;
+  PrintLn(#27'[93mCSI 1 ; 0 ; n _'#27'[94m: Loads an audio object into the audio player. These are set');
+  PrintLn('    with the APC 1 ST commands above.');
+  PrintLn('    n : Audio object defined with APC 1 ST command.');
+  PrintLn(#27'[93mCSI 1 ; 1 ; a ; ... ; a _'#27'[94m: Loads the audio player with online audio.');
+  PrintLn('    a : unicode ascii characters to url.');
+  PrintLn(#27'[93mCSI 1 ; 2 ; v _'#27'[94m: Set the volume. (0-100). Default=25');
+  PrintLn('    a : unicode ascii characters to url.');
+  PrintLn(#27'[93mCSI 1 ; 3 _'#27'[94m: Play.');
+  PrintLn(#27'[93mCSI 1 ; 4 _'#27'[94m: Stop/Pause.');
+
+  PrintLn;
+
+  Print(#27'[10m'+SGR(ANSI_GREEN) + 'Press '+HOTSPOT(3,1,0,'Q')+'['
+    + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
+
+  repeat
+    key := upCase(GetKey);
+  until key = 'Q';
+end;
+
 var
   selection : string;
   loop : boolean;
@@ -686,6 +764,8 @@ begin
   Init;
 
   randomize;
+
+  Print(SOUNDVOL(25) + SOUNDSET('http://dirtydelilah.ds.sparrowindustries.net:7838/;'));
 
   loop := true;
   while loop do
@@ -704,6 +784,7 @@ begin
       '9':  Page9;
       'A':	PageA;
       'B':	PageB;
+      'C':	PageC;
 
       'Q':
         begin
