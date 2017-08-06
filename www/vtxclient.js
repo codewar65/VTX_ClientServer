@@ -29,11 +29,9 @@
   vtxserv.pas
 
     TODO :
-        Client Ident
+        Client Ident - fix
 
         codes for restore cursor attr, restore page attr
-
-        finish PETSCII if term = 'PETSCII' / use c64Colors palette
 
 CBM keys
     Left CTRL is the Commodore key
@@ -1424,7 +1422,6 @@ var
 
     // http://invisible-island.net/xterm/xterm-function-keys.html
     // http://ansi-bbs.org/ansi-bbs2/index.ssjs
-    // TODO : split into separate tables for each shiftstate.
     keysS0C0A0 = {  // Normal keys
 
         0:  0,                  // windows - ie
