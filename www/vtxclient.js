@@ -28,21 +28,11 @@
   2017-07-20
   vtxserv.pas
 
-    TODO :
-        Client Ident - fix
+    TODO : ( see also TODO in code)
 
-        codes for restore cursor attr, restore page attr
+        Client Ident - fix - currently crashing / not working all time.
 
-CBM keys
-    Left CTRL is the Commodore key
-    ESC and Caps lock keys are the Run/stop key
-    Tab key is the CTRL key
-    ` (single quote) key is the Left arrow key
-    \ (backslash) key is the Pound sign key
-    Home key is the CLR HOME key
-    Page up key is the RESTORE key
-    Arrow keys represent the CRSR keys
-
+        Codes for restore cursor attr, restore page attr
 
 
     PAGEATTR
@@ -55,8 +45,8 @@ CBM keys
 
     ROWATTR - numbers stored in conRowAttr[num]
 
-        00000000 00000000 00000000  - bits
-        mwwzzzbb ssssssss ffffffff
+        00000000 00000000 00000000 00000000  - bits
+        ------dd mwwzzzbb ssssssss ffffffff
 
         f : First Color (0-255)
         s : Second Color (0-255)
@@ -80,7 +70,10 @@ CBM keys
             10  - 150%
             11  - 200%
         m : marquee (0-1)
-
+        d : double height
+            00 - normal
+            01 - double height top half
+            10 - double height bottom half
 
     CELLATTRS - numbers stored in conCellAttr[row][col]
 
@@ -233,6 +226,7 @@ var
     crsrCol,
     crsrSaveRow = 0,            // saved position
     crsrSaveCol = 0,
+    cellSaveAttr = 0,           // save attribute (ESC 7 / ESC 8)
     lastCrsrRow,
     lastCrsrCol,
     pageAttr,                   // current page attributes
@@ -301,11 +295,12 @@ var
     A_CELL_BG_MASK =        0x0000FF00,
     A_CELL_FONT_MASK =      0xF0000000,
 
-    A_ROW_COLOR1_MASK =     0x0000FF,
-    A_ROW_COLOR2_MASK =     0x00FF00,
-    A_ROW_PATTERN_MASK =    0x030000,
-    A_ROW_SIZE_MASK =       0x1C0000,
-    A_ROW_WIDTH_MASK =      0x600000,
+    A_ROW_COLOR1_MASK =     0x000000FF,
+    A_ROW_COLOR2_MASK =     0x0000FF00,
+    A_ROW_PATTERN_MASK =    0x00030000,
+    A_ROW_SIZE_MASK =       0x001C0000,
+    A_ROW_WIDTH_MASK =      0x00600000,
+    A_ROW_DOUBLE_MASK =     0x03000000,
 
     A_CRSR_COLOR_MASK =     0x0000FF,
     A_CRSR_STYLE_MASK =     0x000300,
@@ -324,12 +319,19 @@ var
     A_CELL_BLINKFAST =      0x04000000,
     A_CELL_FAINT =          0x08000000,
 
-    A_ROW_NONE =            0x000000,
-    A_ROW_SOLID =           0x010000,
-    A_ROW_HORZ =            0x020000,
-    A_ROW_VERT =            0x030000,
-    A_ROW_MARQUEE =         0x800000,
-
+    A_ROW_NONE =            0x00000000,
+    A_ROW_SOLID =           0x00010000,
+    A_ROW_HORZ =            0x00020000,
+    A_ROW_VERT =            0x00030000,
+    A_ROW_MARQUEE =         0x00800000,
+    A_ROW_DOUBLETOP =       0x01000000,
+    A_ROW_DOUBLEBOTTOM =    0x02000000,
+    A_ROW_WIDTH50 =         0x00000000,
+    A_ROW_WIDTH100 =        0x00200000,
+    A_ROW_WIDTH150 =        0x00400000,
+    A_ROW_WIDTH200 =        0x00600000,
+    A_ROW_SIZE100 =         0x000E0000,
+    
     A_CRSR_NONE =           0x000000,
     A_CRSR_THIN =           0x000100,
     A_CRSR_THICK =          0x000200,
@@ -337,6 +339,7 @@ var
     A_CRSR_ORIENTATION =    0x000400,
 
     // key commands
+    DO_ESC =            -1,
     DO_CAPLK =          -2,
     DO_NUMLK =          -3,
     DO_SCRLK =          -4,
@@ -1446,7 +1449,7 @@ var
         20: DO_CAPLK,           // caps lock
         27: function () {       // esc
                 // run/stop cbm
-                return cbm?0x03:0x1B; },
+                return cbm?0x03:DO_ESC; }, // 0x1B; },
         32: ' ',                // spacebar
         33: function(){         // pgup
                 return modeDOORWAY?'\x00\x49':CSI+'V'; },
@@ -1885,7 +1888,6 @@ function bootVTX() {
             t.innerText = vtxdata.sysName
     }
         
-    
     // when all fonts loaded call initDisplay
     window.setTimeout(initDisplay, 500);
 }
@@ -2132,6 +2134,12 @@ function keyDown(e) {
                     setBulbs();
                     break;
 
+                case DO_ESC:
+                    sendData(_ESC);
+                    e.keyCode = 0;
+                    return (e.returnValue = false);
+                    break;
+                    
                 default:
                     // unknown action - pass to keyPress
                     return;
@@ -2166,6 +2174,7 @@ function keyPress(e) {
 }
 
 // delete row from storage and element from html
+// TODO - check scroll region
 function delRow(rownum) {
     var
         els, p;
@@ -2179,17 +2188,12 @@ function delRow(rownum) {
     conCellAttr.splice(rownum, 1);
 
     // move all hotspots below up one. remove hotspots on this row.
-    i = conHotSpots.length;
-    while (i--) {
-        hs = conHotSpot[i];
-        if (hs.row == rownum)
-            conHotSpots.splice(i,1)
-        else if (hs.row > rownum)
-            conHotSpots.row--;
-    }
+    clearHotSpotsRow(rownum, 0, 999);
+    moveHotSpotsRows(rownum + 1, conRowAttr.length, -1);
 }
 
 // insert row into storage and element into html
+// TODO - check scroll region
 function insRow(rownum) {
     var
         els, p;
@@ -2202,12 +2206,7 @@ function insRow(rownum) {
     conCellAttr.splice(rownum, 0, []);
 
     // move all hotspots on this row and below down one.
-    i = conHotSpots.length;
-    while (i--) {
-        hs = conHotSpot[i];
-        if (hs.row >= rownum)
-            conHotSpots.row++;
-    }
+    moveHotSpotsRows(rownum, conRowAttr.length, +1);
     trimHistory();
 }
 
@@ -2220,6 +2219,7 @@ function trimHistory(){
         hs;
     
     while (conRowAttr.length > vtxdata.crtHistory) {
+        clearHotSpotsRow(0, 0, 999);
         els = document.getElementsByClassName('vtx');
         p = els[0].parentNode;
         p.removeChild(els[0]);
@@ -2227,15 +2227,6 @@ function trimHistory(){
         conText.splice(0, 1);
         conCellAttr.splice(0, 1);
         crsrRow--;
-
-        i = conHotSpots.length;
-        while (i--) {
-            hs = conHotSpot[i];
-            hs.row--;
-            if (hs.row < 0) {
-                conHostSpots.splics(i,1);
-            }
-        }
     }
 }
 
@@ -2245,6 +2236,8 @@ function delChar(rownum, colnum) {
     expandToCol(rownum, colnum);
     conText[rownum] = conText[rownum].splice(colnum, 1);
     conCellAttr[rownum].splice(colnum, 1);
+    moveHotSpotsRow(rownum, colnum, 999, -1);
+    redrawRow(rownum);
 }
 
 // insert a character at position. also sets attr to def
@@ -2253,6 +2246,8 @@ function insChar(rownum, colnum, chr) {
     expandToCol(rownum, colnum);
     conText[rownum] = conText[rownum].splice(colnum, 0, String.fromCharCode(chr));
     conCellAttr[rownum].splice(colnum, 0, defCellAttr);
+    moveHotSpotsRow(rownum, colnum, 999, +1);
+    redrawRow(rownum);
 }
 
 // create blank HTML row
@@ -2836,10 +2831,9 @@ function adjustRow(rownum) {
         row.style['height'] = size + 'em';
         cnv.width = nw * xScale;
         cnv.height = (h + 16);
-
-        // redraw this entire row
-        redrawRow(rownum);
     }
+    // redraw this entire row
+    redrawRow(rownum);
 }
 
 function redrawRow(rownum){
@@ -2890,7 +2884,8 @@ function renderCell(rownum, colnum, forcerev) {
     var
         row, size, width, w, h, x, cnv, drawtxt,
         ctx, attr, ch, tfg, tbg, tbold, stroke, tmp,
-        tblinks, tfnt;
+        tblinks, tfnt,
+        xskew, xadj, yadj, yScale, dbl;
 
     // quick range check
     if (rownum > conRowAttr.length)         return;
@@ -3047,19 +3042,33 @@ function renderCell(rownum, colnum, forcerev) {
         }
 
         // use less of a skew on italics due to character clipping
-        var xskew = 0;
-        var xadj = 0;
+        xskew = 0;
+        xadj = 0;
         if (attr & A_CELL_ITALICS) {
             xskew = -0.125;
             xadj  = 1;
         }
+        
+        // handle double tall with half cell rendering
+        yadj = 0;
+        yScale = 1.0;
+        dbl = (conRowAttr[rownum] & A_ROW_DOUBLE_MASK);
+        if (dbl == A_ROW_DOUBLETOP) {
+            // additional y scale
+            yScale = 2.0;
+        } else if (dbl == A_ROW_DOUBLEBOTTOM) {
+            // additional y scale + -yoffset
+            yadj = -h;
+            yScale = 2.0;
+        }
+        
         ctx.setTransform(
             xScale * size * width,      // x scale
             0,                          // y skew
             xScale * xskew,             // x skew
-            size,                       // y scale
+            yScale * size,              // y scale
             (x + xScale * xadj),        // x adj
-            0);                         // y adj
+            yadj);                      // y adj
         if (attr & A_CELL_OUTLINE) {
             ctx.strokeStyle = ansiColors[tfg];
             ctx.lineWidth = 1;
@@ -3887,7 +3896,7 @@ function ymRStateMachine(data){
                             if (ymFileSize > -1) {
                                 ymFileData = ymFileData.slice(0, ymFileSize);
                             } else {
-                                // count CPMEOFs on end (work on this)
+                                // TODO : count CPMEOFs on end (work on this)
                                 throw 'EOT look for CMPEOF';
 //                              j = ymFileData.size - 1;
 //                              while ((ymFileData[j] == _CPMEOF) && (j > 0))
@@ -4490,6 +4499,110 @@ function conPutChar(rownum, colnum, chr, attr) {
     renderCell(rownum, colnum);
 }
 
+// erase hotspots on row from col1 to col2
+function clearHotSpotsRow(row, col1, col2) {
+    var
+        hs, i;
+    for (i = conHotSpots.length - 1; i >= 0; i--) {
+        hs = conHotSpots[i];
+        if ((hs.row == row) && (hs.col >= col1) && (hs.col <= col2))
+            conHotSpots.splice(i,1);
+    }
+}
+
+// erase hotspots from row1 to row2
+function clearHotSpotsRows(row1, row2) {
+    var
+        hs, i;
+    for (i = conHotSpots.length - 1; i >= 0; i--) {
+        hs = conHotSpots[i];
+        if ((hs.row >= row1) && (hs.row <= row2))
+            conHotSpots.splice(i,1);
+    }
+}
+
+// move hotspots on row from col1 to col2 by coladj cols
+function moveHotSpotsRow(row, col1, col2, coladj) {
+    var
+        hs, i;
+    for (i = conHotSpots.length - 1; i >= 0; i--) {
+        hs = conHotSpots[i];
+        if ((hs.row == row) && (hs.col >= col1) && (hs.col <= col2))
+            hs.col += coladj;
+    }
+}
+
+// move hotspots from row1 to row2 by rowadj rows
+function moveHotSpotsRows(row1, row2, rowadj) {
+    var
+        hs, i;
+    for (i = conHotSpots.length - 1; i >= 0; i--) {
+        hs = conHotSpots[i];
+        if ((hs.row >= row1) && (hs.row <= row2))
+            hs.row += rowadj;
+    }
+}
+
+// scroll screen up 1 row
+function scrollUp() {
+    var
+        fromRow, toRow,
+        j, hs;
+
+    if (modeRegionOrigin) {
+        fromRow = regionTopRow;
+        toRow = regionBottomRow;
+    } else {
+        fromRow = 0; 
+        toRow = conRowAttr.length - 1;
+    }
+        
+    expandToRow(crtRows);
+    for (j = fromRow; j < toRow; j++) {
+        conText[j] = conText[j + 1];
+        conCellAttr[j] = conCellAttr[j + 1];
+        redrawRow(j);
+    }
+    // clear bottow row
+    conText[toRow] = '';
+    conCellAttr[toRow] = [];
+    redrawRow(toRow);
+
+    // move / clear hotspots                        
+    clearHotSpotsRow(fromRow, 0, 999);
+    moveHotSpotsRows(fromRow + 1, toRow, -1);
+}
+
+// scroll screen down 1 row
+function scrollDown() {
+    var
+        fromRow, toRow,
+        j, hs;
+        
+    if (modeRegionOrigin) {
+        fromRow = regionTopRow;
+        toRow = regionBottomRow;
+    } else {
+        fromRow = 0; 
+        toRow = conRowAttr.length - 1;
+    }
+        
+    expandToRow(crtRows);
+    for (j = toRow; j > fromRow; j--) {
+        conText[j] = conText[j - 1];
+        conCellAttr[j] = conCellAttr[j - 1];
+        redrawRow(j);
+    }
+    // clear top row
+    conText[fromRow] = '';
+    conCellAttr[fromRow] = [];
+    redrawRow(fromRow);
+
+    // move / clear hotspots                        
+    clearHotSpotsRow(toRow, 0, 999);
+    moveHotSpotsRows(fromRow, toRow - 1, +1);
+}
+
 // output character using current attribute at cursor position.
 function conPrintChar(chr) {
     if (isprint(chr)) {
@@ -4727,7 +4840,6 @@ function conCharOut(chr) {
         }
     } else {
         // ANSI ---------------------------------------------------------------
-        // do all normal ctrls first
         
         if (modeNextGlyph){
             // print glyph AS IS
@@ -4735,6 +4847,7 @@ function conCharOut(chr) {
             crsrrender = true;
             modeNextGlyph = false;
         } else {
+            // do all normal ctrls first
             switch (chr) {
                 case _NUL:     // null
                     if (modeDOORWAY)
@@ -4812,7 +4925,32 @@ function conCharOut(chr) {
                                 apcstr = '';
                                 ansiState = 4
                             }
-                            else
+                            else if (chr == 0x37) {
+                                // ESC 7 - Save crsr pos and attrs
+                                crsrSaveRow = crsrRow;
+                                crsrSaveCol = crsrCol;
+                                cellSaveAttr = cellAttr;
+                                ansiState = 0;
+                            } else if (chr == 0x38) {
+                                // ESC 8 - restore crsr pos and attrs
+                                crsrRow = crsrSaveRow;
+                                crsrCol = crsrSaveCol;
+                                cellAttr = cellSaveAttr;
+                                ansiState = 0;
+                            } else if (chr == 0x44) {
+                                // ESC D - Scroll up 1
+                                scrollUp();
+                                ansiState = 0;
+                            } else if (chr == 0x45) {
+                                // ESC E - Move to next line
+                                crsrRow++;
+                                crsrrender = true;
+                                ansiState = 0;
+                            } else if (chr == 0x4D) {
+                                // ESC M - Scroll down 1
+                                scrollDown();
+                                ansiState = 0;
+                            } else
                                 // unrecognized - abort sequence
                                 ansiState = 0;
                             break;
@@ -4838,19 +4976,40 @@ function conCharOut(chr) {
                         case 3:
                             // start of row attr (ESC #)
                             // get single byte (0,1,9)
-                            if (chr == 0x30 || chr == 0x31) {
-                                // marquee off/on
-                                if (chr == 0x30) {
-                                    conRowAttr[crsrRow] &= ~A_ROW_MARQUEE;
-                                    getRowElement(crsrRow).firstChild.classList.remove('marquee')
-                                } else {
-                                    conRowAttr[crsrRow] |= A_ROW_MARQUEE;
-                                    getRowElement(crsrRow).firstChild.classList.add('marquee');
-                                }
+                            if (chr == 0x30) {
+                                // marquee off
+                                // ESC # 0 
+                                conRowAttr[crsrRow] &= ~A_ROW_MARQUEE;
+                                getRowElement(crsrRow).firstChild.classList.remove('marquee')
+                            } else if (chr == 0x31) {
+                                // marquee on
+                                // ESC # 1
+                                conRowAttr[crsrRow] |= A_ROW_MARQUEE;
+                                getRowElement(crsrRow).firstChild.classList.add('marquee');
+                            } else if (chr == 0x33) {
+                                // ESC # 3 - double wide/high, top
+                                conRowAttr[crsrRow] &= 
+                                    ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
+                                conRowAttr[crsrRow] |= (A_ROW_DOUBLETOP | A_ROW_WIDTH200 | A_ROW_SIZE100);
+                            } else if (chr == 0x34) {
+                                // ESC # 4 - double wide/high, bottom
+                                conRowAttr[crsrRow] &= 
+                                    ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
+                                conRowAttr[crsrRow] |= (A_ROW_DOUBLEBOTTOM | A_ROW_WIDTH200 | A_ROW_SIZE100);
+                            } else if (chr == 0x35) {
+                                // ESC # 5 - single wide/high
+                                conRowAttr[crsrRow] &= 
+                                    ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
+                                conRowAttr[crsrRow] |= (A_ROW_WIDTH100);
+                            } else if (chr == 0x36) {
+                                // ESC # 6 - single high / double wide
+                                conRowAttr[crsrRow] &= 
+                                    ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
+                                conRowAttr[crsrRow] |= (A_ROW_WIDTH200 | A_ROW_SIZE100);
                             } else if (chr == 0x39) {
-                                // reset row.
+                                // ESC # 9 - reset row
                                 conRowAttr[crsrRow] = defRowAttr;
-                            } // else unrecognized
+                            }
                             adjustRow(crsrRow);
                             ansiState = 0;
                             break;
@@ -5179,9 +5338,11 @@ function conCharOut(chr) {
                     switch (parm[0]) {
                         case 0:
                             // clear EOL first
+                            clearHotSpotsRow(crsrRow, crsrCol, 999);
                             conCellAttr[crsrRow].length = crsrCol;
                             conText[crsrRow] = conText[crsrRow].substring(0, crsrCol);
                             // clear EOS
+                            clearHotSpotsRows(crsrRow + 1, conRowAttr.length);
                             for (r = getMaxRow(); r > crsrRow; r--) {
                                 row = getRowElement(r);
                                 row.parentNode.removeChild(row);
@@ -5189,16 +5350,17 @@ function conCharOut(chr) {
                                 conCellAttr.length = crsrRow + 1;
                                 conText.length = crsrRow + 1;
                             }
-                            // TODO clear hotspots
                             break;
 
                         case 1:
                             // clear SOL first
+                            clearHotSpotsRow(crsrRow, 0, crsrCol-1);
                             for (c = 0; c <= crsrCol; c++)
                                 conPutChar(crsrRow, c, 32, defCellAttr);
                             redrawRow(crsrRow);
 
                             // clear SOS
+                            clearHotSpotsRows(0, crsrRow-1);
                             for (r = 0; r < crsrRow; r++) {
                                 conRowAttr[r] = defRowAttr;
                                 conCellAttr[r] = [];
@@ -5206,7 +5368,6 @@ function conCharOut(chr) {
                                 adjustRow(crsrRow);
                                 redrawRow(crsrRow);
                             }
-                            // TODO clear hotspots
                             break;
 
                         case 2:
@@ -5247,27 +5408,27 @@ function conCharOut(chr) {
                     expandToCol(crsrRow, crsrCol);
                     switch (parm[0]) {
                         case 0:
-                            // clear EOL first
+                            // clear EOL
+                            clearHotSpotsRow(crsrRow, crsrCol, 999);
                             conCellAttr[crsrRow].length = crsrCol;
                             conText[crsrRow] = conText[crsrRow].substring(0, crsrCol);
                             redrawRow(crsrRow);
-                            // TODO clear hotspots
                             break;
 
                         case 1:
-                            // clear SOL first
+                            // clear SOL
+                            clearHotSpotsRow(crsrRow, 0, crsrCol);
                             for (c = 0; c <= crsrCol; c++)
                                 conPutChar(crsrRow, c, 32, defCellAttr);
                             redrawRow(crsrRow);
-                            // TODO clear hotspots
                             break;
 
                         case 2:
                             // clear row.
+                            clearHotSpotsRow(crsrRow, 0, 999);
                             conText[crsrRow] = '';
                             conCellAttr[crsrRow] = [];
                             redrawRow(crsrRow);
-                            // TODO clear hotspots
                             break;
                     }
                     break;
@@ -5298,69 +5459,17 @@ function conCharOut(chr) {
                 // move any hotspots within region.
                 // do not move conRowAttrs.
                 case 0x53:  // S - Scroll Up (SU). Scroll up.
-                    expandToRow(crtRows);
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
-                    if (modeRegionOrigin) {
-                        fromRow = regionTopRow;
-                        toRow = regionBottomRow;
-                    } else {
-                        fromRow = 0; 
-                        toRow = conRowAttr.length - 1;
-                    }
-                    for (i = 0; i < parm[0]; i++) {
-                        for (j = fromRow; j < toRow; j++) {
-                            conText[j] = conText[j + 1];
-                            conCellAttr[j] = conCellAttr[j + 1];
-                            redrawRow(j);
-                        }
-                        // clear bottow row
-                        conText[toRow] = '';
-                        conCellAttr[toRow] = [];
-                        redrawRow(toRow);
-
-                        // move / clear hotspots                        
-                        for (j = conHotSpots.length-1; j >= 0; j--) {
-                            hs = conHotSpots[j];
-                            if (hs.row == fromRow)
-                                conHotSpots.splice(i,1);
-                            if ((hs.row >= fromRow) && (hs.row <= toRow))
-                                hs.row--;
-                        }
-                    }
+                    for (i = 0; i < parm[0]; i++)
+                        scrollUp();
                     break;
                     
                 case 0x54:  // T - Scroll Down (SD). Scroll down.
-                    expandToRow(crtRows);
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
-                    if (modeRegionOrigin) {
-                        fromRow = regionTopRow;
-                        toRow = regionBottomRow;
-                    } else {
-                        fromRow = 0; 
-                        toRow = conRowAttr.length - 1;
-                    }
-                    for (i = 0; i < parm[0]; i++) {
-                        for (j = toRow; j > fromRow; j--) {
-                            conText[j] = conText[j - 1];
-                            conCellAttr[j] = conCellAttr[j - 1];
-                            redrawRow(j);
-                        }
-                        // clear top row
-                        conText[fromRow] = '';
-                        conCellAttr[fromRow] = [];
-                        redrawRow(fromRow);
-
-                        // move / clear hotspots                        
-                        for (j = conHotSpots.length-1; j >= 0; j--) {
-                            hs = conHotSpots[j];
-                            if (hs.row == toRow)
-                                conHotSpots.splice(i,1);
-                            if ((hs.row >= fromRow) && (hs.row <= toRow))
-                                hs.row++;
-                        }
-                    }
+                    for (i = 0; i < parm[0]; i++) 
+                        scrollDown();
                     break;
                     
                 case 0x58:  // X - ECH - erase n characters

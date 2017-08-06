@@ -1,5 +1,5 @@
-VTX
-Draft : July 30, 2017
+VTX Client / Server
+Draft : 06-AUG-2017
 
 Layout
 ======
@@ -112,9 +112,9 @@ Sequences (# : to be implemented)
 
     CSI n 'P' : Delete Character (DCH). Delete n characters at cursor position. {1}
 
-#   CSI n 'S' : Scroll Up (SU). Scroll up.
+    CSI n 'S' : Scroll Up (SU). Scroll up.
 
-#   CSI n 'T' : Scroll Down (SD). Scroll down.
+    CSI n 'T' : Scroll Down (SD). Scroll down.
 
     CSI n 'X' : Erase Character (ECH). Erase next n characters {1}
 
@@ -169,9 +169,7 @@ Sequences (# : to be implemented)
     CSI r ; c 'f' : Horizontal and Vertical Position. Same as CUP. {1,1}
 
     CSI n 'h' : Set Mode (SM).
-        n = '?50' : turns on 'real' ANSI mode.
-       
-            '255' : DOORWAY mode on.
+        n = '?50' : turns on VTX ANSI mode.
             '?6' : 1,1=ul of scrolling region
             '?7' : auto wrap on
             '?25' : cursor on
@@ -180,10 +178,10 @@ Sequences (# : to be implemented)
             '?33' : blink = bright background
             '?34' : blink uses font 2
             '?35' : blink disabled
+            '=255' : DOORWAY mode on.
 
     CSI n 'l' : Reset Mode (RM).
-        n = '?50' : turns off 'real' ANSI mode.
-            '255' : DOORWAY mode off.
+        n = '?50' : turns off VTX ANSI mode.
             '?6' : 1,1=ul of scrolling region
             '?7' : auto wrap off
             '?25' : cursor hide
@@ -192,6 +190,7 @@ Sequences (# : to be implemented)
             '?33' : blink = bright background off
             '?34' : blink uses font 0
             '?35' : blink enabled
+            '=255' : DOORWAY mode off.
         
     CSI n [ ; ... ] 'm' : Set Graphics Rendition (SGR). zero or more of: {0}
         0 : Reset all to default.
@@ -275,10 +274,20 @@ Sequences (# : to be implemented)
     CSI s : Save cursor position.
     CSI u : Restore cursor position.
 
+    ESC '7' : Save crsr pos and attrs
+    ESC '8' : Restore crsr pos and attrs
+    ESC 'D' : - Scroll up 1 row
+    ESC 'E' : - Move to next row
+    ESC 'M' : - Scroll down 1 row
+    
     ESC '#' n : Set Row Attributes.
         n = 0 : Row Marquee off
-        n = 1 : Row Marquee on
-        n = 9 : Reset all row attributes (size and background.)
+            1 : Row Marquee on
+            3 : double wide / double high - top half
+            4 : double wide / double high - bottom half
+            5 : single wide / single high
+            6 : double wide / single high
+            9 : Reset all row attributes (size and background.)
 
     ACP '0;' n ';' g ST : Define sprite n as Base64 SVG g.
     ACP '0;' n ST : Clear definitions for sprite n.
@@ -346,10 +355,44 @@ Keyboard Mapping
     F11             CSI '23~'
     F12             CSI '24~'
 
+    PETSCII terminal type keys:
+
+    Key             CBM Equivalent
+    --------------- -------------------------
+    Backspace       BACK/DEL
+    Del             BACK/DEL
+    ESC             RUN/STOP
+    END             Text Mode
+    Shift END       Graphics Mode
+    HOME            HOME
+    Shift HOME      CLR
+    Arrows          Arrows
+    Ctrl 1          Black
+    Ctrl 2          White
+    Ctrl 3          Red
+    Ctrl 4          Cyan
+    Ctrl 5          Purple
+    Ctrl 6          Green
+    Ctrl 7          Blue
+    Ctrl 8          Yellow
+    Ctrl 9          Reverse Off
+    Ctrl 0          Reverse On
+    Alt 1           Orange
+    Alt 2           Brown
+    Alt 3           Lt Red
+    Alt 4           Dk Gray
+    Alt 5           Gray
+    Alt 6           Lt Green
+    Alt 7           Lt Blue
+    Alt 8           Lt Gray
+    Tab             Toggle Text / Graphics mode
+    
     
 Colors
 ======
 
+    ANSI Colors
+    
     See https://en.wikipedia.org/wiki/ANSI_escape_code for reference.
     
       0             Black
@@ -371,6 +414,9 @@ Colors
 
      16 - 231       6 x 6 x 6 colors.
     232 - 255       Grays.
+
+    PETSCII colors are same as system referenced to by the CodePages
+    VIC20, C64, or C128
 
     
 ATASCII
