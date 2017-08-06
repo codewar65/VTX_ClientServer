@@ -4,14 +4,14 @@ Draft : 06-AUG-2017
 Layout
 ======
 
-    * Page contains zero or more rows of text. Top most 1.
-    * Row contains zero or more columns of characters. Left most 1.
-    * Characters have individual attributes selected using Set Graphics Rendition (CSI m)
-    * Rows have individual attributes selected using CSI [, CSI ], and ESC #.
-    * Rows with default size are 80 characters wide.
-    * Rows can contain more characters than the width of the row. Characters past the right column are not displayed.
-    * Rows with other sizes are smaller or larger but can not guantee true size.
-    * If the cursor is at the width of a row, after the next printed character, the cursor will move to the start of tne next row.
+    Page contains zero or more rows of text. Top most 1.
+    Row contains zero or more columns of characters. Left most 1.
+    Characters have individual attributes selected using Set Graphics Rendition (CSI m)
+    Rows have individual attributes selected using CSI [, CSI ], and ESC #.
+    Rows with default size are 80 characters wide.
+    Rows can contain more characters than the width of the row. Characters past the right column are not displayed.
+    Rows with other sizes are smaller or larger but can not guantee true size.
+    If the cursor is at the width of a row, after the next printed character, the cursor will move to the start of tne next row.
 
 
 Code Definitions
@@ -129,15 +129,14 @@ Sequences (# : to be implemented)
     CSI 0 ; s '_' : Remove sprite number s {0}
     CSI 0 ; '_' : Remove all sprites.
 
-*   CSI 1 ; 0 ; n '_' : Load audio from defined audio object. (See APC '1' ST command)
-*   CSI 1 ; 1 ; a [ ; ... ; a ] '_' : Load audio from stream URL.
-*   CSI 1 ; 2 ; v '_' : Set volume v=(0-100) default:25
-*   CSU 1 ; 3 '_' : Play audio.
-*   CSI 1 ; 4 '_' : Stop/pause audio.
-*       a : unicode ascii value of character in string to send.
-*       n : preloaded audio number (See APC '1' ST)
-*       v : volumn (0-100)
-*       o : loop (0 or 1)
+#   CSI 1 ; 0 ; n '_' : Load audio from defined audio object. (See APC '1' ST command)
+    CSI 1 ; 1 ; a [ ; ... ; a ] '_' : Load audio from stream URL.
+    CSI 1 ; 2 ; v '_' : Set volume v=(0-100) default:25
+    CSU 1 ; 3 '_' : Play audio.
+    CSI 1 ; 4 '_' : Stop/pause audio.
+        a : unicode ascii value of character in string to send.
+#       n : preloaded audio number (See APC '1' ST)
+        v : volumn (0-100)
 
     CSI t ; w ; h ; l ; a [ ; ... ; a ] \ : Define clickable region on screen at cursor
             position of size w(idth) and h(eight). values a1 .. upto the _ are
@@ -304,9 +303,9 @@ Sequences (# : to be implemented)
     ACP '0;' n ST : Clear definitions for sprite n.
     ACP '0' ST : Clear all sprite definitions.
 
-*   ACP '1;' n ';' g ST : Define audio n as Base64 oog g.
-*   ACP '1;' n ST : Clear definitions for audio n.
-*   ACP '1' ST : Clear all audio definitions.
+#   ACP '1;' n ';' g ST : Define audio n as Base64 oog g.
+#   ACP '1;' n ST : Clear definitions for audio n.
+#   ACP '1' ST : Clear all audio definitions.
 
 Keyboard Mapping
 ================

@@ -1,6 +1,6 @@
 # VTX_ClientServer
 
-updated: 03-AUG-2017
+updated: 06-AUG-2017
 
 
 ## Intro
@@ -53,6 +53,8 @@ Support up to 64 SVG sprites from 64 SVG sprite definitions.
 See https://github.com/codewar65/VTX_ClientServer/blob/master/vtx.txt for ANSI code sequences supported.
 
 Y-Modem 1K upload and download.
+
+Build in audio player for streaming audio with ANSI sequences to set source, volume, play, stop.
 
 
 ## PETSCII Mode
