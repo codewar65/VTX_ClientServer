@@ -36,18 +36,33 @@
 
         Add Audio Object
 
+        Audio and Sprite codes simalar layout
+
+        Telnet negotiations moved to client
+
+        ATASCII
+
+        Encapsulate client code into vtx = { } object
+
+        Test all codes.
+
+        Server: http requests out to separate threads
+
+        YModem download : remove CPMEOF's on files w/o filenames/sizes
+        
+
     HOTSPOTATTR
-    
+
         00000000 00000000 00000000 00000000
         BBBBBBBB FFFFFFFF bbbbbbbb ffffffff
-        
+
         f : mouseover foreground color
         b : mouseover background color
         F : click foreground color
         B : click background color
 
         default = 0x0C0F070B
-        
+
     PAGEATTR
 
         bbbbbbbb BBBBBBBB
@@ -87,6 +102,7 @@
             00 - normal
             01 - double height top half
             10 - double height bottom half
+        - : unused
 
     CELLATTRS - numbers stored in conCellAttr[row][col]
 
@@ -108,13 +124,12 @@
         K : blink fast
         f : faint
         Z : font number 0-9 (10=mosaic block, 11=separated block).
-        - : unused
 
 
     CRSRATTRS
 
-        00000000 00000000 00000000  - bits
-        -------- -----ozz cccccccc
+        00000000 00000000 00000000 00000000  - bits
+        -------- -------- -----ozz cccccccc
 
         c : color (0-255)
         z : size
@@ -133,7 +148,6 @@
 */
 
 // globals
-{//REGION Globals
 var
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -198,9 +212,9 @@ var
         '#6C6C6C', '#9AD284', '#6C5EB5', '#959595', '#000000' // fake black
     ],
     c128Colors = [  // C128 colors in 80 column mode
-        '#000000', '#303030', '#EA311B', '#FC601C', '#36C137', '#77EC7C', 
+        '#000000', '#303030', '#EA311B', '#FC601C', '#36C137', '#77EC7C',
         '#1C49D9', '#4487EF', '#BBC238', '#E9F491', '#D974DA', '#EECFED',
-		'#68C8C2', '#B2F0EC', '#BECEBC', '#FFFFFF', '#000000' // fake black
+        '#68C8C2', '#B2F0EC', '#BECEBC', '#FFFFFF', '#000000' // fake black
     ],
 
     // strings that get transmogrified by the HTTP server.
@@ -268,7 +282,6 @@ var
     // ansi parsing vars
     parms = '',                 // parameters for CSI
     interm = '',                // intermediate for CSI
-    apcstr = '',                // string data for APC
     ansiState = 0,
 
     // mode switches
@@ -289,16 +302,17 @@ var
     regionTopRow,               // top row of scroll region.
     regionBottomRow,            // bottom row of scroll region.
     modeRegionOrigin,           // origin in region?
-    
+
     // display buffer.
-    conBuffer = '',             // console output buffer. 
+    conBuffer = '',             // console output buffer.
 
     // Attrs are integer arrays, base 0 (i.e.: row 1 = index 0)
     conRowAttr  = [],           // row attributes array of number
     conCellAttr = [],           // character attributes array of array or number
     conText = [],               // raw text - array of string
     conHotSpots = [],           // clickable hotspots
-    spriteDefs = [],            // sprite definitions
+    spriteDefs = [],            // sprite definitions - contains url / or data url
+    audioDefs = [],             // audio definitions - type 0 coded. 1,2 TODO
 
     // array 0..15 (0-9:ANSI selectable,10/11:special,12-15:reserved)
     conFont = [],               // the 10 fonts used for CSI 10-19 m
@@ -346,7 +360,7 @@ var
     A_ROW_WIDTH150 =        0x00400000,
     A_ROW_WIDTH200 =        0x00600000,
     A_ROW_SIZE100 =         0x000E0000,
-    
+
     A_CRSR_NONE =           0x000000,
     A_CRSR_THIN =           0x000100,
     A_CRSR_THICK =          0x000200,
@@ -1445,23 +1459,23 @@ var
 
         0:  0,                  // windows - ie
         8:  function (){        // backspace
-                return cbm?0x14:0x08; }, 
+                return cbm?0x14:0x08; },
         9:  function (){        // tab
-                if (cbm) { 
+                if (cbm) {
                     // toggle text / gfx modes
                     conFontNum ^= 0x1;
                     renderAll();
                     return 0;
-                } else 
-                    return x09; }, 
+                } else
+                    return x09; },
         12: 0,                  // clear (numpad5 numlk off)
         13: CR,                 // enter
-        16: 0,                  // shift        
+        16: 0,                  // shift
         17: 0,                  // ctrl
         18: 0,                  // alt
 //        19: 0,                  // pause/break
         19: '\x1B[',            // (CSI shortcut)
-        
+
         20: DO_CAPLK,           // caps lock
         27: function () {       // esc
                 // run/stop cbm
@@ -1470,7 +1484,7 @@ var
         33: function(){         // pgup
                 return modeDOORWAY?'\x00\x49':CSI+'V'; },
         34: function(){         // pgdn
-                return modeDOORWAY?'\x00\x51':CSI+'U'; },          
+                return modeDOORWAY?'\x00\x51':CSI+'U'; },
         35: function(){         // end
                 // text in cbm
                 return modeDOORWAY?'\x00\x4F':(cbm?0x0E:CSI+'K'); },
@@ -1566,7 +1580,7 @@ var
                 return modeDOORWAY?'\x00\x44':CSI+'21~'; },
        122: CSI+'23~',          // f11 - browser full screen
        123: CSI+'24~',          // f12
-       
+
        124: 0,                  // gui F13
        125: 0,                  // gui F14
        126: 0,                  // gui F15 / Help
@@ -1594,9 +1608,9 @@ var
        221: ']',                // ]
        222: '\'',               // '
        255: 0,                  // windows - chrome/opera
-    },    
+    },
     keysS1C0A0 = {  // SHIFTed keys.
-    
+
          9: function(){         // tab
                 return modeDOORWAY?'\x00\x0F':0; },
         13: function(){         // enter
@@ -1688,9 +1702,9 @@ var
         36: function(){         // home
                 return modeDOORWAY?'/x00/x77':0; },
         37: function(){         // left
-                return modeDOORWAY?'\x00\x73':0; }, 
+                return modeDOORWAY?'\x00\x73':0; },
         39: function(){         // right
-                return modeDOORWAY?'\x00\x74':0; }, 
+                return modeDOORWAY?'\x00\x74':0; },
         48: function(){         // 0
                 // rev off
                 return cbm?0x92:0; },
@@ -1698,7 +1712,7 @@ var
                 // black
                 return cbm?0x90:0; },
         50: function(){         // 2
-                // white    
+                // white
                 return cbm?0x05:0; },
         51: function(){         // 3
                 // red
@@ -1771,11 +1785,11 @@ var
        221: 0x1d,               // ]
     },
     keysS1C1A0 = {  // SHIFT+CTRL keys. (currently empty)
-    }, 
-    keysS0C0A1 = {  // ALTed keys.                  
+    },
+    keysS0C0A1 = {  // ALTed keys.
         49: function(){             // 1
                 // orange
-                return cbm?0x81:0; },       
+                return cbm?0x81:0; },
         50: function(){             // 2
                 // brown
                 return cbm?0x95:0; },
@@ -1827,12 +1841,11 @@ var
     },
 
     keyVals = [
-        keysS0C0A0, keysS1C0A0, keysS0C1A0, keysS1C1A0, 
+        keysS0C0A0, keysS1C0A0, keysS0C1A0, keysS1C1A0,
         keysS0C0A1, keysS1C0A1, keysS0C1A1, keysS1C1A1 ],
-    
+
     shiftState, ctrlState, altState,
     numState, capState, scrState;
-}
 
 // create an element
 function domElement(type, options, styles, txt) {
@@ -1855,20 +1868,20 @@ function domElement(type, options, styles, txt) {
 var
     bootTimer,
     bootDiv = [],
-    bootFonts = [ 
-        'UVGA16', 'MICROKNIGHT', 'MICROKNIGHTPLUS', 
+    bootFonts = [
+        'UVGA16', 'MICROKNIGHT', 'MICROKNIGHTPLUS',
         'MOSOUL', 'P0TNOODLE', 'TOPAZ', 'TOPAZPLUS',
-        'VIC200', 'VIC201', 'C640', 'C641', 'C1280', 
+        'VIC200', 'VIC201', 'C640', 'C641', 'C1280',
         'C1281', 'ATARI' ];
 
 function bootVTX() {
     var
         i, l, str,
-        el, 
+        el,
         t = document.getElementsByTagName('title')[0],
         hd = document.getElementsByTagName('head')[0],
         testDiv;
-        
+
     // load fonts
     // inject @font-faces
     str = '';
@@ -1879,7 +1892,7 @@ function bootVTX() {
     }
     el = domElement('style', { type: 'text/css' }, {}, str );
     hd.appendChild(el);
-        
+
     // loop through until ALL fonts have been loaded.
     for (i = 0, l = bootFonts.length; i < l; i++) {
         bootDiv[i] = domElement('div',{},
@@ -1897,24 +1910,24 @@ function bootVTX() {
     }
     bootTimer = setInterval(
         function(){
-            var 
+            var
                 i,
                 count = bootFonts.length;
-                
-            for (i = bootFonts.length - 1; i >= 0; i--) {
-                if (bootDiv[i].offsetWidth > 12) {
-                    document.body.removeChild(bootDiv[i]);
+
+            for (i = bootFonts.length - 1; i >= 0; i--)
+                if (bootDiv[i].offsetWidth > 12)
                     count--;
-                }
-            }
+
             if (count == 0) {
+                for (i = bootFonts.length - 1; i >= 0; i--)
+                    document.body.removeChild(bootDiv[i]);
                 clearInterval(bootTimer);
                 bootVTX2();
             }
         }, 50);
 }
 
-function bootVTX2() {    
+function bootVTX2() {
     var
         t = document.getElementsByTagName('title')[0],
         hd = document.getElementsByTagName('head')[0];
@@ -1929,7 +1942,7 @@ function bootVTX2() {
         if (!t.innerText || (t.innerText == ''))
             t.innerText = vtxdata.sysName
     }
-        
+
     // when all fonts loaded call initDisplay
     window.setTimeout(initDisplay, 100);
 }
@@ -2139,7 +2152,7 @@ function keyDown(e) {
         if ((kc >= 65) && (kc <= 90))
             stateIdx ^= 1;
     }
-    
+
     ka = keyVals[stateIdx][kc];
     if (ka == null) {
         // let browser handle it.
@@ -2187,7 +2200,7 @@ function keyDown(e) {
                     e.keyCode = 0;
                     return (e.returnValue = false);
                     break;
-                    
+
                 default:
                     // unknown action - pass to keyPress
                     return;
@@ -2260,12 +2273,12 @@ function insRow(rownum) {
 
 // remove excess rows from top.
 function trimHistory(){
-    var 
-        els, 
-        p, 
-        i, 
+    var
+        els,
+        p,
+        i,
         hs;
-    
+
     while (conRowAttr.length > vtxdata.crtHistory) {
         clearHotSpotsRow(0, 0, 999);
         els = document.getElementsByClassName('vtx');
@@ -2303,7 +2316,7 @@ function createNewRow() {
     var
         el = domElement('div', { className: 'vtx' }),
         cnv = domElement('canvas');
-    
+
     //el.appendChild(cnv);
     return el;
 }
@@ -2902,7 +2915,7 @@ function redrawRow(rownum){
     w = xScale * colSize * size * width;     // width of char
     h = fontSize * size;            // height of char
     x = w * l;                  // left pos of char on canv
-    
+
     cnv = row.firstChild;
     if (!cnv) {
         cnv = domElement(
@@ -2921,7 +2934,7 @@ function renderAll() {
     var
         r, c;
     for (r = 0; r < conRowAttr.length; r++)
-        for (c = 0; c < conCellAttr[r].length; c++) 
+        for (c = 0; c < conCellAttr[r].length; c++)
             renderCell(r, c);
 }
 
@@ -2967,7 +2980,7 @@ function renderCell(rownum, colnum, hilight) {
 
     ch = conText[rownum].charAt(colnum);
     attr = conCellAttr[rownum][colnum];
-    
+
     tfg = (attr & 0xFF);
     tbg = (attr >> 8) & 0xff;
     tfnt = ((attr & A_CELL_FONT_MASK) >> 28) & 0xF;
@@ -2975,19 +2988,19 @@ function renderCell(rownum, colnum, hilight) {
     tbold  = attr & A_CELL_BOLD;
     if (modeNoBold) // CSI ?32 h / l
         tbold = 0;
-    
+
     tblinks = attr & (A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
     // move bold / blink to proper font if mode is on
     if (modeBoldFont && tbold)
         tfnt = 1;
-    if (modeBlinkFont && tblinks) 
+    if (modeBlinkFont && tblinks)
         tfnt = 2;
     if (modeBoldFont && tbold && modeBlinkFont && tblinks)
         tfnt = 3;
-    
+
     // convert to proper glyph # for font used by this char
     ch = String.fromCharCode(getUnicode(conFontCP[tfnt], ch.charCodeAt(0)));
-    
+
     if (attr & A_CELL_REVERSE) {
         tmp = tfg;
         tfg = tbg;
@@ -3016,10 +3029,11 @@ function renderCell(rownum, colnum, hilight) {
         tbg = (hotspotAttr >>  8) & 0xFF;
         tfg = (hotspotAttr      ) & 0xFF;
     } else if (hilight == 2) {
-        tbg = (hotspotAttr >> 24) & 0xFF;
+        // TODO : fix for sign.
+        tbg = (hotspotAttr >>> 24) & 0xFF;
         tfg = (hotspotAttr >> 16) & 0xFF;
     }
-    
+
     // fix transparents
     if (tfg == 0) tfg = 16;
     if ((tbg == 0) && !modeVTXANSI) tbg = 16;
@@ -3034,7 +3048,7 @@ function renderCell(rownum, colnum, hilight) {
     ctx.beginPath();
     ctx.rect(x, 0, w, h);
     ctx.clip();
-    
+
     if (cbm) {
         ctx.fillStyle = cbmColors[tbg]
         ctx.fillRect(x, 0, w, h);
@@ -3072,7 +3086,7 @@ function renderCell(rownum, colnum, hilight) {
             } else
                 ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[0];
         } else {
-            if (cbm) 
+            if (cbm)
                 // render all text using conFontNum
                 ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[conFontNum]
             else
@@ -3104,7 +3118,7 @@ function renderCell(rownum, colnum, hilight) {
             xskew = -0.125;
             xadj  = 1;
         }
-        
+
         // handle double tall with half cell rendering
         yadj = 0;
         yScale = 1.0;
@@ -3117,7 +3131,7 @@ function renderCell(rownum, colnum, hilight) {
             yadj = -h;
             yScale = 2.0;
         }
-        
+
         ctx.setTransform(
             xScale * size * width,      // x scale
             0,                          // y skew
@@ -3219,7 +3233,7 @@ function expandToRow(rownum) {
     if (rownum >= conRowAttr.length) {
         while (rownum > getMaxRow()) {
             textDiv.appendChild(createNewRow());
-            
+
             conRowAttr[conRowAttr.length] = 0x002C0000;
             conCellAttr[conCellAttr.length] = [];
             conText[conText.length] = '';
@@ -3231,7 +3245,7 @@ function expandToRow(rownum) {
 // adjust a <div><img src='...svg'></div> element so svg fills dimensions of div
 // this is an onload event for svg images inside a div
 function fitSVGToDiv(e) {
-    var 
+    var
         str,
         r1, w1, h1, w2, h2,
         p = this.parentNode;
@@ -3391,7 +3405,7 @@ function initDisplay() {
         } else
             codePage = codePageAKAs[codePage];
     }
-    
+
     // set fonts.
     if (cbm) {
         conFontNum = 0;
@@ -3401,13 +3415,13 @@ function initDisplay() {
                 conFont[1] = 'VIC201';
                 cbmColors = vic20Colors;
                 break;
-                
+
             case 'C64':
                 conFont[0] = 'C640';
                 conFont[1] = 'C641';
                 cbmColors = c64Colors;
                 break;
-                
+
             case 'C128':
                 conFont[0] = 'C1280';
                 conFont[1] = 'C1281';
@@ -3456,8 +3470,8 @@ function initDisplay() {
 
     // load bell sound
     soundBell = new Audio();
-    soundBell.src = 'bell.ogg';
-    soundBell.type = 'audio/ogg';
+    soundBell.src = 'bell.mp3';
+    soundBell.type = 'audio/mp3';
     soundBell.volume = 1;
     soundBell.preload = 'auto';
     soundBell.load();
@@ -3559,13 +3573,13 @@ function initDisplay() {
     audio = domElement(
         'audio',
         {   id:         'vtxaudio',
-            preload:    'none', 
-            volume:     '0.25', 
+            preload:    'none',
+            volume:     '0.25',
             src:        '/;' },
         {   width:      '0px',
             height:     '0px' });
     pageDiv.appendChild(audio);
-    
+
     // websocket connect
     ws = new WebSocket(wsConnect, ['telnet']);
     ws.binaryType = "arraybuffer";
@@ -3577,16 +3591,16 @@ function initDisplay() {
         data = new Uint8Array(e.data);
         //dump(data,0,data.length);
 
-        // convert data to string 
+        // convert data to string
         str = '';
         switch (codePage){
             case 'UTF8':
                 str = UFT8ArrayToStr(data);
                 break;
-                
+
             case 'UTF16':
                 break;
-                
+
             default:
                 // straight string
                 for (i = 0; i < data.length; i++)
@@ -3641,7 +3655,7 @@ function initDisplay() {
         setBulbs();
     }
     conBufferOut(initStr);
-    
+
     // key events
     addListener(document, 'keydown', keyDown);
     addListener(document, 'keyup', keyUp);
@@ -3657,7 +3671,7 @@ function initDisplay() {
 }
 
 function UFT8ArrayToStr(array) {
-    var 
+    var
         out, i, len, c,
         char2, char3;
 
@@ -3666,26 +3680,26 @@ function UFT8ArrayToStr(array) {
     i = 0;
     while(i < len) {
         c = array[i++];
-        switch(c >> 4) { 
-            case 0: case 1: case 2: 
+        switch(c >> 4) {
+            case 0: case 1: case 2:
             case 3: case 4: case 5: case 6: case 7:
                 // 0xxxxxxx
                 out += String.fromCharCode(c);
                 break;
-                
+
             case 12: case 13:
                 // 110x xxxx   10xx xxxx
                 char2 = array[i++];
                 out += String.fromCharCode(((c & 0x1F) << 6) | (char2 & 0x3F));
                 break;
-                
+
             case 14:
                 // 1110 xxxx  10xx xxxx  10xx xxxx
                 char2 = array[i++];
                 char3 = array[i++];
                 out += String.fromCharCode(((c & 0x0F) << 12) |
-					   ((char2 & 0x3F) << 6) |
-					   ((char3 & 0x3F) << 0));
+                       ((char2 & 0x3F) << 6) |
+                       ((char3 & 0x3F) << 0));
                 break;
         }
     }
@@ -4463,13 +4477,13 @@ function nop(){};
 
 // convert character ch (0-255) to unicode
 function getUnicode(cp, ch) {
-    
+
     if (cp == 'UTF8') return ch;
-    
-    var 
+
+    var
         d = 0,
         cplut = codePageData[cp] || codePageData[codePageAKAs[cp]];
-        
+
     if (cplut) {
         switch (cplut.length) {
             case 256:
@@ -4483,7 +4497,7 @@ function getUnicode(cp, ch) {
             case 96:
                 d = (ch < 160) ? codePageData['ASCII'][ch] : cplut[ch - 160];
                 break;
-                
+
             default:
                 // default to 437 if not found.
                 d = codePageData['CP437'][ch];
@@ -4546,7 +4560,7 @@ function sendData(data) {
         str = String.fromCharCode(data);
         data = new Uint8Array([data]);
     }
-    
+
     if (!(data instanceof Uint8Array))
         throw 'Invalid data in sendData().';
 
@@ -4623,10 +4637,10 @@ function scrollUp() {
         fromRow = regionTopRow;
         toRow = regionBottomRow;
     } else {
-        fromRow = 0; 
+        fromRow = 0;
         toRow = conRowAttr.length - 1;
     }
-        
+
     expandToRow(crtRows);
     for (j = fromRow; j < toRow; j++) {
         conText[j] = conText[j + 1];
@@ -4638,7 +4652,7 @@ function scrollUp() {
     conCellAttr[toRow] = [];
     redrawRow(toRow);
 
-    // move / clear hotspots                        
+    // move / clear hotspots
     clearHotSpotsRow(fromRow, 0, 999);
     moveHotSpotsRows(fromRow + 1, toRow, -1);
 }
@@ -4648,15 +4662,15 @@ function scrollDown() {
     var
         fromRow, toRow,
         j, hs;
-        
+
     if (modeRegionOrigin) {
         fromRow = regionTopRow;
         toRow = regionBottomRow;
     } else {
-        fromRow = 0; 
+        fromRow = 0;
         toRow = conRowAttr.length - 1;
     }
-        
+
     expandToRow(crtRows);
     for (j = toRow; j > fromRow; j--) {
         conText[j] = conText[j - 1];
@@ -4668,7 +4682,7 @@ function scrollDown() {
     conCellAttr[fromRow] = [];
     redrawRow(fromRow);
 
-    // move / clear hotspots                        
+    // move / clear hotspots
     clearHotSpotsRow(toRow, 0, 999);
     moveHotSpotsRows(fromRow, toRow - 1, +1);
 }
@@ -4682,7 +4696,7 @@ function conPrintChar(chr) {
         if (!modeAutoWrap) {
             if (crsrCol >= crtCols)
                 crsrCol--;
-        } else { 
+        } else {
             if (crsrCol == colsOnRow(crsrRow)) {
                 crsrCol = 0;
                 crsrRow++
@@ -4693,10 +4707,10 @@ function conPrintChar(chr) {
 }
 
 function resetTerminal() {
-    var 
+    var
         i;
-    
-    modeVTXANSI = false;   
+
+    modeVTXANSI = false;
     modeBlinkBright = false;
     modeCursor = true;
     modeBoldFont = false;
@@ -4708,7 +4722,7 @@ function resetTerminal() {
     cellAttr = defCellAttr;
     pageAttr = defPageAttr;
     crsrAttr = defCrsrAttr;
-    
+
     pageDiv.parentNode.style['background-color'] = ansiColors[(pageAttr >> 8) & 0xFF];
     pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
     conFontNum = 0;                 // current font being used.
@@ -4724,10 +4738,9 @@ function conCharOut(chr) {
         def,
         i, j, l,            // generic idx, length
         r, c, v,            // row, col idx
-        hs,                 // hotspot 
+        hs,                 // hotspot
         crsrrender = false, // redraw cursor?
         doCSI = false,      // execute compiled CSI at end?
-        doAPC = false,      // execute compiled APC at end?
         parm,               // parameters
         str,
         els, div, img,      // for svg sprite creation
@@ -4748,11 +4761,11 @@ function conCharOut(chr) {
                 soundBell.pause();
                 soundBell.play();
                 break;
-                
+
             case 8:  // shift disable
                 modeCBMShift = false;
                 break;
-                
+
             case 9:  // shift enable
                 modeCBMShift = true;
                 break;
@@ -4937,7 +4950,7 @@ function conCharOut(chr) {
         }
     } else {
         // ANSI ---------------------------------------------------------------
-        
+
         if (modeNextGlyph){
             // print glyph AS IS
             conPrintChar(chr);
@@ -4950,7 +4963,7 @@ function conCharOut(chr) {
                     if (modeDOORWAY)
                         modeNextGlyph = true;
                     break;
-                
+
                 case _BEL:     // bell
                     soundBell.pause();
                     soundBell.play();
@@ -4965,26 +4978,26 @@ function conCharOut(chr) {
                         crsrrender = true;
                     }
                     break;
-    
+
                 case _HT:     // horz tab
                     crsrCol = ((crsrCol >> 3) + 1) << 3;
                     if (crsrCol > colsOnRow(crsrRow))
                         crsrCol = colsOnRow(crsrRow);
                     crsrrender = true;
                     break;
-    
+
                 case _LF:    // linefeed
                     if (!modeVTXANSI)  // LF dont CR!  lol
                         crsrCol = 0;    // for BBS/ANSI.SYS mode
                     crsrRow++;
                     crsrrender = true;
                     break;
-    
+
                 case _CR:    // carriage return
                     crsrCol = 0;
                     crsrrender = true;
                     break;
-    
+
                 case _DEL:   // delete
                     expandToRow(crsrRow);
                     expandToCol(crsrRow, crsrCol);
@@ -4992,7 +5005,7 @@ function conCharOut(chr) {
                     redrawRow(crsrRow);
                     crsrrender = true;
                     break;
-    
+
                 default:
                     switch (ansiState) {
                         case 0:
@@ -5017,11 +5030,6 @@ function conCharOut(chr) {
                             else if (chr == 0x23)
                                 // ESC # - row attr
                                 ansiState = 3
-                            else if (chr == 0x5F) {
-                                // ESC _ - sprite def
-                                apcstr = '';
-                                ansiState = 4
-                            }
                             else if (chr == 0x37) {
                                 // ESC 7 - Save crsr pos and attrs
                                 crsrSaveRow = crsrRow;
@@ -5078,7 +5086,7 @@ function conCharOut(chr) {
                             // get single byte (0,1,9)
                             if (chr == 0x30) {
                                 // marquee off
-                                // ESC # 0 
+                                // ESC # 0
                                 conRowAttr[crsrRow] &= ~A_ROW_MARQUEE;
                                 getRowElement(crsrRow).firstChild.classList.remove('marquee')
                             } else if (chr == 0x31) {
@@ -5088,52 +5096,38 @@ function conCharOut(chr) {
                                 getRowElement(crsrRow).firstChild.classList.add('marquee');
                             } else if (chr == 0x33) {
                                 // ESC # 3 - double wide/high, top
-                                conRowAttr[crsrRow] &= 
+                                conRowAttr[crsrRow] &=
                                     ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
                                 conRowAttr[crsrRow] |= (A_ROW_DOUBLETOP | A_ROW_WIDTH200);
                             } else if (chr == 0x34) {
                                 // ESC # 4 - double wide/high, bottom
-                                conRowAttr[crsrRow] &= 
+                                conRowAttr[crsrRow] &=
                                     ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
                                 conRowAttr[crsrRow] |= (A_ROW_DOUBLEBOTTOM | A_ROW_WIDTH200);
                             } else if (chr == 0x35) {
                                 // ESC # 5 - single wide/high
-                                conRowAttr[crsrRow] &= 
+                                conRowAttr[crsrRow] &=
                                     ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
                                 conRowAttr[crsrRow] |= (A_ROW_WIDTH100);
                             } else if (chr == 0x36) {
                                 // ESC # 6 - single high / double wide
-                                conRowAttr[crsrRow] &= 
+                                conRowAttr[crsrRow] &=
                                     ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
                                 conRowAttr[crsrRow] |= (A_ROW_WIDTH200);
                             } else if (chr == 0x39) {
                                 // ESC # 9 - reset row
                                 conRowAttr[crsrRow] = defRowAttr;
                             } else if (chr == 0x32) { // single wide, double high, top
-                                conRowAttr[crsrRow] &= 
+                                conRowAttr[crsrRow] &=
                                     ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
                                 conRowAttr[crsrRow] |= (A_ROW_DOUBLETOP | A_ROW_WIDTH100);
                             } else if (chr == 0x37) { // single wide, double high, bottom
-                                conRowAttr[crsrRow] &= 
+                                conRowAttr[crsrRow] &=
                                     ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
                                 conRowAttr[crsrRow] |= (A_ROW_DOUBLEBOTTOM | A_ROW_WIDTH100);
                             }
                             adjustRow(crsrRow);
                             ansiState = 0;
-                            break;
-
-                        case 4:
-                            // start of sprite def APC (ESC _)
-                            // read until ST (ESC \)
-                            // '0' [ ; n [ ; base64 ]] ST
-                            if ((chr >= 0x20) && (chr <= 0x7E))
-                                apcstr += String.fromCharCode(chr)
-                            else if (chr == 0x1B)
-                                // advance to finish reading string terminator (ST)
-                                ansiState = 6
-                            else
-                                // unrecognized - abort sequence
-                                ansiState = 0;
                             break;
 
                         case 5:
@@ -5147,15 +5141,6 @@ function conCharOut(chr) {
                             } else
                                 // unrecognized - abort sequence
                                 ansiState = 0;
-                            break;
-
-                        case 6:
-                            // confirm ST on APC sprite def
-                            if (chr == 0x5C) {
-                                // valid ST - process
-                                doAPC = true;
-                            }
-                            ansiState = 0;
                             break;
                     }
                     break;
@@ -5172,9 +5157,9 @@ function conCharOut(chr) {
 
             // for our purposes, all parameters are integers. if not, leave as string.
             l = parm.length;
-            for (i = 0; i < l; i++){
+            for (i = 0; i < l; i++) {
                 v = parseInt(parm[i]);
-                if (!isNaN(v))
+                if (v.toString() == parm[i])
                     parm[i] = v;
             }
 
@@ -5208,7 +5193,7 @@ function conCharOut(chr) {
                     if (modeRegionOrigin) {
                         if (crsrRow > regionBottomRow)
                             crsrRow = regionBottomRow;
-                    } 
+                    }
                     crsrrender = true;
                     break;
 
@@ -5572,14 +5557,14 @@ function conCharOut(chr) {
                     for (i = 0; i < parm[0]; i++)
                         scrollUp();
                     break;
-                    
+
                 case 0x54:  // T - Scroll Down (SD). Scroll down.
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
-                    for (i = 0; i < parm[0]; i++) 
+                    for (i = 0; i < parm[0]; i++)
                         scrollDown();
                     break;
-                    
+
                 case 0x58:  // X - ECH - erase n characters
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
@@ -5712,7 +5697,7 @@ function conCharOut(chr) {
                                     ((parm[2] & 0xFF) << 8)
                                 );
                                 break;
-                                
+
                             case 6: // CSI '6' ; f ; b '^' : Set hotspot click colors.
                                 hotspotAttr &= 0x0000FFFF;
                                 hotspotAttr |= (
@@ -5725,91 +5710,244 @@ function conCharOut(chr) {
                     crsrrender = true;
                     break;
 
-                case 0x5F:  // _ - Display/Hide Sprite | CSI '0'; s ; n ; w ; h ; z _
+                case 0x5F:  // _ - VTX Media Codes. Sprites & Audio
                     if (parm[0] == 0) {
-                        // Sprite commands
-                        // '0' - sprite display / remove commands
-                        parm = fixParams(parm, [ 0, 1, 1, 1, 1, 0 ]);
-                        parm[1] = minMax(parm[1], 1, 64, 1);    // sprint #
-                        parm[2] = minMax(parm[2], 1, 64, 1);    // def #
-                        parm[3] = minMax(parm[3], 1, 999, 1);   // w
-                        parm[4] = minMax(parm[4], 1, 999, 1);   // h
-                        parm[5] = minMax(parm[5], 0, 1, 0);     // z
-                        if (l == 1) {
-                            // remove all sprites
-                            els = document.getElementsByClassName('sprite');
-                            for (i = els.length - 1; i >= 0; i--)
-                                els[i].parentNode.removeChild(els[i]);
-                        } else if (l == 2) {
-                            // remove one sprite
-                            div = document.getElementById('sprite' + parm[1]);
-                            if (div != null)
-                                div.parentNode.removeChild(div);
-                        } else {
-                            // display a new sprite
-                            // remove old one if it exists first
-                            div = document.getElementById('sprite' + parm[1]);
-                            if (div != null)
-                                div.parentNode.removeChild(div);
-
-                            var rpos = getElementPosition(getRowElement(crsrRow));
-                            var csize = getRowFontSize(crsrRow);
-                            var spriteTop = rpos.top;
-                            var spriteLeft = rpos.left + (crsrCol * csize.width)
-
-                            // make a new one.
-                            div = domElement(
-                                'div',
-                                {   className:  'sprite',
-                                    id :        'sprite' + parm[1] },
-                                {   position:   'absolute',
-                                    left:       spriteLeft + 'px',
-                                    top:        spriteTop + 'px',
-                                    width:      (colSize * parm[3]) + 'px',
-                                    height:     (rowSize * parm[4]) + 'px',
-                                    overflow:   'hidden'});
-
-                            img = domElement(
-                                'img',
-                                {   onload:     fitSVGToDiv,
-                                    src:        spriteDefs[parm[2]] },
-                                {   visibility: 'hidden' });
-
-                            div.appendChild(img);
-                            if (parm[5] == 0)
-                                pageDiv.insertBefore(div, textDiv)
-                            else
-                                textDiv.appendChild(div);
-                        }
-                    } else if (parm[0] == 1) {
-                        // Audio commands
+                        // sprite commands
                         switch (parm[1]) {
-                            case 0: // load audio from object (see APC 1 ST)
+                            case 0:
+                                // define / clear sprite object.
+                                // parm2 = num
+                                // parm3 = type
+                                // parm4.. = hex3 data (rejoin with ;)
+                                if (l == 2) {
+                                    // clear all sprite objects.
+                                    spriteDefs = [];
+                                } else if (l == 3) {
+                                    // clear single sprite object.
+                                    spriteDefs[parm[2]] = null;
+                                } else if (l > 4) {
+                                    // define a sprite object
+                                    str = '';
+                                    switch (parm[3]){
+                                        case 0:
+                                            // url : unicode encoded characters 
+                                            for (i = 4; i < l; i++) 
+                                                str += String.fromCharCode(parseInt(parm[i]));
+                                            spriteDefs[parm[2]] = stripNL(str);
+                                            break;
+                                            
+                                        case 1:
+                                            // UTF8 url : hex3 encoded
+                                            for (i = 4; i < l; i++)
+                                                str += ';'+parm[i];
+                                            str = str.substring(1);
+                                            spriteDefs[parm[2]] = stripNL(UFT8ArrayToStr(decodeHex3(str)));
+                                            break;
+                                            
+                                        case 2:
+                                            // raw UTF8 svg : hex3 encoded
+                                            for (i = 4; i < l; i++)
+                                                str += ';'+parm[i];
+                                            str = str.substring(1);
+                                            spriteDefs[parm[2]] = 'data:image/svg+xml,' 
+                                                + stripNL(UFT8ArrayToStr(decodeHex3(str)));
+                                            break;
+
+                                        case 3:
+                                            // raw UTF8 svg deflated : hex3 encoded
+                                            for (i = 4; i < l; i++)
+                                                str += ';'+parm[i];
+                                            str = str.substring(1);
+                                            spriteDefs[parm[2]] = 'data:image/svg+xml,'
+                                                + stripNL(UFT8ArrayToStr(inflateRaw(decodeHex3(str))));
+                                            break;
+                                            
+                                        case 4:
+                                            // raw UTF8 svg Base64: hex3 encoded
+                                            for (i = 4; i < l; i++)
+                                                str += ';'+parm[i];
+                                            str = str.substring(1);
+                                            spriteDefs[parm[2]] = 'data:image/svg+xml;base64,' 
+                                                + stripNL(UFT8ArrayToStr(decodeHex3(str)));
+                                            break;
+                                    }
+                                }
+                                break;
+
+                            case 1:
+                                // display / remove sprite from display.
+                                // parm2 = sprite num
+                                // parm3 = sprite object
+                                // parm4 = w
+                                // parm5 = h
+                                // parm6 = z
+                                if (l == 2) {
+                                    // remove all sprints from display
+                                    els = document.getElementsByClassName('sprite');
+                                    for (i = els.length - 1; i >= 0; i--)
+                                        els[i].parentNode.removeChild(els[i]);
+                                } else if (l == 3) {
+                                    // remove sprite s from display
+                                    div = document.getElementById('sprite' + parm[2]);
+                                    if (div != null)
+                                        div.parentNode.removeChild(div);
+                                } else if (l == 7) {
+                                    // display a new sprite
+                                    // remove old one if it exists first
+                                    div = document.getElementById('sprite' + parm[2]);
+                                    if (div != null)
+                                        div.parentNode.removeChild(div);
+
+                                    var rpos = getElementPosition(getRowElement(crsrRow));
+                                    var csize = getRowFontSize(crsrRow);
+                                    var spriteTop = rpos.top;
+                                    var spriteLeft = rpos.left + (crsrCol * csize.width)
+
+                                    // make a new one.
+                                    div = domElement(
+                                        'div',
+                                        {   className:  'sprite',
+                                            id :        'sprite' + parm[2] },
+                                        {   position:   'absolute',
+                                            left:       spriteLeft + 'px',
+                                            top:        spriteTop + 'px',
+                                            width:      (colSize * parm[4]) + 'px',
+                                            height:     (rowSize * parm[5]) + 'px',
+                                            overflow:   'hidden'});
+
+                                    img = domElement(
+                                        'img',
+                                        {   onload:     fitSVGToDiv,
+                                            src:        spriteDefs[parm[3]] },
+                                        {   visibility: 'hidden' });
+        
+                                    div.appendChild(img);
+                                    if (parm[6] == 0)
+                                        pageDiv.insertBefore(div, textDiv)
+                                    else
+                                        textDiv.appendChild(div);
+                                }                                
                                 break;
                                 
-                            case 1: // load audio from URL
-                                str = '';
-                                for (i = 2; i < l; i++)
-                                    str += String.fromCharCode(parm[i]);
-                                audio.src = str;
+                            case 2:
+                                // move sprite to new r c.
+                                // TODO
+                                /*
+                                    CSI 0 ; 2 ; s ; r ; c ; t '_' : Move sprite s to new r, c.
+                                        s : Sprite number to assign to this sprite. {0}
+                                        r : new row (1-n)
+                                        c : new column (1-cols)
+                                        t : time in milliseconds for move to happen. (default=0 / instant)
+                                */
                                 break;
                                 
-                            case 2: // set volume
+                            case 3:
+                                // move sprite to new z.
+                                // TODO
+                                /*
+                                    CSI 0 ; 3 ; s ; z '_' : Move sprite s to new z-plane.
+                                        s : Sprite number to assign to this sprite. {0}
+                                        z : Z-plane. 0 = below text plane, 1 : above text plane. {0}
+                                */
+                                break;
+                        }
+                        
+                    } else if (parm[0] == 1) {
+                        // audio commands
+                        switch (parm[1]) {
+                            case 0:
+                                // define / clear audio object.
+                                // parm2 = num
+                                // parm3 = type
+                                // parm4.. = hex3 data (rejoin with ;)
+                                if (l == 2) {
+                                    // clear all audio objects.
+                                    audioDefs = [];
+                                } else if (l == 3) {
+                                    // clear audio object num
+                                    audioDefs[parm[2]] = null;
+                                } else if (l > 4) {
+                                    // define audio object
+                                    str = '';
+                                    switch (parm[3]) {
+                                        case 0:
+                                            // url : unicode encoded characters 
+                                            for (i = 4; i < l; i++) 
+                                                str += String.fromCharCode(parseInt(parm[i]));
+                                            audioDefs[parm[2]] = str;
+                                            break;
+                                            
+                                        case 1:
+                                            // UTF8 url : hex3 encoded
+                                            for (i = 4; i < l; i++)
+                                                str += ';'+parm[i];
+                                            str = str.substring(1);
+                                            audioDefs[parm[2]] = UFT8ArrayToStr(decodeHex3(str))
+                                            break;
+                                            
+                                        case 2:
+                                            // raw mp3 : hex3 encoded
+                                            // TODO
+                                            audioDefs[parm[2]] = 
+                                                'data:audio/mp3;base64,' + 
+                                                btoa(decodeHex3(str));
+                                            break;
+                                            
+                                        case 3:
+                                            // raw mp3 deflated : hex3 encoded
+                                            // TODO
+                                            audioDefs[parm[2]] = 
+                                                'data:audio/mp3;base64,' + 
+                                                btoa(inflateRaw(decodeHex3(str)));
+                                            break;
+                                            
+                                        case 4:
+                                            // raw MP3 Base64: hex3 encoded
+                                            // TODO
+                                            audioDefs[parm[2]] = 'data:audio/mp3;base64,' +
+                                                + stripNL(UFT8ArrayToStr(decodeHex3(str)));
+                                            break;
+                                    }
+                                }
+                                break;
+                                
+                            case 1:
+                                // select audio object to player.
+                                if (l > 2) {
+                                    audio.src = audioDefs[parm[2]];
+                                }
+                                break;
+                                
+                            case 2:
+                                // play / pause / stop-rewind
+                                switch (parm[2]) {
+                                    case 0:
+                                        // stop/rewind
+                                        audio.pause();
+                                        audio.load();
+                                        break;
+                                        
+                                    case 1:
+                                        // play
+                                        audio.play();
+                                        break;
+                                        
+                                    case 2:
+                                        // pause
+                                        audio.pause();
+                                        break;
+                                }
+                                break;
+                                
+                            case 3:
+                                // set volume (0-100)
                                 audio.volume = ((parm[2]!=null)?(parm[2]/100):0.25);
-                                break;
-                                
-                            case 3: // play
-                                audio.play();
-                                break;
-                                
-                            case 4: // stop/pause
-                                audio.pause();
                                 break;
                         }
                     }
                     break;
                 /* special VTX sequences end */
-
+                
                 case 0x62:  // b - repeat last char
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
@@ -5852,12 +5990,12 @@ function conCharOut(chr) {
                             // origin in region?
                             modeRegionOrigin = (chr == 0x68);
                             break;
-                            
+
                         case '?7':
                             // autowrap mode
                             modeAutoWrap = (chr == 0x68);
                             break;
-                            
+
                         case '?25':
                             // hide / show cursor
                             modeCursor = (chr == 0x68);
@@ -5887,7 +6025,7 @@ function conCharOut(chr) {
                             // '?35' : blink disabled
                             modeNoBlink = (chr == 0x68);
                             break;
-                            
+
                         case '?50':
                             // VTX / ANSIBBS mode flip
                             modeVTXANSI = (chr == 0x68);
@@ -6113,38 +6251,31 @@ function conCharOut(chr) {
                     //console.log('unsupported ansi : CSI ' + String.fromCharCode(chr));
                     break;
             }
-        } else if (doAPC) {
-            // apcstr = string command - define sprites
-            // string = 0;n;base64...
-            parm = apcstr.split(';');
-            if (parm.length > 0) {
-                if (parm[0] == '0') {
-                    switch (parm.length) {
-                        case 1:
-                            // clear all definitions
-                            spriteDefs = [];
-                            break;
-
-                        case 2:
-                            // clear a single sprite
-                            spriteDefs[parm[1]] = null;
-                            break;
-
-                        default:
-                            // define a sprite
-                            def = '';
-                            for (i = 2; i < parm.length; i++)
-                                def += parm[i] + ';';
-                            def = def.substring(0, def.length - 1);
-                            spriteDefs[parm[1]] = def;
-                            break;
-                    } // else ignore
-                }
-            }
         }
     }
     if (crsrrender)
         crsrDraw();
+}
+
+// remove all NL from string. (https://www.chromestatus.com/features/5735596811091968)
+function stripNL(strin) {
+    var strout = strin.replace(/\n/g,' ').replace(/\s+/g, ' ');
+    return strout;
+}
+
+// decode hex3 string, return as Uint8Array
+// remove whitespaces. Note: string data in Hex3 is UTF8
+function decodeHex3(strin) {
+    strin = strin.replace(/\s/g,'');
+    var ret = new Uint8Array(strin.length >> 1);
+    var i, l, v;
+    var p = 0;
+    for (i = 0, l = ret.length; i < l; i++){
+        ret[i] = ((strin.charCodeAt(p    ) & 0x0F) << 4)
+               | ((strin.charCodeAt(p + 1) & 0x0F));
+        p += 2;
+    }
+    return ret;
 }
 
 // call once every 33 ms

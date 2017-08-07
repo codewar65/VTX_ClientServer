@@ -1,4 +1,4 @@
-program b64;
+program encode;
 
 // convert a file to base64 text encoding for use as data/ in html
 
@@ -16,9 +16,9 @@ const
 
 procedure help;
 begin
-  writeln('b64 -I inputfile -O outputfile -D');
+  writeln('encode -I inputfile -O outputfile -D');
   writeln('  -D switch will prepend "data:<mime>;base64,".');
-  writeln('  -A ANSI Bas16 encoding.');
+  writeln('  -3 ANSI Hex3 encoding.');
 end;
 
 var
@@ -31,7 +31,7 @@ var
   fout :			Text;
   buff :			pbyte;
   len :				longint;
-  b64enc :		TBase64EncodingStream;
+  encodeenc :		TBase64EncodingStream;
 	ss :				TStringStream;
   outstr :		string;
   line : 			string;
@@ -39,6 +39,7 @@ var
   ext : 			string;
 	mime :			string;
   domime : 		boolean;
+  hex3enc : 	boolean;
 
 const
   mimelut : array [0..683] of string = (
@@ -732,7 +733,7 @@ label
   done;
 
 begin
-  writeln('b64 - convert file to base64.' + CRLF
+  writeln('encode - convert file to base64.' + CRLF
   	+ '(c) 2017 Dan Mecklenburg Jr.' + CRLF);
 
   {$region Get args }
@@ -740,6 +741,7 @@ begin
   infname := '';
   outfname := '';
   domime := false;
+  hex3enc := false;
   for i := 1 to argc - 1 do
   begin
     	arg := argv[i];
@@ -753,6 +755,7 @@ begin
         '-I':	state := 1;
         '-O':	state := 2;
         '-D':	domime := true;
+        '-3': hex3enc := true;
         else
           case state of
             0:
@@ -839,13 +842,23 @@ done:
   end;
 
   // convert
-  ss := TStringStream.Create('');
-  b64enc := TBase64EncodingStream.Create(ss);
-  b64enc.Write(buff[0], len);
-  outstr := ss.DataString;
-  Freememory(buff);
-  b64enc.Free;
-  ss.Free;
+  if hex3enc then
+  begin
+		outstr := '';
+    for i := 0 to len-1 do
+    	outstr +=	char($30 + ((buff[i] and $F0) shr 4))
+							+ char($30 +  (buff[i] and $0F)      );
+	end
+  else
+  begin
+    ss := TStringStream.Create('');
+	  encodeenc := TBase64EncodingStream.Create(ss);
+  	encodeenc.Write(buff[0], len);
+	  outstr := ss.DataString;
+	  Freememory(buff);
+	  encodeenc.Free;
+	  ss.Free;
+  end;
 
   // write results.
 	assign(fout, outfname);

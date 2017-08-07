@@ -120,23 +120,89 @@ Sequences (# : to be implemented)
 
     CSI n 'Z' : Cursor Back Tab (CBT). Move cursor backwards n tab stops. Stops at left of page {1}
 
-    CSI 0 ; s ; n ; w ; h ; z '_' : Display sprite. Sprites are defined using APC codes (see below).
+$   CSI 0 ; 0 ; s ; n ; w ; h ; z '_' : Display sprite. Sprites are defined using APC codes (see below).
         s : Sprite number to assign to this sprite. {0}
         n : Sprite definition number. {0}
         w : Width of sprite (in character cell widths). {1}
         h : Height of sprite (in character cell heights). {1}
         z : Z-plane. 0 = below text plane, 1 : above text plane. {0}
-    CSI 0 ; s '_' : Remove sprite number s {0}
-    CSI 0 ; '_' : Remove all sprites.
+        
+$   CSI 0 ; 1 ; s '_' : Remove sprite number s {0}
+$   CSI 0 ; 1 '_' : Remove all sprites.
+
+$   CSI 0 ; 2 ; s ; r ; c '_' : move sprite s to r, c
+
+#   CSI 0 ; 9 ; n ; hex3 '_' : define sprite n. Same as APC but uses hex3.
 
 #   CSI 1 ; 0 ; n '_' : Load audio from defined audio object. (See APC '1' ST command)
     CSI 1 ; 1 ; a [ ; ... ; a ] '_' : Load audio from stream URL.
     CSI 1 ; 2 ; v '_' : Set volume v=(0-100) default:25
-    CSU 1 ; 3 '_' : Play audio.
+    CSI 1 ; 3 '_' : Play audio.
     CSI 1 ; 4 '_' : Stop/pause audio.
         a : unicode ascii value of character in string to send.
 #       n : preloaded audio number (See APC '1' ST)
         v : volumn (0-100)
+
+
+
+    VTX MEDIA COMMANDS  CSI _
+    SPRITE COMMANDS CSI 0 ... _
+    ===========================
+
+    CSI 0 ; 0 ; n ; t ; hex3 '_' : define sprite object
+        n = number;     1-64 {1}
+        t = type;       0 = url : unicode ascii characters (; delimited) {0}
+                        1 = url : hex3 encoded UTF8
+                        2 = raw : hex3 encoded UTF8 SVG
+                        3 = raw, deflated : hex3 encoded UTF8 SVG (https://github.com/nodeca/pako/tree/master/dist)
+        hex3 = data;    hexstring where 0-9=0-9,A-F=:-? (0x30-0x3F)
+    CSI 0 ; 0 ; n '_' : clear sprite object n
+    CSI 0 ; 0 '_' : clear all sprite objects.
+
+    CSI 0 ; 1 ; s ; n ; w ; h ; z '_' : Display sprite. Sprites are defined using APC codes (see below).
+        s : Sprite number to assign to this sprite. (1-64) {1}
+        n : Sprite definition number. (1-64) {1}
+        w : Width of sprite (in character cell widths). {1}
+        h : Height of sprite (in character cell heights). {1}
+        z : Z-plane. 0 = below text plane, 1 : above text plane. {0}
+    CSI 0 ; 1 ; s '_' : Remove sprite s from display.
+    CSI 0 ; 1 '_' : Remove all sprites from display.
+
+    CSI 0 ; 2 ; s ; r ; c ; t '_' : Move sprite s to new r, c.
+        s : Sprite number. (1-64) {0}
+        r : new row (1-n)
+        c : new column (1-cols)
+        t : time in milliseconds for move to happen. (default=0 / instant)
+        
+    CSI 0 ; 3 ; s ; z '_' : Move sprite s to new z-plane.
+        s : Sprite number. (1-64) {0}
+        z : Z-plane. 0 = below text plane, 1 : above text plane. {0}
+
+    AUDIO COMMANDS CSI 1 ... _
+    ==========================
+        
+    CSI 1 ; 0 ; n ; t ; hex3 '_' : define audio object
+        n = audio number; 1-64
+        t = type;       0 = url : unicode ascii characters (; delimited)
+                        1 = url : hex3 encoded UTF8
+                        2 = raw : hex3 encoded MP3
+                        3 = raw, deflated : hex3 encoded MP3 (https://github.com/nodeca/pako/tree/master/dist)
+        hex3 = data;    hexstring where 0-9=0-9,A-F=:-? (0x30-0x3F)
+    CSI 1 ; 0 ; n '_' : clear audio object n
+    CSI 1 ; 0 '_' : clear all audio objects.
+
+    CSI 1 ; 1 ; n '_' : select audio object.
+        n = audio number; 1-64
+    
+    CSI 1 ; 2 ; p '_' : play / pause / stop / rewind
+        p : 0 = stop & rewind
+            1 = play
+            2 = pause
+    
+    CSI 1 ; 3 ; v '_' : set volume (0-100)
+
+    HOTSPOT COMMANDS CSI \
+    =========================
 
     CSI t ; w ; h ; l ; a [ ; ... ; a ] \ : Define clickable region on screen at cursor
             position of size w(idth) and h(eight). values a1 .. upto the _ are
@@ -150,6 +216,9 @@ Sequences (# : to be implemented)
 
     CSI t \ : clear all hotspots.
     CSI \ : clear all hotspots.
+
+    MISC ATTRIBUTE SETTINGS CSI ^
+    =============================
     
     CSI '0' ; c '^' : Set cursor color. c = (0-255) {7}
     CSI '1' ; s '^' : Set cursor size. s = (0:none, 1:thin, 2:thick, 3:block) {2}
@@ -159,17 +228,25 @@ Sequences (# : to be implemented)
     CSI '5' ; f ; b '^' : Set hotspot mouseover colors. 
     CSI '6' ; f ; b '^' : Set hotspot click colors. 
 
+    ROW SIZE COMMAND CSI [
+    =============================
+    
     CSI s ; w '[' : Set Row Size. Alter the geometry of the current row. Overall scale is
             applied first then width scale. See also ESC # commands for sizing.
         s : overall scale. 0=25%, 1=50%, 2=75%, 3=100%, 4=125%, 5=150%, 6=175%, 7=200%. {3}
         w : width scale. 0=50%, 1=100%, 2=150%, 3=200%. {1}
 
+    ROW ATTRIBUTE SETTINGS CSI ]
+    ============================
+        
     CSI c1 ; c2 ; s ']' : Set Row Background. (in BBS/ANSI.SYS mode, color 0 is true black, so
         text on a colored background appears as text on black, not the row background.)
         c1 : Color 1 (0-255) {0}
         c2 : Color 2 (0-255) {0}
         s : Style. 0=none, 1=solid color 1, 2=horizontal gradient, 3=vertical gradient. {0}
 
+        
+        
     CSI n 'b' : Repeat last printed character n times. {1}
 
     CSI n 'c' : Device Attributes. If n = 0, VTX client will respond CSI '?50;86;84;88c'. {0}
@@ -248,9 +325,9 @@ Sequences (# : to be implemented)
         70 : Glow off.
         76 : Outline off.
         77 : Glow off.
-        80 : Select Teletext Block Mosaic font.
-        81 : Select Teletext Separated Block Mosaic font.
-        82-85: resered for future intrinsic fonts.
+        80 : Select Teletext Block Mosaic font. (use 10 to return to default)
+        81 : Select Teletext Separated Block Mosaic font. (use 10 to return to default)
+        82-85: resered for future intrinsic fonts. (use 10 to return to default)
         90 : High intensity black foreground color.
         91 : High intensity red foreground color.
         92 : High intensity green foreground color.
@@ -299,14 +376,6 @@ Sequences (# : to be implemented)
             6 : double wide / single high
             7 : single wide / double high - bottom half (as with BBC Micro)
             9 : Reset all row attributes (size and background.)
-
-    ACP '0;' n ';' g ST : Define sprite n as Base64 SVG g.
-    ACP '0;' n ST : Clear definitions for sprite n.
-    ACP '0' ST : Clear all sprite definitions.
-
-#   ACP '1;' n ';' g ST : Define audio n as Base64 oog g.
-#   ACP '1;' n ST : Clear definitions for audio n.
-#   ACP '1' ST : Clear all audio definitions.
 
 Keyboard Mapping
 ================
@@ -399,6 +468,7 @@ Keyboard Mapping
     Alt 6           Lt Green
     Alt 7           Lt Blue
     Alt 8           Lt Gray
+    F1-F8           F1-F8
     Tab             Toggle Text / Graphics mode
     
     

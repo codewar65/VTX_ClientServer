@@ -103,7 +103,8 @@ function UNICODE(n : integer) : string;
 function URL(w, h, l : integer; urlstr : string) : string;
 function HOTSPOT(w, h, l : integer; hotstr : string) : string;
 
-function SOUNDSET(urlstr : string) : string;
+function SOUNDDEFURL(n : integer; urlstr : utf8string) : string;
+function SOUNDSET(n : integer) : string;
 function SOUNDPLAY : string;
 function SOUNDSTOP : string;
 function SOUNDVOL(v : integer) : string;
@@ -518,34 +519,47 @@ begin
   	+ ';' + inttostr(l) + str + '\';
 end;
 
-function SOUNDSET(urlstr : string) : string;
+function Hex3Encode(val : utf8string) : string;
 var
-  str : string;
-  i : integer;
-  c : integer;
+  l, i : integer;
+  bytes : TBytes;
 begin
- 	str := '';
-  for i := 0 to length(urlstr)-1 do
-  begin
-    c := ord(urlstr.Chars[i]);
-  	str += ';' + inttostr(c);
-  end;
-  result := CSI + '1;1' + str + '_';
+  result := '';
+	l := length(val);
+	bytes := UTF8Bytes(val);
+  for i := 0 to l - 1 do
+    result += char($30 + ((bytes[i] and $F0) shr 4))
+    				+ char($30 + ((bytes[i] and $0F)      ));
+end;
+
+function SOUNDDEFURL(n : integer; urlstr : utf8string) : string;
+begin
+  result := CSI + '1;0;' + inttostr(n) + ';1;' + Hex3Encode(urlstr) + '_';
+end;
+
+function SOUNDSET(n : integer) : string;
+begin
+  result := CSI + '1;1;' + inttostr(n) + '_';
 end;
 
 function SOUNDPLAY : string;
 begin
-  result := CSI + '1;3_';
+  result := CSI + '1;2;1_';
 end;
 
 function SOUNDSTOP : string;
 begin
-  result := CSI + '1;4_';
+  result := CSI + '1;2;0_';
+end;
+
+function SOUNDPAUSE : string;
+begin
+  result := CSI + '1;2;2_';
 end;
 
 function SOUNDVOL(v : integer) : string;
 begin
-  result := CSI + '1;2;' + inttostr(v) + '_';
+  result := CSI + '1;3;' + inttostr(v) + '_';
 end;
 
 function VTXCtrlBreak(CtrlBreak : boolean) : boolean;
