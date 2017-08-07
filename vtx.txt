@@ -287,6 +287,7 @@ Sequences (# : to be implemented)
     ESC 'D' : - Scroll up 1 row
     ESC 'E' : - Move to next row
     ESC 'M' : - Scroll down 1 row
+    ESC 'c' : - Reset terminal. (modes, default attributes to default).
     
     ESC '#' n : Set Row Attributes.
         n = 0 : Row Marquee off

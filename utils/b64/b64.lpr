@@ -18,6 +18,7 @@ procedure help;
 begin
   writeln('b64 -I inputfile -O outputfile -D');
   writeln('  -D switch will prepend "data:<mime>;base64,".');
+  writeln('  -A ANSI Bas16 encoding.');
 end;
 
 var
