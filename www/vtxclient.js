@@ -5146,1092 +5146,1120 @@ function conCharOut(chr) {
                     parm[i] = v;
             }
             
-             switch (chr) {
-                 case 0x40:  // @ - ICH - insert characters
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     for (i = 0; i < parm[0]; i++)
-                         insChar(crsrRow, crsrCol, 32);
-                     redrawRow(crsrRow);
-                     break;
+            switch (chr) {
+                case 0x40:  // @ - ICH - insert characters
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    for (i = 0; i < parm[0]; i++)
+                        insChar(crsrRow, crsrCol, 32);
+                    redrawRow(crsrRow);
+                    break;
+
+                case 0x41:  // A - Cursor Up
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    crsrRow -= parm[0];
+                    if (modeRegionOrigin) {
+                        if (crsrRow < regionTopRow)
+                            crsrRow = regionTopRow;
+                    } else {
+                        if (crsrRow < 0)
+                            crsrRow = 0;
+                    }
+                    crsrrender = true;
+                    break;
+
+                case 0x42:  // B - Cursor Down
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    crsrRow += parm[0];
+                    if (modeRegionOrigin) {
+                        if (crsrRow > regionBottomRow)
+                            crsrRow = regionBottomRow;
+                    }
+                    crsrrender = true;
+                    break;
+
+                case 0x43:  // C - Cursor Forward
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    crsrCol += parm[0];
+                    if (crsrCol >= colsOnRow(crsrRow) - 1)
+                        crsrCol = colsOnRow(crsrRow) - 1;
+                    crsrrender = true;
+                    break;
+
+                case 0x44:  // D - Cursor Backward / Font Selection
+                    if (interm == ' ') {
+                        // set font
+                        parm = fixParams(parm, [0, 0]);
+                        switch (parm[1]) {
+                            case  0: // Codepage 437 English
+                            case 26: // Codepage 437 English, (thin)
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'CP437';
+                                break;
+
+                            case  5: // Codepage 866 (c) Russian
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'CP866';
+                                break;
+
+                            case 17: // Codepage 850 Multilingual Latin I, (thin)
+                            case 18: // Codepage 850 Multilingual Latin I
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'CP850';
+                                break;
+
+                            case 25: // Codepage 866 Russian
+                            case 27: // Codepage 866 (b) Russian
+                            case 29: // Ukrainian font cp866u
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'CP866';
+                                break;
+
+                            case 19: // Codepage 885 Norwegian, (thin)
+                            case 28: // Codepage 885 Norwegian
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'CP885';
+                                break;
+
+                            case 31: // Codepage 1131 Belarusian, (swiss)
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'CP1131';
+                                break;
+
+                            case  1: // Codepage 1251 Cyrillic, (swiss)
+                            case 20: // Codepage 1251 Cyrillic
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'WIN1251';
+                                break;
+
+                            case  2: // Russian koi8-r
+                            case 12: // Russian koi8-r (b)
+                            case 22: // Russian koi8-r (c)
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'KOI8_R';
+                                break;
+
+                            case  9: // Ukrainian font koi8-u
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'KOI8_U';
+                                break;
+
+                            case 24: // ISO-8859-1 West European
+                            case 30: // ISO-8859-1 West European, (thin)
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'ISO8859_1';
+                                break;
+
+                            case  3: // ISO-8859-2 Central European
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'ISO8859_2';
+                                break;
+
+                            case  4: // ISO-8859-4 Baltic wide (VGA 9bit mapped)
+                            case 11: // ISO-8859-4 Baltic (VGA 9bit mapped)
+                            case 13: // ISO-8859-4 Baltic wide
+                            case 23: // ISO-8859-4 Baltic
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'ISO8859_4';
+                                break;
+
+                            case 14: // ISO-8859-5 Cyrillic
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'ISO8859_5';
+                                break;
+
+                            case 21: // ISO-8859-7 Greek
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'ISO8859_7';
+                                break;
+
+                            case  6: // ISO-8859-9 Turkish
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'ISO8859_9';
+                                break;
+
+                            case 10: // ISO-8859-15 West European, (thin)
+                            case 16: // ISO-8859-15 West European
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'ISO8859_15';
+                                break;
+
+                            case 15: // ARMSCII-8 Character set
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'ARMSCII_8';
+                                break;
+
+                            //case  7: // haik8 codepage (use only with armscii8 screenmap)
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'HAIK8';
+                                break;
+
+                            //case  8: // ISO-8859-8 Hebrew
+
+                            // CONVERTED FONTS - USE E000-E0FF for map
+                            case 32: // Commodore 64 (UPPER)
+                                conFont[parm[0]] =  'C640';
+                                conFontCP[parm[0]] = 'RAW';
+                                break;
+
+                            case 33: // Commodore 64 (Lower)
+                                conFont[parm[0]] =  'C641';
+                                conFontCP[parm[0]] = 'RAW';
+                                break;
+
+                            case 34: // Commodore 128 (UPPER)
+                                conFont[parm[0]] =  'C1280';
+                                conFontCP[parm[0]] = 'RAW';
+                                break;
+
+                            case 35: // Commodore 128 (Lower)
+                                conFont[parm[0]] =  'C1281';
+                                conFontCP[parm[0]] = 'RAW';
+                                break;
+
+                            case 36: // Atari
+                                conFont[parm[0]] =  'ATARI';
+                                conFontCP[parm[0]] = 'RAW';
+                                break;
+
+                            case 37: // P0T NOoDLE (Amiga)
+                                conFont[parm[0]] = 'P0TNOODLE';
+                                conFontCP[parm[0]] = 'RAW';
+                                break;
+
+                            case 38: // mO'sOul (Amiga)
+                                conFont[parm[0]] = 'MOSOUL';
+                                conFontCP[parm[0]] = 'RAW';
+                                break;
+
+                            case 39: // MicroKnight Plus (Amiga)
+                                conFont[parm[0]] = 'MICROKNIGHTPLUS';
+                                conFontCP[parm[0]] = 'RAW';
+                                break;
+
+                            case 40: // Topaz Plus (Amiga)
+                                conFont[parm[0]] = 'TOPAZPLUS';
+                                conFontCP[parm[0]] = 'RAW';
+                                break;
+
+                            case 41: // MicroKnight (Amiga)
+                                conFont[parm[0]] = 'MICROKNIGHT';
+                                conFontCP[parm[0]] = 'RAW';
+                                break;
+
+                            case 42: // Topaz (Amiga)
+                                conFont[parm[0]] = 'TOPAZ';
+                                conFontCP[parm[0]] = 'RAW';
+                                break;
+                        }
+                    } else {
+                        // move backwards
+                        parm = fixParams(parm, [1]);
+                        parm[0] = minMax(parm[0], 1, 999);
+                        crsrCol -= parm[0];
+                        if (crsrCol < 0)
+                            crsrCol = 0;
+                        crsrrender = true;
+                    }
+                    break;
+
+                case 0x45:  // E - Next Line
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    crsrCol = 0;
+                    crsrRow += parm[0];
+                    crsrrender = true;
+                    break;
+
+                case 0x46:  // F - Previous Line
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    crsrCol = 0;
+                    crsrRow -= parm[0];
+                    if (crsrRow < 0)
+                        crsrRow = 0;
+                    crsrrender = true;
+                    break;
+
+                case 0x47:  // G - To Column
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    crsrCol = parm[0] - 1;
+                    crsrrender = true;
+                    break;
+
+                    // H - see f
+
+                case 0x49:  // I - CFT - forward tab
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    for (i = 0; i < parm[0]; i++) {
+                        crsrCol = (((crsrCol >> 3) + 1) << 3);
+                        if (crsrCol > colsOnRow(crsrRow)) {
+                            crsrCol = colsOnRow(crsrRow);
+                            break;
+                        }
+                    }
+                    crsrrender = true;
+                    break;
+
+                case 0x4A:  // J - Erase in Screen (0=EOS,1=SOS,2=ALL)
+                    parm = fixParams(parm, [0]);
+                    parm[0] = minMax(parm[0], 0, 2, 0);
+                    expandToRow(crsrRow);
+                    expandToCol(crsrRow, crsrCol);
+                    switch (parm[0]) {
+                        case 0:
+                            // clear EOL first
+                            clearHotSpotsRow(crsrRow, crsrCol, 999);
+                            conCellAttr[crsrRow].length = crsrCol;
+                            conText[crsrRow] = conText[crsrRow].substring(0, crsrCol);
+                            // clear EOS
+                            clearHotSpotsRows(crsrRow + 1, conRowAttr.length);
+                            for (r = getMaxRow(); r > crsrRow; r--) {
+                                row = getRowElement(r);
+                                row.parentNode.removeChild(row);
+                                conRowAttr.length = crsrRow + 1;
+                                conCellAttr.length = crsrRow + 1;
+                                conText.length = crsrRow + 1;
+                            }
+                            break;
+
+                        case 1:
+                            // clear SOL first
+                            clearHotSpotsRow(crsrRow, 0, crsrCol-1);
+                            for (c = 0; c <= crsrCol; c++)
+                                conPutChar(crsrRow, c, 32, defCellAttr);
+                            redrawRow(crsrRow);
+
+                            // clear SOS
+                            clearHotSpotsRows(0, crsrRow-1);
+                            for (r = 0; r < crsrRow; r++) {
+                                conRowAttr[r] = defRowAttr;
+                                conCellAttr[r] = [];
+                                conText[r] = '';
+                                adjustRow(crsrRow);
+                                redrawRow(crsrRow);
+                            }
+                            break;
+
+                        case 2:
+                            // clear entire screen.
+                            // remove html rows
+                            els = document.getElementsByClassName('vtx');
+                            for (l = els.length, r = l - 1; r >= 0; r--)
+                                els[r].parentNode.removeChild(els[r]);
+                            // remove sprites
+                            els = document.getElementsByClassName('sprite');
+                            for (l = els.length, r = l - 1; r >= 0; r--)
+                                els[r].parentNode.removeChild(els[r]);
+                            // reset console
+                            conRowAttr = [];
+                            conCellAttr = [];
+                            conText = [];
+                            conHotSpots = [];
+                            lastHotSpot = null;
+                            document.body.style['cursor'] = 'default';
+                            if (!modeVTXANSI) {
+                                crsrRow = crsrCol = 0   // BBS / ANSI.SYS
+                                crsrrender = true;
+                            } else {
+                                expandToRow(crsrRow);   // ECMA-048 complient
+                                expandToCol(crsrRow, crsrCol);
+                            }
+                            if (modeVTXANSI)
+                                cellAttr = defCellAttr;
+                            break;
+                    }
+                    break;
+
+                case 0x4B:  // K - Erase in Line
+                    parm = fixParams(parm, [0]);
+                    parm[0] = minMax(parm[0], 0, 2, 0);
+                    expandToRow(crsrRow);
+                    expandToCol(crsrRow, crsrCol);
+                    switch (parm[0]) {
+                        case 0:
+                            // clear EOL
+                            clearHotSpotsRow(crsrRow, crsrCol, 999);
+                            conCellAttr[crsrRow].length = crsrCol;
+                            conText[crsrRow] = conText[crsrRow].substring(0, crsrCol);
+                            redrawRow(crsrRow);
+                            break;
+
+                        case 1:
+                            // clear SOL
+                            clearHotSpotsRow(crsrRow, 0, crsrCol);
+                            for (c = 0; c <= crsrCol; c++)
+                                conPutChar(crsrRow, c, 32, defCellAttr);
+                            redrawRow(crsrRow);
+                            break;
+
+                        case 2:
+                            // clear row.
+                            clearHotSpotsRow(crsrRow, 0, 999);
+                            conText[crsrRow] = '';
+                            conCellAttr[crsrRow] = [];
+                            redrawRow(crsrRow);
+                            break;
+                    }
+                    break;
+
+                case 0x4C:  // L - EL - insert lines
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    for (i = 0; i < parm[0]; i++)
+                        insRow(crsrRow);
+                    break;
  
-                 case 0x41:  // A - Cursor Up
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     crsrRow -= parm[0];
-                     if (modeRegionOrigin) {
-                         if (crsrRow < regionTopRow)
-                             crsrRow = regionTopRow;
-                     } else {
-                         if (crsrRow < 0)
-                             crsrRow = 0;
-                     }
+                case 0x4D:  // M - DL - delete lines
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    for (i = 0; i < parm[0]; i++)
+                        delRow(crsrRow);
+                    break;
+ 
+                case 0x50:  // P - DCH - delete character
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    for (i = 0; i < parm[0]; i++)
+                        delChar(crsrRow, crsrCol);
+                    redrawRow(crsrRow);
+                    break;
+ 
+                case 0x53:  // S - Scroll Up (SU). Scroll up.
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    for (i = 0; i < parm[0]; i++)
+                        scrollUp();
+                    break;
+ 
+                case 0x54:  // T - Scroll Down (SD). Scroll down.
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    for (i = 0; i < parm[0]; i++)
+                        scrollDown();
+                    break;
+ 
+                case 0x58:  // X - ECH - erase n characters
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    for (i = 0; i < parm[0]; i++) {
+                        conPutChar(crsrRow, crsrCol + i, 0x20, defCellAttr);
+                    }
+                    break;
+ 
+                case 0x5A:  // Z - CBT - back tab
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    for (i = 0; i < parm[0]; i++) {
+                        crsrCol = (((crsrCol >> 3) + 1) << 3) - 16;
+                        if (crsrCol <= 0) {
+                            crsrCol = 0;
+                            break;
+                        }
+                    }
                      crsrrender = true;
                      break;
  
-                 case 0x42:  // B - Cursor Down
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     crsrRow += parm[0];
-                     if (modeRegionOrigin) {
-                         if (crsrRow > regionBottomRow)
-                             crsrRow = regionBottomRow;
-                     }
-                     crsrrender = true;
-                     break;
- 
-                 case 0x43:  // C - Cursor Forward
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     crsrCol += parm[0];
-                     if (crsrCol >= colsOnRow(crsrRow) - 1)
-                         crsrCol = colsOnRow(crsrRow) - 1;
-                     crsrrender = true;
-                     break;
- 
-                 case 0x44:  // D - Cursor Backward / Font Selection
-                     if (interm == ' ') {
-                         // set font
-                         parm = fixParams(parm, [0, 0]);
-                         switch (parm[1]) {
-                             case  0: // Codepage 437 English
-                             case 26: // Codepage 437 English, (thin)
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'CP437';
-                                 break;
- 
-                             case  5: // Codepage 866 (c) Russian
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'CP866';
-                                 break;
- 
-                             case 17: // Codepage 850 Multilingual Latin I, (thin)
-                             case 18: // Codepage 850 Multilingual Latin I
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'CP850';
-                                 break;
- 
-                             case 25: // Codepage 866 Russian
-                             case 27: // Codepage 866 (b) Russian
-                             case 29: // Ukrainian font cp866u
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'CP866';
-                                 break;
- 
-                             case 19: // Codepage 885 Norwegian, (thin)
-                             case 28: // Codepage 885 Norwegian
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'CP885';
-                                 break;
- 
-                             case 31: // Codepage 1131 Belarusian, (swiss)
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'CP1131';
-                                 break;
- 
-                             case  1: // Codepage 1251 Cyrillic, (swiss)
-                             case 20: // Codepage 1251 Cyrillic
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'WIN1251';
-                                 break;
- 
-                             case  2: // Russian koi8-r
-                             case 12: // Russian koi8-r (b)
-                             case 22: // Russian koi8-r (c)
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'KOI8_R';
-                                 break;
- 
-                             case  9: // Ukrainian font koi8-u
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'KOI8_U';
-                                 break;
- 
-                             case 24: // ISO-8859-1 West European
-                             case 30: // ISO-8859-1 West European, (thin)
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'ISO8859_1';
-                                 break;
- 
-                             case  3: // ISO-8859-2 Central European
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'ISO8859_2';
-                                 break;
- 
-                             case  4: // ISO-8859-4 Baltic wide (VGA 9bit mapped)
-                             case 11: // ISO-8859-4 Baltic (VGA 9bit mapped)
-                             case 13: // ISO-8859-4 Baltic wide
-                             case 23: // ISO-8859-4 Baltic
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'ISO8859_4';
-                                 break;
- 
-                             case 14: // ISO-8859-5 Cyrillic
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'ISO8859_5';
-                                 break;
- 
-                             case 21: // ISO-8859-7 Greek
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'ISO8859_7';
-                                 break;
- 
-                             case  6: // ISO-8859-9 Turkish
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'ISO8859_9';
-                                 break;
- 
-                             case 10: // ISO-8859-15 West European, (thin)
-                             case 16: // ISO-8859-15 West European
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'ISO8859_15';
-                                 break;
- 
-                             case 15: // ARMSCII-8 Character set
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'ARMSCII_8';
-                                 break;
- 
-                             //case  7: // haik8 codepage (use only with armscii8 screenmap)
-                                 conFont[parm[0]] = fontName;
-                                 conFontCP[parm[0]] = 'HAIK8';
-                                 break;
- 
-                             //case  8: // ISO-8859-8 Hebrew
- 
-                             // CONVERTED FONTS - USE E000-E0FF for map
-                             case 32: // Commodore 64 (UPPER)
-                                 conFont[parm[0]] =  'C640';
-                                 conFontCP[parm[0]] = 'RAW';
-                                 break;
- 
-                             case 33: // Commodore 64 (Lower)
-                                 conFont[parm[0]] =  'C641';
-                                 conFontCP[parm[0]] = 'RAW';
-                                 break;
- 
-                             case 34: // Commodore 128 (UPPER)
-                                 conFont[parm[0]] =  'C1280';
-                                 conFontCP[parm[0]] = 'RAW';
-                                 break;
- 
-                             case 35: // Commodore 128 (Lower)
-                                 conFont[parm[0]] =  'C1281';
-                                 conFontCP[parm[0]] = 'RAW';
-                                 break;
- 
-                             case 36: // Atari
-                                 conFont[parm[0]] =  'ATARI';
-                                 conFontCP[parm[0]] = 'RAW';
-                                 break;
- 
-                             case 37: // P0T NOoDLE (Amiga)
-                                 conFont[parm[0]] = 'P0TNOODLE';
-                                 conFontCP[parm[0]] = 'RAW';
-                                 break;
- 
-                             case 38: // mO'sOul (Amiga)
-                                 conFont[parm[0]] = 'MOSOUL';
-                                 conFontCP[parm[0]] = 'RAW';
-                                 break;
- 
-                             case 39: // MicroKnight Plus (Amiga)
-                                 conFont[parm[0]] = 'MICROKNIGHTPLUS';
-                                 conFontCP[parm[0]] = 'RAW';
-                                 break;
- 
-                             case 40: // Topaz Plus (Amiga)
-                                 conFont[parm[0]] = 'TOPAZPLUS';
-                                 conFontCP[parm[0]] = 'RAW';
-                                 break;
- 
-                             case 41: // MicroKnight (Amiga)
-                                 conFont[parm[0]] = 'MICROKNIGHT';
-                                 conFontCP[parm[0]] = 'RAW';
-                                 break;
- 
-                             case 42: // Topaz (Amiga)
-                                 conFont[parm[0]] = 'TOPAZ';
-                                 conFontCP[parm[0]] = 'RAW';
-                                 break;
-                         }
-                     } else {
-                         // move backwards
-                         parm = fixParams(parm, [1]);
-                         parm[0] = minMax(parm[0], 1, 999);
-                         crsrCol -= parm[0];
-                         if (crsrCol < 0)
-                             crsrCol = 0;
-                         crsrrender = true;
-                     }
-                     break;
- 
-                 case 0x45:  // E - Next Line
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     crsrCol = 0;
-                     crsrRow += parm[0];
-                     crsrrender = true;
-                     break;
- 
-                 case 0x46:  // F - Previous Line
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     crsrCol = 0;
-                     crsrRow -= parm[0];
-                     if (crsrRow < 0)
-                         crsrRow = 0;
-                     crsrrender = true;
-                     break;
- 
-                 case 0x47:  // G - To Column
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     crsrCol = parm[0] - 1;
-                     crsrrender = true;
-                     break;
- 
-                     // H - see f
- 
-                 case 0x49:  // I - CFT - forward tab
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     for (i = 0; i < parm[0]; i++) {
-                         crsrCol = (((crsrCol >> 3) + 1) << 3);
-                         if (crsrCol > colsOnRow(crsrRow)) {
-                             crsrCol = colsOnRow(crsrRow);
-                             break;
-                         }
-                     }
-                     crsrrender = true;
-                     break;
- 
-                 case 0x4A:  // J - Erase in Screen (0=EOS,1=SOS,2=ALL)
-                     parm = fixParams(parm, [0]);
-                     parm[0] = minMax(parm[0], 0, 2, 0);
-                     expandToRow(crsrRow);
-                     expandToCol(crsrRow, crsrCol);
-                     switch (parm[0]) {
-                         case 0:
-                             // clear EOL first
-                             clearHotSpotsRow(crsrRow, crsrCol, 999);
-                             conCellAttr[crsrRow].length = crsrCol;
-                             conText[crsrRow] = conText[crsrRow].substring(0, crsrCol);
-                             // clear EOS
-                             clearHotSpotsRows(crsrRow + 1, conRowAttr.length);
-                             for (r = getMaxRow(); r > crsrRow; r--) {
-                                 row = getRowElement(r);
-                                 row.parentNode.removeChild(row);
-                                 conRowAttr.length = crsrRow + 1;
-                                 conCellAttr.length = crsrRow + 1;
-                                 conText.length = crsrRow + 1;
-                             }
-                             break;
- 
-                         case 1:
-                             // clear SOL first
-                             clearHotSpotsRow(crsrRow, 0, crsrCol-1);
-                             for (c = 0; c <= crsrCol; c++)
-                                 conPutChar(crsrRow, c, 32, defCellAttr);
-                             redrawRow(crsrRow);
- 
-                             // clear SOS
-                             clearHotSpotsRows(0, crsrRow-1);
-                             for (r = 0; r < crsrRow; r++) {
-                                 conRowAttr[r] = defRowAttr;
-                                 conCellAttr[r] = [];
-                                 conText[r] = '';
-                                 adjustRow(crsrRow);
-                                 redrawRow(crsrRow);
-                             }
-                             break;
- 
-                         case 2:
-                             // clear entire screen.
-                             // remove html rows
-                             els = document.getElementsByClassName('vtx');
-                             for (l = els.length, r = l - 1; r >= 0; r--)
-                                 els[r].parentNode.removeChild(els[r]);
-                             // remove sprites
-                             els = document.getElementsByClassName('sprite');
-                             for (l = els.length, r = l - 1; r >= 0; r--)
-                                 els[r].parentNode.removeChild(els[r]);
-                             // reset console
-                             conRowAttr = [];
-                             conCellAttr = [];
-                             conText = [];
-                             conHotSpots = [];
-                             lastHotSpot = null;
-                             document.body.style['cursor'] = 'default';
-                             if (!modeVTXANSI) {
-                                 crsrRow = crsrCol = 0   // BBS / ANSI.SYS
-                                 crsrrender = true;
-                             } else {
-                                 expandToRow(crsrRow);   // ECMA-048 complient
-                                 expandToCol(crsrRow, crsrCol);
-                             }
-                             if (modeVTXANSI)
-                                 cellAttr = defCellAttr;
-                             break;
-                     }
-                     break;
- 
-                 case 0x4B:  // K - Erase in Line
-                     parm = fixParams(parm, [0]);
-                     parm[0] = minMax(parm[0], 0, 2, 0);
-                     expandToRow(crsrRow);
-                     expandToCol(crsrRow, crsrCol);
-                     switch (parm[0]) {
-                         case 0:
-                             // clear EOL
-                             clearHotSpotsRow(crsrRow, crsrCol, 999);
-                             conCellAttr[crsrRow].length = crsrCol;
-                             conText[crsrRow] = conText[crsrRow].substring(0, crsrCol);
-                             redrawRow(crsrRow);
-                             break;
- 
-                         case 1:
-                             // clear SOL
-                             clearHotSpotsRow(crsrRow, 0, crsrCol);
-                             for (c = 0; c <= crsrCol; c++)
-                                 conPutChar(crsrRow, c, 32, defCellAttr);
-                             redrawRow(crsrRow);
-                             break;
- 
-                         case 2:
-                             // clear row.
-                             clearHotSpotsRow(crsrRow, 0, 999);
-                             conText[crsrRow] = '';
-                             conCellAttr[crsrRow] = [];
-                             redrawRow(crsrRow);
-                             break;
-                     }
-                     break;
- 
-                 case 0x4C:  // L - EL - insert lines
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     for (i = 0; i < parm[0]; i++)
-                         insRow(crsrRow);
-                     break;
- 
-                 case 0x4D:  // M - DL - delete lines
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     for (i = 0; i < parm[0]; i++)
-                         delRow(crsrRow);
-                     break;
- 
-                 case 0x50:  // P - DCH - delete character
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     for (i = 0; i < parm[0]; i++)
-                         delChar(crsrRow, crsrCol);
-                     redrawRow(crsrRow);
-                     break;
- 
-                 // move contents in conArrays and redraw rows
-                 // move any hotspots within region.
-                 // do not move conRowAttrs.
-                 case 0x53:  // S - Scroll Up (SU). Scroll up.
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     for (i = 0; i < parm[0]; i++)
-                         scrollUp();
-                     break;
- 
-                 case 0x54:  // T - Scroll Down (SD). Scroll down.
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     for (i = 0; i < parm[0]; i++)
-                         scrollDown();
-                     break;
- 
-                 case 0x58:  // X - ECH - erase n characters
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     for (i = 0; i < parm[0]; i++) {
-                         conPutChar(crsrRow, crsrCol + i, 0x20, defCellAttr);
-                     }
-                     break;
- 
-                 case 0x5A:  // Z - CBT - back tab
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     for (i = 0; i < parm[0]; i++) {
-                         crsrCol = (((crsrCol >> 3) + 1) << 3) - 16;
-                         if (crsrCol <= 0) {
-                             crsrCol = 0;
-                             break;
-                         }
-                     }
-                     crsrrender = true;
-                     break;
- 
-                 /* special VTX sequences start */
-                 case 0x5B:  // [ - Row Size
-                     parm = fixParams(parm, [3,1]);
-                     parm[0] = minMax(parm[0], 0, 7, 3);
-                     parm[1] = minMax(parm[1], 0, 3, 1);
-                     conRowAttr[crsrRow] = setRowAttrSize(conRowAttr[crsrRow],
-                         (parm[0] + 1) * 25);
-                     conRowAttr[crsrRow] = setRowAttrWidth(conRowAttr[crsrRow],
-                         (parm[1] + 1) * 50);
-                     adjustRow(crsrRow);
-                     crsrrender = true;
-                     break;
- 
-                 case 0x5C:  // \ - hotspots
-                     if (l < 2) {
-                         // reset all hotspots
-                         conHotSpots = [];
-                     } else {
-                         switch (parm[0]) {
-                             case 0: // string binds
-                             case 1: // url binds
-                                 if (l >= 4) {
-                                     // need all the parts.
-                                     var hs = {
-                                         type:   parm[0],
-                                         row:    crsrRow,
-                                         col:    crsrCol,
-                                         width:  parm[1],
-                                         height: parm[2],
-                                         hilite: parm[3],
-                                         val:    ''
-                                     };
-                                     for (i = 4; i < l; i++)
-                                         hs.val += String.fromCharCode(parm[i]);
-                                     conHotSpots.push(hs);
-                                 }
-                                 break;
-                         }
-                     }
-                     break;
- 
-                 case 0x5D:  // ] - Row Modes / background
-                     parm = fixParams(parm, [0,0,0]);
-                     parm[0] = minMax(parm[0], 0, 255, 0);
-                     parm[1] = minMax(parm[1], 0, 255, 0);
-                     parm[2] = minMax(parm[2], 0, 3, 0);
-                     conRowAttr[crsrRow] = setRowAttrColor1(conRowAttr[crsrRow], parm[0]);
-                     conRowAttr[crsrRow] = setRowAttrColor2(conRowAttr[crsrRow], parm[1]);
-                     conRowAttr[crsrRow] = setRowAttrPattern(conRowAttr[crsrRow], parm[2] << 16);
- 
-                     // set row attrs here
-                     var row = getRowElement(crsrRow);
-                     var c1 = ansiColors[parm[0]];
-                     var c2 = ansiColors[parm[1]];
-                     switch (parm[2] << 16) {
-                         case A_ROW_SOLID:
-                             row.style['background'] = c1;
-                             break;
- 
-                         case A_ROW_HORZ:
-                             row.style['background'] = 'linear-gradient(to bottom,' + c1 + ',' + c2 + ')';
-                             break;
- 
-                         case A_ROW_VERT:
-                             row.style['background'] = 'linear-gradient(to right,' + c1 + ',' + c2 + ')';
-                             break;
-                     }
-                     break;
- 
-                 case 0x5E:  // ^ - Cursor / Page Modes
-                     if (!parm.length){
-                         // no paremeters - reset cursor to default
-                     } else {
-                         switch (parm[0]) {
-                             case 0:// cursor color
-                                 i = (parm[1] & 0xFF);
-                                 crsrAttr = setCrsrAttrColor(crsrAttr, i);
-                                 newCrsr();
-                                 break;
- 
-                             case 1:// cursor size
-                                 i = (parm[1] & 0x03);
-                                 crsrAttr = setCrsrAttrSize(crsrAttr, i);
-                                 newCrsr();
-                                 break;
- 
-                             case 2:// cursor orientation
-                                 i = (parm[1] ? A_CRSR_ORIENTATION : 0);
-                                 crsrAttr = setCrsrAttrOrientation(crsrAttr, i);
-                                 newCrsr();
-                                 break;
- 
-                             case 3:// page border color
-                                 i = (parm[1] & 0xFF);
-                                 pageAttr = setPageAttrBorder(pageAttr, i);
-                                 pageDiv.parentNode.style['background-color'] = ansiColors[(pageAttr >> 8) & 0xFF];
-                                 break;
- 
-                             case 4:// page background color
-                                 i = (parm[1] & 0xFF);
-                                 pageAttr = setPageAttrBackground(pageAttr, i);
-                                 pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
-                                 break;
- 
-                             case 5: // CSI '5' ; f ; b '^' : Set hotspot mouseover colors.
-                                 hotspotAttr &= 0xFFFF0000;
-                                 hotspotAttr |= (
-                                     (parm[1] & 0xFF) |
-                                     ((parm[2] & 0xFF) << 8)
-                                 );
-                                 break;
- 
-                             case 6: // CSI '6' ; f ; b '^' : Set hotspot click colors.
-                                 hotspotAttr &= 0x0000FFFF;
-                                 hotspotAttr |= (
-                                     ((parm[1] & 0xFF) << 16) |
-                                     ((parm[2] & 0xFF) << 24)
-                                 );
-                                 break;
-                         }
-                     }
-                     crsrrender = true;
-                     break;
- 
-                 case 0x5F:  // _ - VTX Media Codes. Sprites & Audio
-                     if (parm[0] == 0) {
-                         // sprite commands
-                         switch (parm[1]) {
-                             case 0:
-                                 // define / clear sprite object.
-                                 // parm2 = num
-                                 // parm3 = type
-                                 // parm4.. = hex3 data (rejoin with ;)
-                                 if (l == 2) {
-                                     // clear all sprite objects.
-                                     spriteDefs = [];
-                                 } else if (l == 3) {
-                                     // clear single sprite object.
-                                     spriteDefs[parm[2]] = null;
-                                 } else if (l > 4) {
-                                     // define a sprite object
-                                     str = '';
-                                     switch (parm[3]){
-                                         case 0:
-                                             // url : unicode encoded characters 
-                                             for (i = 4; i < l; i++) 
-                                                 str += String.fromCharCode(parseInt(parm[i]));
-                                             spriteDefs[parm[2]] = stripNL(str);
-                                             break;
+                /* special VTX sequences start */
+                case 0x5B:  // [ - Row Size
+                    parm = fixParams(parm, [3,1]);
+                    parm[0] = minMax(parm[0], 0, 7, 3);
+                    parm[1] = minMax(parm[1], 0, 3, 1);
+                    conRowAttr[crsrRow] = setRowAttrSize(conRowAttr[crsrRow],
+                        (parm[0] + 1) * 25);
+                    conRowAttr[crsrRow] = setRowAttrWidth(conRowAttr[crsrRow],
+                        (parm[1] + 1) * 50);
+                    adjustRow(crsrRow);
+                    crsrrender = true;
+                    break;
+ 
+                case 0x5C:  // \ - hotspots
+                    if (l < 2) {
+                        // reset all hotspots
+                        conHotSpots = [];
+                    } else {
+                        switch (parm[0]) {
+                            case 0: // string binds
+                            case 1: // url binds
+                                if (l >= 4) {
+                                    // need all the parts.
+                                    var hs = {
+                                        type:   parm[0],
+                                        row:    crsrRow,
+                                        col:    crsrCol,
+                                        width:  parm[1],
+                                        height: parm[2],
+                                        hilite: parm[3],
+                                        val:    ''
+                                    };
+                                    for (i = 4; i < l; i++)
+                                        hs.val += String.fromCharCode(parm[i]);
+                                    conHotSpots.push(hs);
+                                }
+                                break;
+                        }
+                    }
+                    break;
+ 
+                case 0x5D:  // ] - Row Modes / background
+                    parm = fixParams(parm, [0,0,0]);
+                    parm[0] = minMax(parm[0], 0, 255, 0);
+                    parm[1] = minMax(parm[1], 0, 255, 0);
+                    parm[2] = minMax(parm[2], 0, 3, 0);
+                    conRowAttr[crsrRow] = setRowAttrColor1(conRowAttr[crsrRow], parm[0]);
+                    conRowAttr[crsrRow] = setRowAttrColor2(conRowAttr[crsrRow], parm[1]);
+                    conRowAttr[crsrRow] = setRowAttrPattern(conRowAttr[crsrRow], parm[2] << 16);
+ 
+                    // set row attrs here
+                    var row = getRowElement(crsrRow);
+                    var c1 = ansiColors[parm[0]];
+                    var c2 = ansiColors[parm[1]];
+                    switch (parm[2] << 16) {
+                        case A_ROW_SOLID:
+                            row.style['background'] = c1;
+                            break;
+ 
+                        case A_ROW_HORZ:
+                            row.style['background'] = 'linear-gradient(to bottom,' + c1 + ',' + c2 + ')';
+                            break;
+ 
+                        case A_ROW_VERT:
+                            row.style['background'] = 'linear-gradient(to right,' + c1 + ',' + c2 + ')';
+                            break;
+                    }
+                    break;
+ 
+                case 0x5E:  // ^ - Cursor / Page Modes
+                    if (!parm.length){
+                        // no paremeters - reset cursor to default
+                    } else {
+                        switch (parm[0]) {
+                            case 0:// cursor color
+                                i = (parm[1] & 0xFF);
+                                crsrAttr = setCrsrAttrColor(crsrAttr, i);
+                                newCrsr();
+                                break;
+ 
+                            case 1:// cursor size
+                                i = (parm[1] & 0x03);
+                                crsrAttr = setCrsrAttrSize(crsrAttr, i);
+                                newCrsr();
+                                break;
+ 
+                            case 2:// cursor orientation
+                                i = (parm[1] ? A_CRSR_ORIENTATION : 0);
+                                crsrAttr = setCrsrAttrOrientation(crsrAttr, i);
+                                newCrsr();
+                                break;
+ 
+                            case 3:// page border color
+                                i = (parm[1] & 0xFF);
+                                pageAttr = setPageAttrBorder(pageAttr, i);
+                                pageDiv.parentNode.style['background-color'] = ansiColors[(pageAttr >> 8) & 0xFF];
+                                break;
+ 
+                            case 4:// page background color
+                                i = (parm[1] & 0xFF);
+                                pageAttr = setPageAttrBackground(pageAttr, i);
+                                pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
+                                break;
+ 
+                            case 5: // CSI '5' ; f ; b '^' : Set hotspot mouseover colors.
+                                hotspotAttr &= 0xFFFF0000;
+                                hotspotAttr |= (
+                                    (parm[1] & 0xFF) |
+                                    ((parm[2] & 0xFF) << 8)
+                                );
+                                break;
+ 
+                            case 6: // CSI '6' ; f ; b '^' : Set hotspot click colors.
+                                hotspotAttr &= 0x0000FFFF;
+                                hotspotAttr |= (
+                                    ((parm[1] & 0xFF) << 16) |
+                                    ((parm[2] & 0xFF) << 24)
+                                );
+                                break;
+                        }
+                    }
+                    crsrrender = true;
+                    break;
+ 
+                case 0x5F:  // _ - VTX Media Codes. Sprites & Audio
+                    if (parm[0] == 0) {
+                        // sprite commands
+                        switch (parm[1]) {
+                            case 0:
+                                // define / clear sprite object.
+                                // parm2 = num
+                                // parm3 = type
+                                // parm4.. = hex3 data (rejoin with ;)
+                                if (l == 2) {
+                                    // clear all sprite objects.
+                                    spriteDefs = [];
+                                } else if (l == 3) {
+                                    // clear single sprite object.
+                                    spriteDefs[parm[2]] = null;
+                                } else if (l > 4) {
+                                    // define a sprite object
+                                    str = '';
+                                    switch (parm[3]){
+                                        case 0:
+                                            // url : unicode encoded characters 
+                                            for (i = 4; i < l; i++) 
+                                                str += String.fromCharCode(parseInt(parm[i]));
+                                            spriteDefs[parm[2]] = stripNL(str);
+                                            break;
                                              
-                                         case 1:
-                                             // UTF8 url : hex3 encoded
-                                             for (i = 4; i < l; i++)
-                                                 str += ';'+parm[i];
-                                             str = str.substring(1);
-                                             spriteDefs[parm[2]] = stripNL(UFT8ArrayToStr(decodeHex3(str)));
-                                             break;
+                                        case 1:
+                                            // UTF8 url : hex3 encoded
+                                            for (i = 4; i < l; i++)
+                                                str += ';'+parm[i];
+                                            str = str.substring(1);
+                                            spriteDefs[parm[2]] = stripNL(UFT8ArrayToStr(decodeHex3(str)));
+                                            break;
                                              
-                                         case 2:
-                                             // raw UTF8 svg : hex3 encoded
-                                             for (i = 4; i < l; i++)
-                                                 str += ';'+parm[i];
-                                             str = str.substring(1);
-                                             spriteDefs[parm[2]] = 'data:image/svg+xml;charset=utf-8,'
-                                                 + encodeURIComponent(stripNL(UFT8ArrayToStr(decodeHex3(str))));
-                                             break;
+                                        case 2:
+                                            // raw UTF8 svg : hex3 encoded
+                                            for (i = 4; i < l; i++)
+                                                str += ';'+parm[i];
+                                            str = str.substring(1);
+                                            spriteDefs[parm[2]] = 'data:image/svg+xml;charset=utf-8,'
+                                                + encodeURIComponent(stripNL(UFT8ArrayToStr(decodeHex3(str))));
+                                            break;
  
-                                         case 3:
-                                             // raw UTF8 svg deflated : hex3 encoded
-                                             for (i = 4; i < l; i++)
-                                                 str += ';'+parm[i];
-                                             str = str.substring(1);
-                                             spriteDefs[parm[2]] = 'data:image/svg+xml;charset=utf-8,'
-                                                 + encodeURIComponent(stripNL(UFT8ArrayToStr(inflateRaw(decodeHex3(str)))));
-                                             break;
+                                        case 3:
+                                            // raw UTF8 svg deflated : hex3 encoded
+                                            for (i = 4; i < l; i++)
+                                                str += ';'+parm[i];
+                                            str = str.substring(1);
+                                            spriteDefs[parm[2]] = 'data:image/svg+xml;charset=utf-8,'
+                                                + encodeURIComponent(stripNL(UFT8ArrayToStr(inflateRaw(decodeHex3(str)))));
+                                            break;
                                              
-                                         case 4:
-                                             // raw UTF8 svg Base64: hex3 encoded
-                                             for (i = 4; i < l; i++)
-                                                 str += ';'+parm[i];
-                                             str = str.substring(1);
-                                             spriteDefs[parm[2]] = 'data:image/svg+xml;base64,' 
-                                                 + stripNL(UFT8ArrayToStr(decodeHex3(str)));
-                                             break;
-                                     }
-                                 }
-                                 break;
+                                        case 4:
+                                            // raw UTF8 svg Base64: hex3 encoded
+                                            for (i = 4; i < l; i++)
+                                                str += ';'+parm[i];
+                                            str = str.substring(1);
+                                            spriteDefs[parm[2]] = 'data:image/svg+xml;base64,' 
+                                                + stripNL(UFT8ArrayToStr(decodeHex3(str)));
+                                            break;
+                                    }
+                                }
+                                break;
  
-                             case 1:
-                                 // display / remove sprite from display.
-                                 if (l == 2) {
-                                     // remove all sprints from display
-                                     els = document.getElementsByClassName('sprite');
-                                     for (i = els.length - 1; i >= 0; i--)
-                                         els[i].parentNode.removeChild(els[i]);
-                                 } else if (l == 3) {
-                                     // remove sprite s from display
-                                     div = document.getElementById('sprite' + parm[2]);
-                                     if (div != null)
-                                         div.parentNode.removeChild(div);
-                                 } else if (l == 7) {
-                                     // display a new sprite
-                                     // remove old one if it exists first
-                                     div = document.getElementById('sprite' + parm[2]);
-                                     if (div != null)
-                                         div.parentNode.removeChild(div);
+                            case 1:
+                                // display / remove sprite from display.
+                                if (l == 2) {
+                                    // remove all sprints from display
+                                    els = document.getElementsByClassName('sprite');
+                                    for (i = els.length - 1; i >= 0; i--)
+                                        els[i].parentNode.removeChild(els[i]);
+                                } else if (l == 3) {
+                                    // remove sprite s from display
+                                    div = document.getElementById('sprite' + parm[2]);
+                                    if (div != null)
+                                        div.parentNode.removeChild(div);
+                                } else if (l == 7) {
+                                    // display a new sprite
+                                    // remove old one if it exists first
+                                    div = document.getElementById('sprite' + parm[2]);
+                                    if (div != null)
+                                        div.parentNode.removeChild(div);
  
-                                     var rpos = getElementPosition(getRowElement(crsrRow));
-                                     var csize = getRowFontSize(crsrRow);
-                                     var spriteTop = rpos.top;
-                                     var spriteLeft = rpos.left + (crsrCol * csize.width)
+                                    var rpos = getElementPosition(getRowElement(crsrRow));
+                                    var csize = getRowFontSize(crsrRow);
+                                    var spriteTop = rpos.top - pageTop;
+                                    var spriteLeft = crsrCol * csize.width;
  
-                                     // make a new one.
-                                     div = domElement(
-                                         'div',
-                                         {   className:  'sprite',
-                                             id :        'sprite' + parm[2] },
-                                         {   position:   'absolute',
-                                             left:       spriteLeft + 'px',
-                                             top:        spriteTop + 'px',
-                                             width:      (colSize * parm[4]) + 'px',
-                                             height:     (rowSize * parm[5]) + 'px',
-                                             overflow:   'hidden'});
+                                    // make a new one.
+                                    div = domElement(
+                                        'div',
+                                        {   className:  'sprite',
+                                            row :       crsrRow,
+                                            col :       crsrCol,
+                                            id :        'sprite' + parm[2] },
+                                        {   position:   'absolute',
+                                            left:       spriteLeft + 'px',
+                                            top:        spriteTop + 'px',
+                                            width:      (colSize * parm[4]) + 'px',
+                                            height:     (rowSize * parm[5]) + 'px',
+                                            overflow:   'hidden'});
  
-                                     img = domElement(
-                                         'img',
-                                         {   onload:     fitSVGToDiv,
-                                             src:        spriteDefs[parm[3]] },
-                                         {   visibility: 'hidden' });
-         
-                                     div.appendChild(img);
-                                     if (parm[6] == 0)
-                                         pageDiv.insertBefore(div, textDiv)
-                                     else
-                                         textDiv.appendChild(div);
-                                 }                                
-                                 break;
-                                 
-                             case 2:
-                                 // move sprite to new r c.
-                                 // TODO
-                                 /*
-                                     CSI 0 ; 2 ; s ; r ; c ; t '_' : Move sprite s to new r, c.
-                                         s : Sprite number to assign to this sprite. {0}
-                                         r : new row (1-n)
-                                         c : new column (1-cols)
-                                         t : time in milliseconds for move to happen. (default=0 / instant)
-                                 */
-                                 break;
-                                 
-                             case 3:
-                                 // move sprite to new z.
-                                 // TODO
-                                 /*
-                                     CSI 0 ; 3 ; s ; z '_' : Move sprite s to new z-plane.
-                                         s : Sprite number to assign to this sprite. {0}
-                                         z : Z-plane. 0 = below text plane, 1 : above text plane. {0}
-                                 */
-                                 break;
-                         }
-                         
-                     } else if (parm[0] == 1) {
-                         // audio commands
-                         switch (parm[1]) {
-                             case 0:
-                                 // define / clear audio object.
-                                 // parm2 = num
-                                 // parm3 = type
-                                 // parm4.. = hex3 data (rejoin with ;)
-                                 if (l == 2) {
-                                     // clear all audio objects.
-                                     audioDefs = [];
-                                 } else if (l == 3) {
-                                     // clear audio object num
-                                     audioDefs[parm[2]] = null;
-                                 } else if (l > 4) {
-                                     // define audio object
-                                     str = '';
-                                     switch (parm[3]) {
-                                         case 0:
-                                             // url : unicode encoded characters 
-                                             for (i = 4; i < l; i++) 
-                                                 str += String.fromCharCode(parseInt(parm[i]));
-                                             audioDefs[parm[2]] = str;
-                                             break;
-                                             
-                                         case 1:
-                                             // UTF8 url : hex3 encoded
-                                             for (i = 4; i < l; i++)
-                                                 str += ';'+parm[i];
-                                             str = str.substring(1);
-                                             audioDefs[parm[2]] = UFT8ArrayToStr(decodeHex3(str))
-                                             break;
-                                             
-                                         case 2:
-                                             // raw mp3 : hex3 encoded
-                                             // TODO
-                                             audioDefs[parm[2]] = 
-                                                 'data:audio/mp3;base64,' + 
-                                                 btoa(decodeHex3(str));
-                                             break;
-                                             
-                                         case 3:
-                                             // raw mp3 deflated : hex3 encoded
-                                             // TODO
-                                             audioDefs[parm[2]] = 
-                                                 'data:audio/mp3;base64,' + 
-                                                 btoa(inflateRaw(decodeHex3(str)));
-                                             break;
-                                             
-                                         case 4:
-                                             // raw MP3 Base64: hex3 encoded
-                                             // TODO
-                                             audioDefs[parm[2]] = 'data:audio/mp3;base64,' +
-                                                 + stripNL(UFT8ArrayToStr(decodeHex3(str)));
-                                             break;
-                                     }
-                                 }
-                                 break;
-                                 
-                             case 1:
-                                 // select audio object to player.
-                                 if (l > 2) {
-                                     audio.src = audioDefs[parm[2]];
-                                 }
-                                 break;
-                                 
-                             case 2:
-                                 // play / pause / stop-rewind
-                                 switch (parm[2]) {
-                                     case 0:
-                                         // stop/rewind
-                                         audio.pause();
-                                         audio.load();
-                                         break;
-                                         
-                                     case 1:
-                                         // play
-                                         audio.play();
-                                         break;
-                                         
-                                     case 2:
-                                         // pause
-                                         audio.pause();
-                                         break;
-                                 }
-                                 break;
-                                 
-                             case 3:
-                                 // set volume (0-100)
-                                 audio.volume = ((parm[2]!=null)?(parm[2]/100):0.25);
-                                 break;
-                         }
-                     }
-                     break;
-                 /* special VTX sequences end */
-                 
-                 case 0x62:  // b - repeat last char
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     for (i = 0; i < parm[0]; i++) {
-                         conPrintChar(lastChar);
-                     }
-                     crsrrender = true;
-                     break;
- 
-                 case 0x63:  // c - device attributes
-                     parm = fixParams(parm, [0]);
-                     if (parm[0] == 0) {
-                         // request device
-                         sendData(CSI + '?50;86;84;88c'); // reply for VTX
-                     }
-                     break;
- 
-                 case 0x66:  // f - Cursor Position
-                 case 0x48:  // H - Cursor Position
-                     // set missing to defaults of 1
-                     parm = fixParams(parm, [ 1, 1 ]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     parm[1] = minMax(parm[1], 1, 999);
-                     while (l < 2)
-                         parm[l++] = 1;
-                     if (modeRegionOrigin)
-                         crsrRow = regionTopRow + parm[0] - 1
-                     else
-                         crsrRow = parm[0] - 1;
-                     crsrCol = parm[1] - 1;
-                     expandToRow(crsrRow);
-                     crsrrender = true;
-                     break;
- 
-                 case 0x68:  // h - set mode
-                 case 0x6C:  // l - reset mode
-                     parm[0] = parm[0].toString();
-                     switch (parm[0]) {
-                         case '?6':
-                             // origin in region?
-                             modeRegionOrigin = (chr == 0x68);
-                             break;
- 
-                         case '?7':
-                             // autowrap mode
-                             modeAutoWrap = (chr == 0x68);
-                             break;
- 
-                         case '?25':
-                             // hide / show cursor
-                             modeCursor = (chr == 0x68);
-                             break;
- 
-                         case '?31':
-                             // bright as font 1
-                             modeBoldFont = (chr == 0x68);
-                             break;
- 
-                         case '?32':
-                             // bright enable/disable
-                             modeNoBold = (chr == 0x68);
-                             break;
- 
-                         case '?33':
-                             // blink to high intensity background
-                             modeBlinkBright = (chr == 0x68);
-                             break;
- 
-                         case '?34':
-                             //  blink as font 2
-                             modeBlinkFont = (chr == 0x68);
-                             break;
- 
-                         case '?35':
-                             // '?35' : blink disabled
-                             modeNoBlink = (chr == 0x68);
-                             break;
- 
-                         case '?50':
-                             // VTX / ANSIBBS mode flip
-                             modeVTXANSI = (chr == 0x68);
-                             break;
- 
-                         case '=255':
-                             // =255 : DOORWAY mode
-                             modeDOORWAY = (chr == 0x68);
-                             break;
-                     }
-                     break;
- 
-                 case 0x6D:  // m - Character Attr
-                     if (l < 1) parm[0] = 0; // don't use fixparms. variable parameters.
-                     parm[0] = minMax(parm[0], 0, 255);
-                     for (i = 0; i < l; i++) {
-                         switch (parm[i]) {
-                             case 0:     // reset
-                                 cellAttr = defCellAttr;
-                                 break;
- 
-                             case 1:     // bold on / off
-                             case 21:
-                                 cellAttr =
-                                     setCellAttrBold(cellAttr, (parm[i] < 20));
-                                 break;
- 
-                             case 2:     // faint on / off
-                             case 22:
-                                 cellAttr =
-                                     setCellAttrFaint(cellAttr, (parm[i] < 20));
-                                 break;
- 
-                             case 3:     // italics on/off
-                             case 23:
-                                 cellAttr =
-                                     setCellAttrItalics(cellAttr, (parm[i] < 20));
-                                 break;
- 
-                             case 4:     // underline
-                             case 24:
-                                 cellAttr =
-                                     setCellAttrUnderline(cellAttr, (parm[i] < 20));
-                                 break;
- 
-                             case 5:     // blink slow
-                                 cellAttr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
-                                 cellAttr |= A_CELL_BLINKSLOW;
-                                 break;
- 
-                             case 6:     // blink fast
-                                 cellAttr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
-                                 cellAttr |= A_CELL_BLINKFAST;
-                                 break;
- 
-                             case 25:    // all blink off
-                             case 26:    // all blink off (reserved but unblink)
-                                 cellAttr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
-                                 break;
- 
-                             case 7:     // reverse video
-                             case 27:
-                                 cellAttr =
-                                     setCellAttrReverse(cellAttr, (parm[i] < 20));
-                                 break;
- 
-                             case 8:     // conceal
-                             case 28:
-                                 cellAttr =
-                                     setCellAttrConceal(cellAttr, (parm[i] < 20));
-                                 break;
- 
-                             case 9:     // strikethrough
-                             case 29:
-                                 cellAttr =
-                                     setCellAttrStrikethrough(cellAttr, (parm[i] < 20));
-                                 break;
- 
-                             case 10: case 11: case 12: case 13: case 14:
-                             case 15: case 16: case 17: case 18: case 19:
-                                 cellAttr =
-                                     setCellAttrFont(cellAttr, (parm[i] - 10));
-                                 break;
- 
-                             case 50:    // glow
-                             case 70:
-                                 cellAttr =
-                                     setCellAttrGlow(cellAttr, (parm[i] < 70));
-                                 break;
- 
-                             case 56:    // outline
-                             case 76:
-                                 cellAttr =
-                                     setCellAttrOutline(cellAttr, (parm[i] < 70));
-                                 break;
- 
-                             case 57:    // shadow
-                             case 77:
-                                 cellAttr =
-                                     setCellAttrShadow(cellAttr, (parm[i] < 70));
-                                 break;
- 
-                             // special built in fonts
-                             case 80: // teletext blocks 0x20-0x5F
-                             case 81: // teletext blocks 0x20-0x5F
-                             case 82: // reserved
-                             case 83: // reserved
-                             case 84: // reserved
-                             case 85: // reserved
-                                 cellAttr =
-                                     setCellAttrFont(cellAttr, (parm[i] - 70));
-                                 break;
- 
-                             // text foreground colors
-                             case 30: case 31: case 32: case 33:
-                             case 34: case 35: case 36: case 37:
-                                 // foreground color (0-7)
-                                 cellAttr = setCellAttrFG(cellAttr, parm[i] - 30)
-                                 break;
- 
-                             case 38:
-                                 // check for 5 ; color
-                                 if (++i < l)
-                                     if (parm[i] == 5)
-                                         if (++i < l) {
-                                             parm[i] = minMax(parm[i], 0, 255, 7);
-                                             cellAttr = setCellAttrFG(cellAttr, parm[i]);
-                                         }
-                                 break;
- 
-                             case 39:
-                                 // default
-                                 cellAttr =
-                                     setCellAttrFG(cellAttr, getCellAttrFG(defCellAttr));
-                                 break;
- 
-                             case 90: case 91: case 92: case 93:
-                             case 94: case 95: case 96: case 97:
-                                 // foreground color (8-15)
-                                 cellAttr = setCellAttrFG(cellAttr, parm[i] - 90 + 8);
-                                 break;
- 
-                             // text background colors
-                             case 40: case 41: case 42: case 43:
-                             case 44: case 45: case 46: case 47:
-                                 // background color (0-7)
-                                 cellAttr = setCellAttrBG(cellAttr, parm[i] - 40)
-                                 break;
- 
-                             case 48:
-                                 // check for 5 ; color
-                                 if (++i < l)
-                                     if (parm[i] == 5)
-                                         if (++i < l) {
-                                             parm[i] = minMax(parm[i], 0, 255, 7);
-                                             cellAttr = setCellAttrBG(cellAttr, parm[i]);
-                                         }
-                                 break;
- 
-                             case 49:
-                                 // default
-                                 cellAttr =
-                                     setCellAttrBG(cellAttr, getCellAttrBG(defCellAttr));
-                                 break;
- 
-                             case 100: case 101: case 102: case 103:
-                             case 104: case 105: case 106: case 107:
-                                 // background color (8-15)
-                                 cellAttr = setCellAttrBG(cellAttr, parm[i] - 100 + 8);
-                                 break;
-                         }
-                     }
-                     break;
- 
-                 case 0x6E:  // n DSR - device status report
-                     parm = fixParams(parm, [1]);
-                     parm[0] = minMax(parm[0], 1, 999);
-                     if (parm[0] == 6) {
-                         // request cursor position
-                         sendData(CSI + (crsrRow+1) + ';' + (crsrCol+1) + 'R');
-                     }
-                     break;
-                 case 0x72:  // r
-                     if (interm == '*') {
-                         // *r - emulate baud
-                         // assuming if p1 < 2 then use p2, else reset to full speed.
-                         // ps1 : nil,0,1 = host transmit, 2=host recieve, 3=printer
-                         //      4=modem hi, 5=modem lo
-                         // ps2 : nil,0=full speed, 1=300, 2=600,3=1200,4=2400,5=4800,
-                         //      6=9600,7=19200,8=38400,9=57600,10=76800,11=115200
-                         parm = fixParams(parm, [ 0, 0 ]);
-                         if (parm[0] < 2) {
-                             modeSpeed = bauds[parm[1]] * 100;
-                         }
-                     } else if (interm == '') {
-                         // CSI t ; b 'r' : Set scroll window (DECSTBM).
-                         if (parm.length == 0) {
-                             regionTopRow = 0;
-                             regionBottomRow = crtRows - 1;
-                         } else {
-                             parm = fixParams(parm, [ 1, 1 ]);
-                             parm[0] = minMax(parm[0], 1, crtRows);
-                             parm[1] = minMax(parm[1], parm[0], crtRows);
-                             regionTopRow = parm[0] - 1;
-                             regionBottomRow = parm[1] - 1;
-                         }
-                     }
-                     break;
- 
-                 case 0x73:  // s - Save Position
-                     crsrSaveRow = crsrRow;
-                     crsrSaveCol = crsrCol;
-                     break;
- 
-                 case 0x75:  // u - Restore Position
-                     crsrRow = crsrSaveRow;
-                     crsrCol = crsrSaveCol;
-                     crsrrender = true;
-                     break;
- 
-                 default:
-                     // unsupported - ignore
-                     //console.log('unsupported ansi : CSI ' + String.fromCharCode(chr));
-                     break;
-             }
+                                    img = domElement(
+                                        'img',
+                                        {   onload:     fitSVGToDiv,
+                                            src:        spriteDefs[parm[3]] },
+                                        {   visibility: 'hidden'});
+                                        
+                                    div.appendChild(img);
+                                    if (parm[6] == 0)
+                                        pageDiv.insertBefore(div, textDiv)
+                                    else
+                                        textDiv.appendChild(div);
+                                }                                
+                                break;
+                            
+                            case 2:
+                                // move sprite to new r c.
+                                var el = document.getElementById('sprite'+parm[2]);
+                                if ((el) && (l == 6))
+                                    moveSprite(el, parm[3], parm[4], parm[5]);
+                                break;
+                                
+                            case 3:
+                                // move sprite to new z.
+                                // TODO
+                                /*
+                                    CSI 0 ; 3 ; s ; z '_' : Move sprite s to new z-plane.
+                                        s : Sprite number to assign to this sprite. {0}
+                                        z : Z-plane. 0 = below text plane, 1 : above text plane. {0}
+                                */
+                                break;
+                        }
+                        
+                    } else if (parm[0] == 1) {
+                        // audio commands
+                        switch (parm[1]) {
+                            case 0:
+                                // define / clear audio object.
+                                // parm2 = num
+                                // parm3 = type
+                                // parm4.. = hex3 data (rejoin with ;)
+                                if (l == 2) {
+                                    // clear all audio objects.
+                                    audioDefs = [];
+                                } else if (l == 3) {
+                                    // clear audio object num
+                                    audioDefs[parm[2]] = null;
+                                } else if (l > 4) {
+                                    // define audio object
+                                    str = '';
+                                    switch (parm[3]) {
+                                        case 0:
+                                            // url : unicode encoded characters 
+                                            for (i = 4; i < l; i++) 
+                                                str += String.fromCharCode(parseInt(parm[i]));
+                                            audioDefs[parm[2]] = str;
+                                            break;
+                                            
+                                        case 1:
+                                            // UTF8 url : hex3 encoded
+                                            for (i = 4; i < l; i++)
+                                                str += ';'+parm[i];
+                                            str = str.substring(1);
+                                            audioDefs[parm[2]] = UFT8ArrayToStr(decodeHex3(str))
+                                            break;
+                                            
+                                        case 2:
+                                            // raw mp3 : hex3 encoded
+                                            // TODO
+                                            audioDefs[parm[2]] = 
+                                                'data:audio/mp3;base64,' + 
+                                                btoa(decodeHex3(str));
+                                            break;
+                                            
+                                        case 3:
+                                            // raw mp3 deflated : hex3 encoded
+                                            // TODO
+                                            audioDefs[parm[2]] = 
+                                                'data:audio/mp3;base64,' + 
+                                                btoa(inflateRaw(decodeHex3(str)));
+                                            break;
+                                            
+                                        case 4:
+                                            // raw MP3 Base64: hex3 encoded
+                                            // TODO
+                                            audioDefs[parm[2]] = 'data:audio/mp3;base64,' +
+                                                + stripNL(UFT8ArrayToStr(decodeHex3(str)));
+                                            break;
+                                    }
+                                }
+                                break;
+                                
+                            case 1:
+                                // select audio object to player.
+                                if (l > 2) {
+                                    audio.src = audioDefs[parm[2]];
+                                }
+                                break;
+                                
+                            case 2:
+                                // play / pause / stop-rewind
+                                switch (parm[2]) {
+                                    case 0:
+                                        // stop/rewind
+                                        audio.pause();
+                                        audio.load();
+                                        break;
+                                        
+                                    case 1:
+                                        // play
+                                        audio.play();
+                                        break;
+                                        
+                                    case 2:
+                                        // pause
+                                        audio.pause();
+                                        break;
+                                }
+                                break;
+                                
+                            case 3:
+                                // set volume (0-100)
+                                audio.volume = ((parm[2]!=null)?(parm[2]/100):0.25);
+                                break;
+                        }
+                    }
+                    break;
+                /* special VTX sequences end */
+                
+                case 0x62:  // b - repeat last char
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    for (i = 0; i < parm[0]; i++) {
+                        conPrintChar(lastChar);
+                    }
+                    crsrrender = true;
+                    break;
+
+                case 0x63:  // c - device attributes
+                    parm = fixParams(parm, [0]);
+                    if (parm[0] == 0) {
+                        // request device
+                        sendData(CSI + '?50;86;84;88c'); // reply for VTX
+                    }
+                    break;
+
+                case 0x66:  // f - Cursor Position
+                case 0x48:  // H - Cursor Position
+                    // set missing to defaults of 1
+                    parm = fixParams(parm, [ 1, 1 ]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    parm[1] = minMax(parm[1], 1, 999);
+                    while (l < 2)
+                        parm[l++] = 1;
+                    if (modeRegionOrigin)
+                        crsrRow = regionTopRow + parm[0] - 1
+                    else
+                        crsrRow = parm[0] - 1;
+                    crsrCol = parm[1] - 1;
+                    expandToRow(crsrRow);
+                    crsrrender = true;
+                    break;
+
+                case 0x68:  // h - set mode
+                case 0x6C:  // l - reset mode
+                    parm[0] = parm[0].toString();
+                    switch (parm[0]) {
+                        case '?6':
+                            // origin in region?
+                            modeRegionOrigin = (chr == 0x68);
+                            break;
+
+                        case '?7':
+                            // autowrap mode
+                            modeAutoWrap = (chr == 0x68);
+                            break;
+
+                        case '?25':
+                            // hide / show cursor
+                            modeCursor = (chr == 0x68);
+                            break;
+
+                        case '?31':
+                            // bright as font 1
+                            modeBoldFont = (chr == 0x68);
+                            break;
+
+                        case '?32':
+                            // bright enable/disable
+                            modeNoBold = (chr == 0x68);
+                            break;
+
+                        case '?33':
+                            // blink to high intensity background
+                            modeBlinkBright = (chr == 0x68);
+                            break;
+
+                        case '?34':
+                            //  blink as font 2
+                            modeBlinkFont = (chr == 0x68);
+                            break;
+
+                        case '?35':
+                            // '?35' : blink disabled
+                            modeNoBlink = (chr == 0x68);
+                            break;
+
+                        case '?50':
+                            // VTX / ANSIBBS mode flip
+                            modeVTXANSI = (chr == 0x68);
+                            break;
+
+                        case '=255':
+                            // =255 : DOORWAY mode
+                            modeDOORWAY = (chr == 0x68);
+                            break;
+                    }
+                    break;
+
+                case 0x6D:  // m - Character Attr
+                    if (l < 1) parm[0] = 0; // don't use fixparms. variable parameters.
+                    parm[0] = minMax(parm[0], 0, 255);
+                    for (i = 0; i < l; i++) {
+                        switch (parm[i]) {
+                            case 0:     // reset
+                                cellAttr = defCellAttr;
+                                break;
+
+                            case 1:     // bold on / off
+                            case 21:
+                                cellAttr =
+                                    setCellAttrBold(cellAttr, (parm[i] < 20));
+                                break;
+
+                            case 2:     // faint on / off
+                            case 22:
+                                cellAttr =
+                                    setCellAttrFaint(cellAttr, (parm[i] < 20));
+                                break;
+
+                            case 3:     // italics on/off
+                            case 23:
+                                cellAttr =
+                                    setCellAttrItalics(cellAttr, (parm[i] < 20));
+                                break;
+
+                            case 4:     // underline
+                            case 24:
+                                cellAttr =
+                                    setCellAttrUnderline(cellAttr, (parm[i] < 20));
+                                break;
+
+                            case 5:     // blink slow
+                                cellAttr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
+                                cellAttr |= A_CELL_BLINKSLOW;
+                                break;
+
+                            case 6:     // blink fast
+                                cellAttr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
+                                cellAttr |= A_CELL_BLINKFAST;
+                                break;
+
+                            case 25:    // all blink off
+                            case 26:    // all blink off (reserved but unblink)
+                                cellAttr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
+                                break;
+
+                            case 7:     // reverse video
+                            case 27:
+                                cellAttr =
+                                    setCellAttrReverse(cellAttr, (parm[i] < 20));
+                                break;
+
+                            case 8:     // conceal
+                            case 28:
+                                cellAttr =
+                                    setCellAttrConceal(cellAttr, (parm[i] < 20));
+                                break;
+
+                            case 9:     // strikethrough
+                            case 29:
+                                cellAttr =
+                                    setCellAttrStrikethrough(cellAttr, (parm[i] < 20));
+                                break;
+
+                            case 10: case 11: case 12: case 13: case 14:
+                            case 15: case 16: case 17: case 18: case 19:
+                                cellAttr =
+                                    setCellAttrFont(cellAttr, (parm[i] - 10));
+                                break;
+
+                            case 50:    // glow
+                            case 70:
+                                cellAttr =
+                                    setCellAttrGlow(cellAttr, (parm[i] < 70));
+                                break;
+
+                            case 56:    // outline
+                            case 76:
+                                cellAttr =
+                                    setCellAttrOutline(cellAttr, (parm[i] < 70));
+                                break;
+
+                            case 57:    // shadow
+                            case 77:
+                                cellAttr =
+                                    setCellAttrShadow(cellAttr, (parm[i] < 70));
+                                break;
+
+                            // special built in fonts
+                            case 80: // teletext blocks 0x20-0x5F
+                            case 81: // teletext blocks 0x20-0x5F
+                            case 82: // reserved
+                            case 83: // reserved
+                            case 84: // reserved
+                            case 85: // reserved
+                                cellAttr =
+                                    setCellAttrFont(cellAttr, (parm[i] - 70));
+                                break;
+
+                            // text foreground colors
+                            case 30: case 31: case 32: case 33:
+                            case 34: case 35: case 36: case 37:
+                                // foreground color (0-7)
+                                cellAttr = setCellAttrFG(cellAttr, parm[i] - 30)
+                                break;
+
+                            case 38:
+                                // check for 5 ; color
+                                if (++i < l)
+                                    if (parm[i] == 5)
+                                        if (++i < l) {
+                                            parm[i] = minMax(parm[i], 0, 255, 7);
+                                            cellAttr = setCellAttrFG(cellAttr, parm[i]);
+                                        }
+                                break;
+
+                            case 39:
+                                // default
+                                cellAttr =
+                                    setCellAttrFG(cellAttr, getCellAttrFG(defCellAttr));
+                                break;
+
+                            case 90: case 91: case 92: case 93:
+                            case 94: case 95: case 96: case 97:
+                                // foreground color (8-15)
+                                cellAttr = setCellAttrFG(cellAttr, parm[i] - 90 + 8);
+                                break;
+
+                            // text background colors
+                            case 40: case 41: case 42: case 43:
+                            case 44: case 45: case 46: case 47:
+                                // background color (0-7)
+                                cellAttr = setCellAttrBG(cellAttr, parm[i] - 40)
+                                break;
+
+                            case 48:
+                                // check for 5 ; color
+                                if (++i < l)
+                                    if (parm[i] == 5)
+                                        if (++i < l) {
+                                            parm[i] = minMax(parm[i], 0, 255, 7);
+                                            cellAttr = setCellAttrBG(cellAttr, parm[i]);
+                                        }
+                                break;
+
+                            case 49:
+                                // default
+                                cellAttr =
+                                    setCellAttrBG(cellAttr, getCellAttrBG(defCellAttr));
+                                break;
+
+                            case 100: case 101: case 102: case 103:
+                            case 104: case 105: case 106: case 107:
+                                // background color (8-15)
+                                cellAttr = setCellAttrBG(cellAttr, parm[i] - 100 + 8);
+                                break;
+                        }
+                    }
+                    break;
+
+                case 0x6E:  // n DSR - device status report
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 1, 999);
+                    if (parm[0] == 6) {
+                        // request cursor position
+                        sendData(CSI + (crsrRow+1) + ';' + (crsrCol+1) + 'R');
+                    }
+                    break;
+                case 0x72:  // r
+                    if (interm == '*') {
+                        // *r - emulate baud
+                        // assuming if p1 < 2 then use p2, else reset to full speed.
+                        // ps1 : nil,0,1 = host transmit, 2=host recieve, 3=printer
+                        //      4=modem hi, 5=modem lo
+                        // ps2 : nil,0=full speed, 1=300, 2=600,3=1200,4=2400,5=4800,
+                        //      6=9600,7=19200,8=38400,9=57600,10=76800,11=115200
+                        parm = fixParams(parm, [ 0, 0 ]);
+                        if (parm[0] < 2) {
+                            modeSpeed = bauds[parm[1]] * 100;
+                        }
+                    } else if (interm == '') {
+                        // CSI t ; b 'r' : Set scroll window (DECSTBM).
+                        if (parm.length == 0) {
+                            regionTopRow = 0;
+                            regionBottomRow = crtRows - 1;
+                        } else {
+                            parm = fixParams(parm, [ 1, 1 ]);
+                            parm[0] = minMax(parm[0], 1, crtRows);
+                            parm[1] = minMax(parm[1], parm[0], crtRows);
+                            regionTopRow = parm[0] - 1;
+                            regionBottomRow = parm[1] - 1;
+                        }
+                    }
+                    break;
+
+                case 0x73:  // s - Save Position
+                    crsrSaveRow = crsrRow;
+                    crsrSaveCol = crsrCol;
+                    break;
+
+                case 0x75:  // u - Restore Position
+                    crsrRow = crsrSaveRow;
+                    crsrCol = crsrSaveCol;
+                    crsrrender = true;
+                    break;
+
+                default:
+                    // unsupported - ignore
+                    //console.log('unsupported ansi : CSI ' + String.fromCharCode(chr));
+                    break;
+            }
         }
     }
     if (crsrrender)
         crsrDraw();
+}
+
+function moveSprite(el, nr, nc, t){
+    var
+        rpos = getElementPosition(getRowElement(nr)),
+        csize = getRowFontSize(nr),
+        cx = parseInt(el.style['left']),
+        cy = parseInt(el.style['top']),
+        steps, tmr, 
+        sel,
+        nx, ny;
+        
+    if (t < 0) t = 0;
+    steps = Math.round(t / 15);
+    nx = nc * csize.width;
+    ny = rpos.top - pageTop;
+  
+    // generate new keyframe 
+    sel = domElement('style',{},{},
+        '@keyframes ' + el.id + ' { '
+        + 'from { left: ' + cx + 'px; top: ' + cy + 'px; } ' 
+        + 'to { left : ' + nx + 'px; top: ' + ny + 'px;}} ');
+    el.appendChild(sel);
+    el.style['animation-duration'] = t + 'ms';
+    el.style['animation-name'] = el.id;
+    el.style['animation-iteration-count'] = '1';
+    setTimeout(function(){
+        el.style['left'] = nx + 'px';
+        el.style['top'] = ny + 'px';
+        el.style['animation-name'] = null;
+        el.style['animation-duration'] = null;
+        el.style['animation-iteration-count'] = null;
+        el.removeChild(sel);
+    }, t + 5);
 }
 
 // remove all NL from string. (https://www.chromestatus.com/features/5735596811091968)

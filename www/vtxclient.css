@@ -21,6 +21,7 @@ body {
     overflow:       hidden;
     text-overflow:  clip;
     z-index:        0;
+    position:       relative;
 }
 
 /* the text area */
@@ -32,6 +33,7 @@ body {
     overflow:       hidden;
     text-overflow:  clip;
     z-index:        10;
+    position:       relative;
 }
 
 /* rows of text */

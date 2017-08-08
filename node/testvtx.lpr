@@ -507,6 +507,7 @@ procedure Page7;
 var
   key : string;
   r, c, w, h, z : integer;
+  mode : integer;
 const
 //  testsvg : string = 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+DQo8IS0tIENyZWF0b3I6IENvcmVsRFJBVyBYNiAtLT4NCjxzdmcgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWw6c3BhY2U9InByZXNlcnZlIiB3aWR0aD0iMy45ODYzNmluIiBoZWlnaHQ9IjMuOTg2MzZpbiIgdmVyc2lvbj0iMS4xIiBzdHlsZT0ic2hhcGUtcmVuZGVyaW5nOmdlb21ldHJpY1ByZWNpc2lvbjsgdGV4dC1yZW5kZXJpbmc6Z2VvbWV0cmljUHJlY2lzaW9uOyBpbWFnZS1yZW5kZXJpbmc6b3B0aW1pemVRdWFsaXR5OyBmaWxsLXJ1bGU6ZXZlbm9kZDsgY2xpcC1ydWxlOmV2ZW5vZGQiDQp2aWV3Qm94PSIwIDAgMjAyNyAyMDI3Ig0KIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIj4NCiA8ZGVmcz4NCiAgPHN0eWxlIHR5cGU9InRleHQvY3NzIj4NCiAgIDwhW0NEQVRBWw0KICAgIC5maWwxIHtmaWxsOmJsYWNrfQ0KICAgIC5maWwyIHtmaWxsOiNBQTAwMDB9DQogICAgLmZpbDAge2ZpbGw6I0ZGRkY1NX0NCiAgIF1dPg0KICA8L3N0eWxlPg0KIDwvZGVmcz4NCiA8ZyBpZD0iTGF5ZXJfeDAwMjBfMSI+DQogIDxtZXRhZGF0YSBpZD0iQ29yZWxDb3JwSURfMENvcmVsLUxheWVyIi8+DQogIDxjaXJjbGUgY2xhc3M9ImZpbDAiIGN4PSIxMDEzIiBjeT0iMTAxMyIgcj0iMTAxMyIvPg0KICA8cGF0aCBjbGFzcz0iZmlsMSIgZD0iTTEwMTMgMTAxM2w0NyAwYzEzLDIwIDMzLDM4IDU4LDU0bDQxIDI2YzgsNSAxNCwxMCAxOCwxNyA0LDYgNiwxNCA2LDIzIDAsOSAtMiwxNyAtOCwyMyAtNSw2IC0xMiw5IC0yMSw5IC0xNSwwIC0zMiwtOCAtNTAsLTI1IC0xOCwtMTYgLTMzLC0zOCAtNDUsLTY2bC00MiAxODljNTMsMjggMTEyLDQyIDE3NSw0MiAxMjQsMCAxODYsLTYzIDE4NiwtMTkwIDAsLTI5IC01LC01NCAtMTQsLTc1IC00LC0xMCAtOCwtMTkgLTE0LC0yN2wxMzIgMCAwIDI4NCAxNzEgMCAwIC0yODQgMjk2IDBjMCw1MTcgLTQxOSw5MzYgLTkzNiw5MzZsMCAtOTM2eiIvPg0KICA8cGF0aCBjbGFzcz0iZmlsMSIgZD0iTTEwMTMgMTAxM2wtNjEgMCAwIC03MCAtMTA0IDAgMCAtNzAgMTQ5IDAgMCAtMTQyIC0zMTkgMCAwIDI4MiAtMTM0IDAgMCAtNTMgODYgMCAwIC0yMjkgLTM0MSAwIDAgMjI5IDg1IDAgMCA1MyAtMjk2IDBjMCwtNTE2IDQxOSwtOTM1IDkzNSwtOTM1bDAgOTM1eiIvPg0KICA8cGF0aCBjbGFzcz0iZmlsMiIgZD0iTTEwNjAgMTAxM2wyOTAgMGMtNiwtOSAtMTQsLTE4IC0yMiwtMjUgLTE1LC0xNCAtMzYsLTI5IC02MywtNDQgLTI3LC0xNSAtNDQsLTI2IC01MSwtMzMgLTcsLTcgLTEwLC0xNiAtMTAsLTI4IDAsLTggMiwtMTUgOCwtMjEgNSwtNSAxMywtOCAyMSwtOCAxOCwwIDM1LDggNTIsMjIgMTYsMTUgMzEsMzUgNDQsNjJsNDMgLTE3OGMtNDgsLTI1IC05OSwtMzggLTE1NSwtMzggLTEyMywwIC0xODQsNjQgLTE4NCwxOTIgMCwzNSA3LDY1IDIwLDg5IDIsNCA0LDcgNywxMHptNDIyIDBsMTcxIDAgMCAtNTMgODUgMCAwIC0yMjkgLTM0MSAwIDAgMjI5IDg1IDAgMCA1M3oiLz4NCiAgPHBhdGggY2xhc3M9ImZpbDIiIGQ9Ik05NTIgMTAxM2wtMjc0IDAgMCAyODQgMzE5IDAgMCAtMTQyIC0xNDkgMCAwIC03MCAxMDQgMCAwIC03MnptLTQwOCAwbC0xNzAgMCAwIDI4NCAxNzAgMCAwIC0yODR6Ii8+DQogPC9nPg0KPC9zdmc+DQo=';
 
@@ -560,6 +561,8 @@ begin
   Print(SGR(ANSI_GREEN) + 'Press ' + SGR(ANSI_YELLOW) + HOTSPOT(5,1,0,' ') + 'Space'
     + SGR(ANSI_GREEN)+' to randomly display a sprite, '+HOTSPOT(3,1,0,'Q')+'['
     + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
+
+  mode := 0;
   repeat
     key := upCase(GetKey);
     if key = ' ' then
@@ -570,11 +573,21 @@ begin
       c := random(80 - w) + 1;
       z := random(2);
 
-      Print(CSI + 's' + MOVETO(r,c) + CSI + '0;1;1;1;' + inttostr(w) + ';'
-        + inttostr(h) + ';' + inttostr(z) + '_' + CSI + 'u');
+      if mode = 0 then
+      begin
+	      Print(CSI + 's' + MOVETO(r,c) + CSI + '0;1;1;1;' + inttostr(w) + ';'
+  	      + inttostr(h) + ';' + inttostr(z) + '_' + CSI + 'u');
+      	mode := 1;
+      end
+      else
+      begin
+        Print(CSI + '0;2;1;' + inttostr(r) + ';' + inttostr(c) + ';500_');
+      	mode := 0;
+      end;
 
     end;
   until key = 'Q';
+  Print(CSI + '0;1_' + CSI + '0;0_');
 end;
 
 procedure Page8;
