@@ -1,6 +1,6 @@
 # VTX_ClientServer
 
-updated: 06-AUG-2017
+updated: 07-AUG-2017
 
 
 ## Intro
@@ -58,7 +58,7 @@ Build in audio player for streaming audio with ANSI sequences to set source, vol
 
 
 ## PETSCII Mode
-Commodore 64 or 128 font support.
+VIC 20, Commodore 64 or 128 font support.
 
 All PETSCII controls are emulated.
 
@@ -89,6 +89,8 @@ Keys mapped to:
 * Alt 6       = Lt Green
 * Alt 7       = Lt Blue
 * Alt 8       = Lt Gray
+* F1-F8       = F1-F8
+* Tab         = Toggle Text / Graphics
 
 
 ## Compiling
@@ -195,38 +197,24 @@ Softfonts - Built in bitmap font to vector font converter using method in bdf2sv
 
 ## To Do($) / To Fix(!) / Investigate(?)
 
-$ Merge row size, row background, and page/cursor attributes into one ESC sequence group.
+! Client handshake with server.
 
-? Look at row sizing controls. See if can match VT ESC # sequences. Or move ESC # 0 / ESC # 6 to VTX codes. 
-  Defined existing VT codes:
-    ESC # 3	Double wide / double high, top half
-    ESC # 4	Double wide / double high, bottom half
-    ESC # 5	Single height row
-    ESC # 6	Double wide row
-    ESC # 8	Alignment display, fill screen with E's
-
-? Add codes to reset page, row, and cursor attributes to default. (works like CSI 0 m).
+$ Test.test.test.test. 
 
 $ Move sprite commands.
 
-$ Scroll regions.
-
-$ DOORWAY mode. Keystrokes for DOORWAY in new column(s) in keyboard lut.
-
-$ Blink / bold font swapping.
-
-$ Test.test.test.test. Especially fonts / codepages. Add missing glyphs to u_vga16.
-
-$ thin version of uvga16.
-
 $ Redo website.
 
-? CSI 1 c : request visible rows. Respond CSI ?50:n c : n=rows @ normal size.
+$ HTTP requests as new thread.
 
-$ Client handshake with server.
+$ Telnet negotiation moved from server to client.
+
+? Merge row size, row background, and page/cursor attributes into one ESC sequence group.
+
+? thin version of uvga16.
 
 ? WSS / certificate &| poor-mans client<->server encryption with rotating keys.
 
 ? VT100 compatibily mode.
 
-? Built in audio object. Cmds to set volume / play / stop / rewind / set stream URL. 
+? CSI 1 c : request visible rows. Respond CSI ?50:n c : n=rows @ normal size.
