@@ -1,6 +1,6 @@
 # VTX_ClientServer
 
-updated: 07-AUG-2017
+updated: 08-AUG-2017
 
 
 ## Intro
@@ -8,19 +8,19 @@ updated: 07-AUG-2017
 VTX consists of a web / websocket server written in FreePascal, and a browser 
 based javascript client. 
 
-The server software listens to two separate ports while running. A port for
+The server software listens to two separate ports while running. A port for 
 HTTP, and a separate port for Web Sockets.
 
-A 'user' connects to the web server via HTTP. The web server delivers a client
+A 'user' connects to the web server via HTTP. The web server delivers a client 
 payload (html, css, javascript client, web font) to the 'user's web browser.
 
 The client software then connects to the server via a web socket connection. 
-Upon a 'user' connection to the web socket server, the server will spawn a 
-'sysop' defined application ('node' software). The 'node' software pipes raw 
-binary text to / from the server via StdIn / StdOut. The server then relays
-this stream to the 'user' through the web socket connection. Alternately,
-VTX server can be configured to connect to a remote telnet server (bbs or other
-service).
+Upon a 'user' connection to the web socket server, the server will wither spawn 
+a 'sysop' defined application ('node' software) or connect to a telnet server. 
+The 'node' software pipes raw binary text to / from the server via StdIn / 
+StdOut. The server then relays this stream to the 'user' through the web socket 
+connection. Alternately, VTX server can be configured to connect to a remote 
+telnet server (bbs or other service).
 
 The server console is written in Free Pascal.
 
@@ -39,25 +39,30 @@ The work directory is various unneeded stuff I use for web graphics and testing.
 
 ## Client Features
 
-80 column display by any length page. Using webfont specified in html/css 
+Any column width display by any length page. Using webfont specified in html/css 
 template file (in the www path).
 
-256 colors (base 8 + high intensity + 6x6x6 color cube + grays) - see https://en.wikipedia.org/wiki/ANSI_escape_code
+ANSI: 256 colors (base 8 + high intensity + 6x6x6 color cube + grays) - see 
+https://en.wikipedia.org/wiki/ANSI_escape_code PETSCII: Commodore color palettes.
 
 Transparent black in VTX mode.
 
-Variable row sizing, row background effects, and marquee text rows in VTX ANSI mode.
+Variable row sizing, row background effects, and marquee text rows in VTX ANSI 
+mode.
 
-Support up to 64 SVG sprites from 64 SVG sprite definitions.
+Support up to 64 SVG sprites from 64 SVG sprite definitions. 
 
-See https://github.com/codewar65/VTX_ClientServer/blob/master/vtx.txt for ANSI code sequences supported.
+See https://github.com/codewar65/VTX_ClientServer/blob/master/vtx.txt for ANSI 
+code sequences supported.
 
 Y-Modem 1K upload and download.
 
-Build in audio player for streaming audio with ANSI sequences to set source, volume, play, stop.
+Build in audio player for streaming audio with ANSI sequences to set source, 
+volume, play, stop.
 
 
 ## PETSCII Mode
+
 VIC 20, Commodore 64 or 128 font support.
 
 All PETSCII controls are emulated.
@@ -95,18 +100,18 @@ Keys mapped to:
 
 ## Compiling
 
-There is no make procedure at this time. It currently only builds on Windows.
-Basically, snag a copy of the latest Lazarus / Free Pascal, open the project
+There is no make procedure at this time. It currently only builds on Windows. 
+Basically, snag a copy of the latest Lazarus / Free Pascal, open the project 
 file and build.
 
-I have ported the current project to console more so it will be easier to port
+I have ported the current project to console more so it will be easier to port 
 to other platforms.
 
 Larazus : http://www.lazarus-ide.org/
 
 Free Pascal : https://www.freepascal.org/
 
-You will need the Synapse package (synapse40) to compile at this time until I
+You will need the Synapse package (synapse40) to compile at this time until I 
 get around to replacing them with my own routines.
 
 
@@ -114,15 +119,15 @@ get around to replacing them with my own routines.
 
 The vtxserv.ini file contains settings for configuring the server.
 
-SystemName : the name of the server / node processes. Typically the name of
-of a bulletin board system. The name here is embedded into the HTML sent to
-the client from the VTX web server.
+SystemName : the name of the server / node processes. Typically the name of of a 
+bulletin board system. The name here is embedded into the HTML sent to the 
+client from the VTX web server.
 
-SystemIP : The IP address that the server needs to bind to. If you are behind
-a firewall / router, this would be your internal LAN IP.
+SystemIP : The IP address that the server needs to bind to. If you are behind a 
+firewall / router, this would be your internal LAN IP.
 
-InternetIP : The address that 'user's out in internet land will need to visit 
-to hit your system (via port forwarding, etc.)
+InternetIP : The address that 'user's out in internet land will need to visit to 
+hit your system (via port forwarding, etc.)
 
 HTTPPort : The port number the web server will be listening to HTTP requests on.
 
@@ -130,14 +135,22 @@ WSPort : The websocket port number.
 
 NodeType : 'ExtProc' or 'Telnet'
 
-CodePage: The codepage that is running on the node process telnet service. Currently supported Code Pages:
-ARMSCII_8, ATASCII, C128, C64, CP437, CP667, CP668, CP737, CP770, CP771, CP772, CP773, CP774, CP775, CP790, CP808, CP813, CP819, CP850, CP851, CP852, CP853, CP855, CP857, CP858, CP859, CP860, CP861, CP863, CP865, CP866, CP867, CP869, CP872, CP878, CP895, CP900, CP912, CP915, CP920, CP991, CP1117, CP1118, CP1119, CP1131, CP28593, CP65001, CPMIK, HAIK8, ISO8859_1, ISO8859_10, ISO8859_13, ISO8859_14, ISO8859_15, ISO8859_16, ISO8859_2, ISO8859_3, ISO8859_4, ISO8859_5, ISO8859_7, ISO8859_9, KOI8_R, KOI8_U, UTF8, UTF16, VIC20, WIN1250, WIN1251, WIN1253, WIN1254, WIN1257
+CodePage: The codepage that is running on the node process telnet service. 
+Currently supported Code Pages:
+ARMSCII_8, ATASCII, C128, C64, CP437, CP667, CP668, CP737, CP770, CP771, CP772, 
+CP773, CP774, CP775, CP790, CP808, CP813, CP819, CP850, CP851, CP852, CP853, 
+CP855, CP857, CP858, CP859, CP860, CP861, CP863, CP865, CP866, CP867, CP869, 
+CP872, CP878, CP895, CP900, CP912, CP915, CP920, CP991, CP1117, CP1118, CP1119, 
+CP1131, CP28593, CP65001, CPMIK, HAIK8, ISO8859_1, ISO8859_10, ISO8859_13, 
+ISO8859_14, ISO8859_15, ISO8859_16, ISO8859_2, ISO8859_3, ISO8859_4, ISO8859_5, 
+ISO8859_7, ISO8859_9, KOI8_R, KOI8_U, UTF8, UTF16, VIC20, WIN1250, WIN1251, 
+WIN1253, WIN1254, WIN1257
 
 ExtProcess : the name of the node process that is launched for a 'user' 
-connection. This will be the main process that the 'user' interacts with. The
+connection. This will be the main process that the 'user' interacts with. The 
 program needs to communicate with the server via StdIn / StdOut UTF-8 IO pipe 
-streams. These streams need to be character based and not line based to
-function properly.
+streams. These streams need to be character based and not line based to function 
+properly.
 
 TelnetIP : IP address that the server needs to connect to the telnet server.
 
@@ -164,13 +177,11 @@ KICK n : will hang up on a connection
 
 HELP : displays help with other commands.
 
-CONV : convert an ANSI text file to UTF-8
-
-CPS : list available code pages for use with CONV.
-
 CLS : clear the console window.
 
 STATUS : show server status.
+
+LOADCFG : stop listeners, reload INI settings, and restart.
 
 
 ## Node Software
@@ -182,34 +193,33 @@ to work with VTX.
 
 ## Roadmap
 
-Add additional tool to server console for convert SVG files to Base64 for use
-in node software.
-
 Investigate ability for websocket server to accept non-'user' connections from
-other VTX servers for passing private network information like mail or echo-style
-messages.
+other VTX servers for passing private network information like mail or 
+echo-style messages.
 
 Migrate away from Synape TCP libraries to low level sockets in HTTP and WS 
 servers.
 
-Softfonts - Built in bitmap font to vector font converter using method in bdf2svg (in utils).
+Migrate telnet negotiation handshaking to the client so the VTX client can be 
+used as stand alone websocket telnet client.
+
+Encapsulate vtx client functions and variables into a vtx object. (vtx = {})
+
+Softfonts - Built in bitmap font to vector font converter using method in 
+bdf2svg (in utils).
 
 
 ## To Do($) / To Fix(!) / Investigate(?)
 
 ! Client handshake with server.
 
-$ Test.test.test.test. 
+$ Telnet negotiation moved from server to client.
+
+$ Encapsulate all vtx functions / variables into vtx object.
 
 $ Move sprite commands.
 
-$ Redo website.
-
 $ HTTP requests as new thread.
-
-$ Telnet negotiation moved from server to client.
-
-? Merge row size, row background, and page/cursor attributes into one ESC sequence group.
 
 ? thin version of uvga16.
 
@@ -217,4 +227,6 @@ $ Telnet negotiation moved from server to client.
 
 ? VT100 compatibily mode.
 
-? CSI 1 c : request visible rows. Respond CSI ?50:n c : n=rows @ normal size.
+$ Redo website.
+
+$ Test.test.test.test. 
