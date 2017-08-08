@@ -290,13 +290,14 @@ Sequences (# : to be implemented)
     SPRITE COMMANDS CSI 0 ... _
     ===========================
 
-    CSI 0 ; 0 ; n ; t ; hex3 '_' : define sprite object
-        n = number;     1-64 {1}
-        t = type;       0 = url : unicode ascii characters (; delimited) {0}
-                        1 = url : hex3 encoded UTF8
-                        2 = raw : hex3 encoded UTF8 SVG
-                        3 = raw, deflated : hex3 encoded UTF8 SVG (https://github.com/nodeca/pako/tree/master/dist)
-        hex3 = data;    hexstring where 0-9=0-9,A-F=:-? (0x30-0x3F)
+    CSI 0 ; 0 ; n ; t ; data '_' : define sprite object
+        n = number; 1-64 {1}
+        t = type:   0 = url : unicode encoded characters 
+                    1 = UTF8 url : hex3 encoded
+                    2 = raw UTF8 svg : hex3 encoded
+                    3 = raw UTF8 svg deflated : hex3 encoded
+                    4 = raw UTF8 svg Base64: hex3 encoded (https://github.com/nodeca/pako/tree/master/dist)
+        data;       (0) ascii;ascii... or hexstring where 0-9=0-9,A-F=:-? (0x30-0x3F)
     CSI 0 ; 0 ; n '_' : clear sprite object n
     CSI 0 ; 0 '_' : clear all sprite objects.
 
@@ -324,11 +325,12 @@ Sequences (# : to be implemented)
         
     CSI 1 ; 0 ; n ; t ; hex3 '_' : define audio object
         n = audio number; 1-64
-        t = type;       0 = url : unicode ascii characters (; delimited)
-                        1 = url : hex3 encoded UTF8
-                        2 = raw : hex3 encoded MP3
-                        3 = raw, deflated : hex3 encoded MP3 (https://github.com/nodeca/pako/tree/master/dist)
-        hex3 = data;    hexstring where 0-9=0-9,A-F=:-? (0x30-0x3F)
+        t = type:   0 = url : unicode encoded characters 
+                    1 = UTF8 url : hex3 encoded
+                    2 = raw UTF8 svg : hex3 encoded
+                    3 = raw UTF8 svg deflated : hex3 encoded
+                    4 = raw UTF8 svg Base64: hex3 encoded (https://github.com/nodeca/pako/tree/master/dist)
+        data;       (0) ascii;ascii... or hexstring where 0-9=0-9,A-F=:-? (0x30-0x3F)
     CSI 1 ; 0 ; n '_' : clear audio object n
     CSI 1 ; 0 '_' : clear all audio objects.
 

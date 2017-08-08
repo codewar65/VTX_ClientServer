@@ -531,26 +531,30 @@ begin
 
   PrintLn(#27'[94mSprites are small SVG clipart sent from the server to the client. This');
   PrintLn('is done in two steps. The first step is to define the sprite on the client.');
-  PrintLn('The second is to display a sprite on the page. Unlike most ANSI sequences,');
-  PrintLn('Sprite definition commands use APC (Application Program Command : ESC _) to');
-  PrintLn('begin the definition and end with a ST (String Termination : ESC \).');
+  PrintLn('The second is to display a sprite on the page.');
   PrintLn;
-  PrintLn('Sprite definition sequences are as follows:');
-  PrintLn;
-  PrintLn(#27'[93mAPC 0 ST '#27'[94m: Clear all sprite definitions.');
-  PrintLn(#27'[93mAPC 0;'#27'[3ms'#27'[23m ST '#27'[94m: Clear a sprite definition number s (1-64).');
-  PrintLn(#27'[93mAPC 0;'#27'[3ms;svgdata'#27'[23m ST '#27'[94m: Define sprite s with svgdata (Base64 SVG file text).');
+  println(#27'[93mCSI 0;0;'#27'[3mn;t;w;h;z'#27'[23m _ '#27'[94m: Display a sprite number n (1-64) defined as s at the');
+  println('    n=sprite object number (1-64).');
+  println('    t=type of data:');
+  println('      0 = url : unicode encoded characters.');
+  println('      1 = UTF8 url : hex3 encoded.');
+  println('      2 = raw UTF8 svg : hex3 encoded.');
+  println('      3 = raw UTF8 svg deflated : hex3 encoded.');
+  println('      4 = raw UTF8 svg Base64: hex3 encoded.');
+  println('    data = unicode ascii chars or hex3 encoded data.');
   PrintLn;
   PrintLn('Once a sprite has been defined client side, it can be displayed on the page');
   PrintLn('using:');
   PrintLn;
-  PrintLn(#27'[93mCSI 0;'#27'[3mn;s;w;h;z'#27'[23m _ '#27'[94m: Display a sprite number n (1-64) defined as s at the');
+  PrintLn(#27'[93mCSI 0;1;'#27'[3mn;s;w;h;z'#27'[23m _ '#27'[94m: Display a sprite number n (1-64) defined as s at the');
   PrintLn('    current cursor position with size w and h (measured in default character');
   PrintLn('    sizes, A width of 1 equals 1 character width at default size, A height of');
   PrintLn('    1 equals 1 character height). Z = 0 if the sprite is to appear under the');
   PrintLn('    text, 1 if on top.');
-  PrintLn(#27'[93mCSI 0;'#27'[3mn'#27'[23m _ '#27'[94m: Remove sprite n.');
-  PrintLn(#27'[93mCSI 0 _ '#27'[94m: Remove all sprites.');
+  PrintLn(#27'[93mCSI 0;1;'#27'[3mn'#27'[23m _ '#27'[94m: Remove sprite n.');
+  PrintLn(#27'[93mCSI 0;1 _ '#27'[94m: Remove all sprites.');
+  PrintLn(#27'[93mCSI 0;2;z;r;c _ '#27'[94m: Move sprite s to new r,c in t time (ms).');
+  PrintLn(#27'[93mCSI 0;3;s;z _ '#27'[94m: Move sprite s to new Z.');
   PrintLn;
 
   Print(SGR(ANSI_GREEN) + 'Press ' + SGR(ANSI_YELLOW) + HOTSPOT(5,1,0,' ') + 'Space'
@@ -745,24 +749,25 @@ begin
   PrintLn('or a streaming URL.');
   PrintLn;
 
-  PrintLn('Audio definition sequences are as follows:');
-  PrintLn;
-  PrintLn(#27'[93mAPC 1 ST '#27'[94m: Clear all audio definitions.');
-  PrintLn(#27'[93mAPC 1;'#27'[3ma'#27'[23m ST '#27'[94m: Clear a audio definition number a (1-64).');
-  PrintLn(#27'[93mAPC 1;'#27'[3ma;data'#27'[23m ST '#27'[94m: Define audio object a with data (Base64 file text).');
-  PrintLn;
+  PrintLn(#27'[93mCSI 1 ; 0 ; n ; t ; data _'#27'[94m: Define an audio object.');
+  PrintLn('    n : Audio object to define. (1-64).');
+  println('    t=type of data:');
+  println('      0 = url : unicode encoded characters.');
+  println('      1 = UTF8 url : hex3 encoded.');
+  println('      2 = raw UTF8 mp3 : hex3 encoded.');
+  println('      3 = raw UTF8 mp3 deflated : hex3 encoded.');
+  println('      4 = raw UTF8 mp3 Base64: hex3 encoded.');
+  println('    data = unicode ascii chars or hex3 encoded data.');
+  PrintLn(#27'[93mCSI 1 ; 0 ; n  _'#27'[94m: Undefine an audio object.');
+  PrintLn(#27'[93mCSI 1 ; 0 _'#27'[94m: Undefine all audio objects.');
 
   PrintLn('To play audio:');
   PrintLn;
-  PrintLn(#27'[93mCSI 1 ; 0 ; n _'#27'[94m: Loads an audio object into the audio player. These are set');
-  PrintLn('    with the APC 1 ST commands above.');
-  PrintLn('    n : Audio object defined with APC 1 ST command.');
-  PrintLn(#27'[93mCSI 1 ; 1 ; a ; ... ; a _'#27'[94m: Loads the audio player with online audio.');
-  PrintLn('    a : unicode ascii characters to url.');
-  PrintLn(#27'[93mCSI 1 ; 2 ; v _'#27'[94m: Set the volume. (0-100). Default=25');
-  PrintLn('    a : unicode ascii characters to url.');
-  PrintLn(#27'[93mCSI 1 ; 3 _'#27'[94m: Play.');
-  PrintLn(#27'[93mCSI 1 ; 4 _'#27'[94m: Stop/Pause.');
+  PrintLn(#27'[93mCSI 1 ; 1 ; n _'#27'[94m: Loads an audio object into the audio player.');
+  PrintLn('    n : Audio object defined.');
+  PrintLn(#27'[93mCSI 1 ; 2 ; p _'#27'[94m: Play, stop, pause audio loaded.');
+  PrintLn('    p : 0=stop/rewind, 1=play, 2=pause.');
+  PrintLn(#27'[93mCSI 1 ; 3 ; v _'#27'[94m: Set the volume. (0-100). Default=25');
 
   PrintLn;
 
