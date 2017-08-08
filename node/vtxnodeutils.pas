@@ -26,9 +26,9 @@ const
   VTXMODE =               CSI + '?50h';
   BBSMODE =               CSI + '?50l';
 
-  ROW_MARQUEE =           ESC + '#1';
-  ROW_MARQUEEOFF =        ESC + '#0';
-  ROW_RESET =             ESC + '#9';
+  ROW_RESET =             ESC + '#0';
+  ROW_MARQUEEOFF =        ESC + '#7';
+  ROW_MARQUEE =           ESC + '#8';
 
   // SGR values
   SGR_RESET =             0;

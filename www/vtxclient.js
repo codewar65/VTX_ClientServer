@@ -73,6 +73,8 @@
 
     ROWATTR - numbers stored in conRowAttr[num]
 
+        00000000 00101100 00000000 00000000 - default
+   
         00000000 00000000 00000000 00000000  - bits
         ------dd mwwzzzbb ssssssss ffffffff
 
@@ -266,6 +268,7 @@ var
     defPageAttr,
     defCrsrAttr,
     defCellAttr,                // default cell attributes.
+    defRowAttr = 0x02c00,       // def row attr
     lastChar,                   // last printable character outputed.
     lastHotSpot = null,         // last mouseover hotspot
     hotspotAttr = 0x0C0F040B,   // hotspot colors
@@ -5044,47 +5047,67 @@ function conCharOut(chr) {
                         case 3:
                             // start of row attr (ESC #)
                             // get single byte (0,1,9)
-                            if (chr == 0x30) {
-                                // marquee off
-                                // ESC # 0
-                                conRowAttr[crsrRow] &= ~A_ROW_MARQUEE;
-                                getRowElement(crsrRow).firstChild.classList.remove('marquee')
-                            } else if (chr == 0x31) {
-                                // marquee on
-                                // ESC # 1
-                                conRowAttr[crsrRow] |= A_ROW_MARQUEE;
-                                getRowElement(crsrRow).firstChild.classList.add('marquee');
-                            } else if (chr == 0x33) {
-                                // ESC # 3 - double wide/high, top
-                                conRowAttr[crsrRow] &=
-                                    ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
-                                conRowAttr[crsrRow] |= (A_ROW_DOUBLETOP | A_ROW_WIDTH200);
-                            } else if (chr == 0x34) {
-                                // ESC # 4 - double wide/high, bottom
-                                conRowAttr[crsrRow] &=
-                                    ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
-                                conRowAttr[crsrRow] |= (A_ROW_DOUBLEBOTTOM | A_ROW_WIDTH200);
-                            } else if (chr == 0x35) {
-                                // ESC # 5 - single wide/high
-                                conRowAttr[crsrRow] &=
-                                    ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
-                                conRowAttr[crsrRow] |= (A_ROW_WIDTH100);
-                            } else if (chr == 0x36) {
-                                // ESC # 6 - single high / double wide
-                                conRowAttr[crsrRow] &=
-                                    ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
-                                conRowAttr[crsrRow] |= (A_ROW_WIDTH200);
-                            } else if (chr == 0x39) {
-                                // ESC # 9 - reset row
-                                conRowAttr[crsrRow] = defRowAttr;
-                            } else if (chr == 0x32) { // single wide, double high, top
-                                conRowAttr[crsrRow] &=
-                                    ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
-                                conRowAttr[crsrRow] |= (A_ROW_DOUBLETOP | A_ROW_WIDTH100);
-                            } else if (chr == 0x37) { // single wide, double high, bottom
-                                conRowAttr[crsrRow] &=
-                                    ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
-                                conRowAttr[crsrRow] |= (A_ROW_DOUBLEBOTTOM | A_ROW_WIDTH100);
+                            switch (chr) {
+                                case 0x30:
+                                    // ESC # 0 - reset row
+                                    conRowAttr[crsrRow] = defRowAttr;
+                                    break;
+                                
+                                case 0x31:
+                                    // ESC # 1 - single wide, double high, top
+                                    conRowAttr[crsrRow] &=
+                                        ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
+                                    conRowAttr[crsrRow] |= (A_ROW_DOUBLETOP | A_ROW_WIDTH100);
+                                    break;
+                                    
+                                case 0x32:
+                                    // ESC # 2 - single wide, double high, bottom
+                                    conRowAttr[crsrRow] &=
+                                        ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
+                                    conRowAttr[crsrRow] |= (A_ROW_DOUBLEBOTTOM | A_ROW_WIDTH100);
+                                    break;
+                                    
+                                case 0x33:
+                                    // ESC # 3 - double wide/high, top
+                                    conRowAttr[crsrRow] &=
+                                        ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
+                                    conRowAttr[crsrRow] |= (A_ROW_DOUBLETOP | A_ROW_WIDTH200);
+                                    break;
+                                    
+                                case 0x34:
+                                    // ESC # 4 - double wide/high, bottom
+                                    conRowAttr[crsrRow] &=
+                                        ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
+                                    conRowAttr[crsrRow] |= (A_ROW_DOUBLEBOTTOM | A_ROW_WIDTH200);
+                                    break;
+                                    
+                                case 0x35:
+                                    // ESC # 5 - single wide/high
+                                    conRowAttr[crsrRow] &=
+                                        ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
+                                    conRowAttr[crsrRow] |= (A_ROW_WIDTH100);
+                                    break;
+                                    
+                                case 0x36:
+                                    // ESC # 6 - single high / double wide
+                                    conRowAttr[crsrRow] &=
+                                        ~(A_ROW_DOUBLE_MASK | A_ROW_WIDTH_MASK);
+                                    conRowAttr[crsrRow] |= (A_ROW_WIDTH200);
+                                    break;
+                                    
+                                case 0x37:
+                                    // marquee off
+                                    // ESC # 7
+                                    conRowAttr[crsrRow] &= ~A_ROW_MARQUEE;
+                                    getRowElement(crsrRow).firstChild.classList.remove('marquee')
+                                    break;
+                                    
+                                case 0x38:
+                                    // marquee on
+                                    // ESC # 8
+                                    conRowAttr[crsrRow] |= A_ROW_MARQUEE;
+                                    getRowElement(crsrRow).firstChild.classList.add('marquee');
+                                    break;
                             }
                             adjustRow(crsrRow);
                             ansiState = 0;
@@ -5708,8 +5731,8 @@ function conCharOut(chr) {
                                              for (i = 4; i < l; i++)
                                                  str += ';'+parm[i];
                                              str = str.substring(1);
-                                             spriteDefs[parm[2]] = 'data:image/svg+xml,' 
-                                                 + stripNL(UFT8ArrayToStr(decodeHex3(str)));
+                                             spriteDefs[parm[2]] = 'data:image/svg+xml;charset=utf-8,'
+                                                 + encodeURIComponent(stripNL(UFT8ArrayToStr(decodeHex3(str))));
                                              break;
  
                                          case 3:
@@ -5717,8 +5740,8 @@ function conCharOut(chr) {
                                              for (i = 4; i < l; i++)
                                                  str += ';'+parm[i];
                                              str = str.substring(1);
-                                             spriteDefs[parm[2]] = 'data:image/svg+xml,'
-                                                 + stripNL(UFT8ArrayToStr(inflateRaw(decodeHex3(str))));
+                                             spriteDefs[parm[2]] = 'data:image/svg+xml;charset=utf-8,'
+                                                 + encodeURIComponent(stripNL(UFT8ArrayToStr(inflateRaw(decodeHex3(str)))));
                                              break;
                                              
                                          case 4:

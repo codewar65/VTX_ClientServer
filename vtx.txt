@@ -60,8 +60,8 @@ Code Definitions
 Sequences (# : to be implemented)
 =================================
 
-    STANDARD ANSI 
-    ===========================
+    STANDARD ANSI (VTX Extensions marked with #)
+    ============================================
 
     CSI n '@' : Insert Character (ICH). Moves text from current posion right n characters. {1}
 
@@ -162,7 +162,7 @@ Sequences (# : to be implemented)
     CSI r ; c 'f' : Horizontal and Vertical Position. Same as CUP. {1,1}
 
     CSI n 'h' : Set Mode (SM).
-        n = '?50' : turns on VTX ANSI mode.
+        n = '?50' : turns on VTX ANSI mode. #
             '?6' : 1,1=ul of scrolling region
             '?7' : auto wrap on
             '?25' : cursor on
@@ -174,7 +174,7 @@ Sequences (# : to be implemented)
             '=255' : DOORWAY mode on.
 
     CSI n 'l' : Reset Mode (RM).
-        n = '?50' : turns off VTX ANSI mode.
+        n = '?50' : turns off VTX ANSI mode. #
             '?6' : 1,1=ul of scrolling region
             '?7' : auto wrap off
             '?25' : cursor hide
@@ -227,15 +227,15 @@ Sequences (# : to be implemented)
         47 : White (gray) background color.
         48;5;n : Set background color from palette (0-255). {0}
         49 : Reset background color to default.
-        50 : Glow on.
-        56 : Outline on.
-        57 : Shadow on.
-        70 : Glow off.
-        76 : Outline off.
-        77 : Glow off.
-        80 : Select Teletext Block Mosaic font. (use 10 to return to default)
-        81 : Select Teletext Separated Block Mosaic font. (use 10 to return to default)
-        82-85: resered for future intrinsic fonts. (use 10 to return to default)
+        50 : Glow on. #
+        56 : Outline on. #
+        57 : Shadow on. #
+        70 : Glow off. #
+        76 : Outline off. #
+        77 : Glow off. #
+        80 : Select Teletext Block Mosaic font. (use 10 to return to default) #
+        81 : Select Teletext Separated Block Mosaic font. (use 10 to return to default) #
+        82-85: resered for future intrinsic fonts. (use 10 to return to default) #
         90 : High intensity black foreground color.
         91 : High intensity red foreground color.
         92 : High intensity green foreground color.
@@ -275,15 +275,15 @@ Sequences (# : to be implemented)
     ESC 'c' : - Reset terminal. (modes, default attributes to default).
     
     ESC '#' n : Set Row Attributes.
-        n = 0 : Row Marquee off
-            1 : Row Marquee on
-            2 : single wide / double high - top half (as with BBC Micro)
+        n=  0 : Reset all row attributes (size and background.) #
+            1 : single wide / double high - top half (as with BBC Micro) #
+            2 : single wide / double high - bottom half (as with BBC Micro) #
             3 : double wide / double high - top half
             4 : double wide / double high - bottom half
             5 : single wide / single high
             6 : double wide / single high
-            7 : single wide / double high - bottom half (as with BBC Micro)
-            9 : Reset all row attributes (size and background.)
+            7 : Row Marquee off #
+            8 : Row Marquee on #
     
 
     VTX MEDIA COMMANDS  CSI _
