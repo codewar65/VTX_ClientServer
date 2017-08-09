@@ -377,20 +377,20 @@ begin
   PrintLn;
 
   PrintLn(#27'[0;91m  0      '#27'[94m: Reset all to default values.');
-  PrintLn(#27'[0;91m  1 / 21 '#27'[94m: '#27'[1mBold'#27'[21m on / off. (bright foreground color in BBS/ANSI.SYS mode).');
-  PrintLn(#27'[0;91m  3 / 23 '#27'[94m: '#27'[3mItalics'#27'[23m on / off.');
-  PrintLn(#27'[0;91m  4 / 24 '#27'[94m: '#27'[4mUnderline'#27'[24m on / off.       '#27'[91m 9 / 29 '#27'[94m: '#27'[9mStrikethrough'#27'[29m on / off.');
-  //PrintLn(#27'[0;91m  5 / 25 '#27'[94m: '#27'[5mSlow Blink'#27'[25m on / off.      '#27'[91m50 / 70 '#27'[94m: '#27'[50mTeletext Double Tall'#27'[70m on / off.');
-  PrintLn(#27'[0;91m  5 / 25 '#27'[94m: '#27'[5mSlow Blink'#27'[25m on / off.      '#27'[91m50 / 70 '#27'[94m: '#27'[50mTeletext Double Tall'#27'[70m on / off.');
+  PrintLn(#27'[0;91m  1 / 21 '#27'[94m: '#27'[1mBold on / off. (bright foreground color in BBS/ANSI.SYS mode).');
   println;
-  PrintLn(#27'[0;91m  6 / 26 '#27'[94m: '#27'[6mFast Blink'#27'[26m on / off.      '#27'[91m 2 / 22 '#27'[94m: '#27'[2mFaint'#27'[22m on / off.');
-  PrintLn(#27'[0;91m  7 / 27 '#27'[94m: '#27'[7mReverse video'#27'[27m on / off.   '#27'[91m56 / 76 '#27'[94m: '#27'[56mOutline'#27'[76m on / off.');
-  PrintLn(#27'[0;91m  8 / 28 '#27'[94m: Concealed on / off.       '#27'[91m57 / 77 '#27'[94m: '#27'[100;57mShadow'#27'[40;77m on / off.');
+  PrintLn(#27'[0;91m  2 / 22 '#27'[94m: '#27'[2mFaint'#27'[22m on/off              '#27'[91m 9 / 29 '#27'[94m: '#27'[9mStrikethrough'#27'[29m on/off.');
+  PrintLn(#27'[0;91m  3 / 23 '#27'[94m: '#27'[3mItalics'#27'[23m on/off ');
+  PrintLn(#27'[0;91m  4 / 24 '#27'[94m: '#27'[4mUnderline'#27'[24m on/off          '#27'[91m56 / 76 '#27'[94m: '#27'[56mOutline'#27'[76m on/off.');
+  PrintLn(#27'[0;91m  5 / 25 '#27'[94m: '#27'[5mBlink Slow'#27'[25m on/off         '#27'[91m57 / 77 '#27'[94m: '#27'[57mShadow'#27'[77m on/off.');
+  PrintLn(#27'[0;91m  6 / 26 '#27'[94m: '#27'[6mBlink Fast'#27'[26m on/off');
+  PrintLn(#27'[0;91m  7 / 27 '#27'[94m: '#27'[7mReverse'#27'[27m on/off            '#27'[91m58 / 78 '#27'[94m: '#27'[58mTop Half'#27'[78m (top half) on/off.');
+  PrintLn(#27'[0;91m  8 / 28 '#27'[94m: '#27'[8mConceal'#27'[28m (conceal) on/off  '#27'[91m59 / 79 '#27'[94m: '#27'[59mBottom Half'#27'[79m (botton half) on/off.');
   PrintLn;
-  PrintLn(#27'[0;91m 30 - 37 '#27'[94m: Set foreground color 0-7. '#27'[91m40 / 47 '#27'[94m: Set background color 0-7.');
-  PrintLn(#27'[0;91m 38;5; n '#27'[94m: Foreground color 0-255.   '#27'[91m48;5; n '#27'[94m: Background color 0-255.');
-  PrintLn(#27'[0;91m 39      '#27'[94m: Default foreground color. '#27'[91m49      '#27'[94m: Default background color.');
-  PrintLn(#27'[0;91m 90 - 97 '#27'[94m: Foreground color 8-15.    '#27'[91m100-107 '#27'[94m: Background color 8-15.');
+  PrintLn(#27'[0;91m 30 - 37 '#27'[94m: Set foreground color 0-7  '#27'[91m40 / 47 '#27'[94m: Set background color 0-7.');
+  PrintLn(#27'[0;91m 38;5; n '#27'[94m: Foreground color 0-255    '#27'[91m48;5; n '#27'[94m: Background color 0-255.');
+  PrintLn(#27'[0;91m 39      '#27'[94m: Default foreground color  '#27'[91m49      '#27'[94m: Default background color.');
+  PrintLn(#27'[0;91m 90 - 97 '#27'[94m: Foreground color 8-15     '#27'[91m100-107 '#27'[94m: Background color 8-15.');
   PrintLn;
 
   Print(SGR(ANSI_GREEN) + 'Press '+ HOTSPOT(3,1,0,'Q')+'['
