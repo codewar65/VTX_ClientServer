@@ -211,22 +211,17 @@ bdf2svg (in utils).
 
 ## To Do($) / To Fix(!) / Investigate(?)
 
-! Client handshake with server.
+! Sprite positions appears to be off. Verify & correct.
 
 $ Telnet negotiation moved from server to client.
 
 $ Encapsulate all vtx functions / variables into vtx object.
 
-$ Move sprite commands.
-
 $ HTTP requests as new thread.
-
-? thin version of uvga16.
 
 ? WSS / certificate &| poor-mans client<->server encryption with rotating keys.
 
-? VT100 compatibily mode.
-
 $ Redo website.
 
-$ Test.test.test.test. 
+? thin version of uvga16.
+

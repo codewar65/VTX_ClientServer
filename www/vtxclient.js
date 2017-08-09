@@ -6326,12 +6326,14 @@ function moveSprite(el, nr, nc, t){
     el.style['animation-duration'] = t + 'ms';
     el.style['animation-name'] = el.id;
     el.style['animation-iteration-count'] = '1';
+    el.style['animation-fill-mode'] = 'forwards';
     setTimeout(function(){
         el.style['left'] = nx + 'px';
         el.style['top'] = ny + 'px';
         el.style['animation-name'] = null;
         el.style['animation-duration'] = null;
         el.style['animation-iteration-count'] = null;
+        el.style['animation-fill-mode'] = null;
         el.removeChild(sel);
     }, t + 5);
 }
