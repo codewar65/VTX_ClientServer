@@ -227,12 +227,12 @@ Sequences (# : to be implemented)
         47 : White (gray) background color.
         48;5;n : Set background color from palette (0-255). {0}
         49 : Reset background color to default.
-        50 : Glow on. #
+        50 : Double Height on. (Next row displays bottoms of double height, spaces on non-double height characters.) #
         56 : Outline on. #
         57 : Shadow on. #
-        70 : Glow off. #
+        70 : Double Height off.
         76 : Outline off. #
-        77 : Glow off. #
+        77 : Shadow off. #
         80 : Select Teletext Block Mosaic font. (use 10 to return to default) #
         81 : Select Teletext Separated Block Mosaic font. (use 10 to return to default) #
         82-85: resered for future intrinsic fonts. (use 10 to return to default) #

@@ -120,14 +120,15 @@
         d : drop shadow (0-1)
         t : strikethrough (0-1)
         o : outlined (0-1)
-        g : glow (0-1)
+        g : double high character, top (bottom on next row) (was g : glow (0-1))
+            no other characters appear on next row except bottoms of double chars.
         r : reversed
         c : concealed
         K : blink fast
         f : faint
         Z : font number 0-9 (10=mosaic block, 11=separated block).
 
-
+        
     CRSRATTRS
 
         00000000 00000000 00000000 00000000  - bits
@@ -345,7 +346,7 @@ var
     A_CELL_BLINKSLOW =      0x00100000,
     A_CELL_SHADOW =         0x00200000,
     A_CELL_OUTLINE =        0x00400000,
-    A_CELL_GLOW =           0x00800000,
+    A_CELL_TALL =           0x00800000,
     A_CELL_REVERSE =        0x01000000,
     A_CELL_CONCEAL =        0x02000000,
     A_CELL_BLINKFAST =      0x04000000,
@@ -1421,6 +1422,41 @@ var
             0x0401, 0x0451, 0x0404, 0x0454, 0x0407, 0x0457, 0x040e, 0x045e,
             0x0406, 0x0456, 0x00b7, 0x00a4, 0x0490, 0x0491, 0x2219, 0x00a0]),
 
+        TELETEXT: new Uint16Array([ // TELETEXT
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027,
+            0x0028, 0x0029, 0x002A, 0x002B, 0x002C, 0x002D, 0x002E, 0x002F,
+            0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037,
+            0x0038, 0x0039, 0x003A, 0x003B, 0x003C, 0x003D, 0x003E, 0x003F,
+            0x0040, 0x0041, 0x0042, 0x0043, 0x0044, 0x0045, 0x0046, 0x0047,
+            0x0048, 0x0049, 0x004A, 0x004B, 0x004C, 0x004D, 0x004E, 0x004F,
+            0x0050, 0x0051, 0x0052, 0x0053, 0x0054, 0x0055, 0x0056, 0x0057,
+            0x0058, 0x0059, 0x005A, 0x2190, 0x00BD, 0x2192, 0x2191, 0x2014,
+            0x00A3, 0x0061, 0x0062, 0x0063, 0x0064, 0x0065, 0x0066, 0x0067,
+            0x0068, 0x0069, 0x006A, 0x006B, 0x006C, 0x006D, 0x006E, 0x006F,
+            0x0070, 0x0071, 0x0072, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077,
+            0x0078, 0x0079, 0x007A, 0x00BC, 0x2016, 0x00BE, 0x00F7, 0x25A0,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK
+        ]),
+            
         RAW: new Uint16Array([   // for RAW converted fonts - mapped to ASCII/PETSCII points
             0xE000, 0xE001, 0xE002, 0xE003, 0xE004, 0xE005, 0xE006, 0xE007,
             0xE008, 0xE009, 0xE00A, 0xE00B, 0xE00C, 0xE00D, 0xE00E, 0xE00F,
@@ -1902,8 +1938,7 @@ function bootVTX() {
                     {   fontFamily:         bootFonts[i] + ', AdobeBlank',
                         fontSize:           '24px',
                         fontWeight:         'normal',
-                        color:              'red',
-                        backgroundColor:    'black',
+                        color:              'transparent',
                         display:            'inline-block',
                         border:             '0px',
                         padding:            '0px',
@@ -2327,7 +2362,7 @@ function createNewRow() {
 // is this character a printable?
 function isprint(chr) {
     if (chr < 32) return false;                 // C0 controls
-    if (chr > 126 && chr < 160) return false;   // C1 controls
+    if (chr >= 128 && chr < 160) return false;   // C1 controls
     return true;
 }
 
@@ -2406,8 +2441,8 @@ function crsrDraw(force) {
     csize = getRowFontSize(crsrRow);
 
     // set cursor siz / pos
-    crsr.style['top'] =     rpos.top + 'px';
-    crsr.style['left'] =    (rpos.left + (xScale * crsrCol * csize.width)) + 'px';
+    crsr.style['top'] =     (rpos.top - pageTop) + 'px';
+    crsr.style['left'] =    (xScale * crsrCol * csize.width) + 'px';
     crsr.style['width'] =   (xScale * csize.width) + 'px';
     crsr.style['height'] =  csize.height + 'px';
 
@@ -2803,8 +2838,8 @@ function setCellAttrStrikethrough(attr, strikethrough) {
 function setCellAttrOutline(attr, outline) {
     return (attr & ~A_CELL_OUTLINE) | (outline ? A_CELL_OUTLINE: 0);
 }
-function setCellAttrGlow(attr, glow) {
-    return (attr & ~A_CELL_GLOW) | (glow ? A_CELL_GLOW : 0);
+function setCellAttrTall(attr, tall) {
+    return (attr & ~A_CELL_TALL) | (tall ? A_CELL_TALL : 0);
 }
 function setCellAttrReverse(attr, reverse) {
     return (attr & ~A_CELL_REVERSE) | (reverse ? A_CELL_REVERSE : 0);
@@ -2830,7 +2865,7 @@ function getCellAttrBlinkFast(attr) { return (attr & A_CELL_BLINKFAST) != 0; }
 function getCellAttrShadow(attr) { return (attr & A_CELL_SHADOW) != 0; }
 function getCellAttrStrikethrough(attr) { return (attr & A_CELL_STRIKETHROUGH) != 0; }
 function getCellAttrOutline(attr) { return (attr & A_CELL_OUTLINE) != 0;}
-function getCellAttrGlow(attr) { return (attr & A_CELL_GLOW) != 0; }
+function getCellAttrTall(attr) { return (attr & A_CELL_TALL) != 0; }
 function getCellAttrReverse(attr) { return (attr & A_CELL_REVERSE) != 0; }
 function getCellAttrConceal(attr) { return (attr & A_CELL_CONCEAL) != 0; }
 function getCellAttrFaint(attr) { return (attr & A_CELL_FAINT) != 0; }
@@ -2945,27 +2980,53 @@ function renderAll() {
 // This is the only place we need to convert a character to unicode for
 // display!!
 // hilight = 0:none, 1:mouse over, 2:mouse click
-function renderCell(rownum, colnum, hilight) {
+
+// force draw cells below on draw of top on tall cells. set bottom true.
+// bottom = true if this is the bottom half of the row above.
+function renderCell(rownum, colnum, hilight, bottom) {
     var
         row, size, width, w, h, x, cnv, drawtxt,
         ctx, attr, ch, tfg, tbg, tbold, stroke, tmp,
-        tblinks, tfnt,
+        tblinks, tfnt, i, l, rowadj, tall, teletext,
         xskew, xadj, yadj, yScale, dbl;
 
+    bottom = bottom || false;   // force draw bottoms of double.
+    rowadj = bottom?-1:0;
+    
     // quick range check
-    if (rownum > conRowAttr.length)         return;
-    if (colnum >= conText[rownum].length)   return;
+    if (rownum + rowadj > conRowAttr.length)         return;
+    if (colnum >= conText[rownum + rowadj].length)   return;
 
+    // test for talls in above row. these get drawn from above cell.
+    tall = false;
+    if (!bottom) {
+        if (rownum > 0) {
+            l = conCellAttr[rownum - 1].length;
+            for (i = 0; i < l; i++) 
+                if (conCellAttr[rownum - 1][i] & A_CELL_TALL) 
+                    return; // these get draw from above row
+        }
+    
+        // check for teletext tall.
+        l = conCellAttr[rownum].length;
+        for (i = 0; i < l; i++)
+            if (conCellAttr[rownum][i] & A_CELL_TALL) {
+                tall = true;
+                expandToRow(rownum + 1);
+                break;
+            }
+    }
+    
     hilight = hilight || false;
-    size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
-    width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
+    size = getRowAttrSize(conRowAttr[rownum + rowadj]) / 100;    // .25 - 2
+    width = getRowAttrWidth(conRowAttr[rownum + rowadj])/ 100;   // .5 - 2
     w = xScale * colSize * size * width;     // width of char
     x = w * colnum;                 // left pos of char on canv
 
     // don't render off page unless marquee
     if ((x > w * crtCols) && !(conRowAttr[rownum] & A_ROW_MARQUEE))
         return;
-
+   
     row = getRowElement(rownum);
     h = fontSize * size;            // height of char
     stroke = h * 0.1;               // underline/strikethrough size
@@ -2981,8 +3042,8 @@ function renderCell(rownum, colnum, hilight) {
     }
     ctx = cnv.getContext('2d');
 
-    ch = conText[rownum].charAt(colnum);
-    attr = conCellAttr[rownum][colnum];
+    ch = conText[rownum + rowadj].charAt(colnum);
+    attr = conCellAttr[rownum + rowadj][colnum];
 
     tfg = (attr & 0xFF);
     tbg = (attr >> 8) & 0xff;
@@ -3072,6 +3133,12 @@ function renderCell(rownum, colnum, hilight) {
             drawtxt = false;
     }
 
+    // if bottom 
+    //      if attr & A_CELL_TALL then draw bottom
+    //      else draw space
+    if (bottom && !(attr & A_CELL_TALL))
+        drawtxt = false;
+    
     if (drawtxt) {
         // not concealed or not in blink state
         if (attr & A_CELL_FAINT)
@@ -3082,9 +3149,10 @@ function renderCell(rownum, colnum, hilight) {
             ctx.fillStyle = ansiColors[tfg];
 
         // swap for special fonts.
-        var teletext = -1;
+        teletext = -1;
         if ((tfnt == 10) || (tfnt == 11)) {
-            if ((ch >= ' ') && (ch <= "_")) {
+            if (((ch >= ' ') && (ch <= '?')) || 
+                ((ch >= '`') && (ch <= '\x7f'))) {
                 teletext = tfnt - 10
             } else
                 ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[0];
@@ -3098,13 +3166,7 @@ function renderCell(rownum, colnum, hilight) {
         ctx.textAlign = 'start';
         ctx.textBaseline = 'top';
 
-        if (attr & A_CELL_GLOW) {
-            // how does this work on scaled? test
-            ctx.shadowColor = brightenRGB(ansiColors[tfg], 0.25);
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
-            ctx.shadowBlur = 7;
-        } else if (attr & A_CELL_SHADOW) {
+        if (attr & A_CELL_SHADOW) {
             // how does this work on scaled? test
             ctx.shadowColor = '#000000';
             ctx.shadowOffsetX = h / rowSize;
@@ -3126,11 +3188,16 @@ function renderCell(rownum, colnum, hilight) {
         yadj = 0;
         yScale = 1.0;
         dbl = (conRowAttr[rownum] & A_ROW_DOUBLE_MASK);
-        if (dbl == A_ROW_DOUBLETOP) {
+        if ((dbl == A_ROW_DOUBLETOP) || (attr & A_CELL_TALL)) {
             // additional y scale
             yScale = 2.0;
         } else if (dbl == A_ROW_DOUBLEBOTTOM) {
             // additional y scale + -yoffset
+            yadj = -h;
+            yScale = 2.0;
+        }
+        
+        if (bottom) {
             yadj = -h;
             yScale = 2.0;
         }
@@ -3162,12 +3229,17 @@ function renderCell(rownum, colnum, hilight) {
         }
     }
     ctx.restore();
+
+    // this row contains a teletext tall, render cell below.    
+    if (tall) 
+        renderCell(rownum + 1, colnum, hilight, true);
 }
 
 // draw teletext style block graphic
+// 0x20-0x3f/0x60-0x7f
 function drawMosaicBlock(ctx, ch, w, h, separated) {
     var
-        b = ch - 32,
+        b = (ch<0x60)?(ch-0x20):(ch-0x40),
         x, y,
         bit = 0x01,
         bw = Math.floor(w / 2),
@@ -4961,13 +5033,13 @@ function conCharOut(chr) {
                     crsrrender = true;
                     break;
 
-                case _DEL:   // delete
-                    expandToRow(crsrRow);
-                    expandToCol(crsrRow, crsrCol);
-                    delChar(crsrRow, crsrCol);
-                    redrawRow(crsrRow);
-                    crsrrender = true;
-                    break;
+//                case _DEL:   // delete
+//                    expandToRow(crsrRow);
+//                    expandToCol(crsrRow, crsrCol);
+//                    delChar(crsrRow, crsrCol);
+//                    redrawRow(crsrRow);
+//                    crsrrender = true;
+//                    break;
 
                 default:
                     switch (ansiState) {
@@ -6081,10 +6153,12 @@ function conCharOut(chr) {
                                     setCellAttrFont(cellAttr, (parm[i] - 10));
                                 break;
 
-                            case 50:    // glow
+                            case 50:    // tall
                             case 70:
                                 cellAttr =
-                                    setCellAttrGlow(cellAttr, (parm[i] < 70));
+                                    setCellAttrTall(cellAttr, (parm[i] < 70));
+                                expandToRow(crsrRow+1);
+                                redrawRow(crsrRow);
                                 break;
 
                             case 56:    // outline

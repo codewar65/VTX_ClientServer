@@ -380,8 +380,10 @@ begin
   PrintLn(#27'[0;91m  1 / 21 '#27'[94m: '#27'[1mBold'#27'[21m on / off. (bright foreground color in BBS/ANSI.SYS mode).');
   PrintLn(#27'[0;91m  3 / 23 '#27'[94m: '#27'[3mItalics'#27'[23m on / off.');
   PrintLn(#27'[0;91m  4 / 24 '#27'[94m: '#27'[4mUnderline'#27'[24m on / off.       '#27'[91m 9 / 29 '#27'[94m: '#27'[9mStrikethrough'#27'[29m on / off.');
-  PrintLn(#27'[0;91m  5 / 25 '#27'[94m: '#27'[5mBlink'#27'[25m on / off.           '#27'[91m50 / 70 '#27'[94m: '#27'[50mGlow'#27'[70m on / off.');
-  PrintLn(#27'[0;91m  6 / 26 '#27'[94m: '#27'[6mBlink'#27'[26m on / off.           '#27'[91m 2 / 22 '#27'[94m: '#27'[2mFaint'#27'[22m on / off.');
+  //PrintLn(#27'[0;91m  5 / 25 '#27'[94m: '#27'[5mSlow Blink'#27'[25m on / off.      '#27'[91m50 / 70 '#27'[94m: '#27'[50mTeletext Double Tall'#27'[70m on / off.');
+  PrintLn(#27'[0;91m  5 / 25 '#27'[94m: '#27'[5mSlow Blink'#27'[25m on / off.      '#27'[91m50 / 70 '#27'[94m: '#27'[50mTeletext Double Tall'#27'[70m on / off.');
+  println;
+  PrintLn(#27'[0;91m  6 / 26 '#27'[94m: '#27'[6mFast Blink'#27'[26m on / off.      '#27'[91m 2 / 22 '#27'[94m: '#27'[2mFaint'#27'[22m on / off.');
   PrintLn(#27'[0;91m  7 / 27 '#27'[94m: '#27'[7mReverse video'#27'[27m on / off.   '#27'[91m56 / 76 '#27'[94m: '#27'[56mOutline'#27'[76m on / off.');
   PrintLn(#27'[0;91m  8 / 28 '#27'[94m: Concealed on / off.       '#27'[91m57 / 77 '#27'[94m: '#27'[100;57mShadow'#27'[40;77m on / off.');
   PrintLn;
@@ -683,25 +685,25 @@ begin
 
   PrintLn(#27'[94mSpecial 2 x 3 block graphic characters as used on the BBC Micro, TRS-80, and');
   PrintLn('Teletext style screens can be accessed with special font select commands. While');
-  PrintLn('this mode is on, characters SPACE through _ are rendered as block characters.');
-  PrintLn('Full block and separated blocks are available in the two modes. Characters');
-  PrintLn('outside this range are rendered using font 0.');
+  PrintLn('this mode is on, characters 0x20 through 0x3F and 0x60 throught 0x7F are ');
+  println('rendered as block characters.  Full block and separated blocks are available');
+  println('in the two modes. Characters outside this range are rendered using font 0.');
   PrintLn;
   PrintLn('Normal characters:');
   PrintLn;
   PrintLn(#27'[97m    ! " # $ % & '' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?');
-  PrintLn('  @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ / ] ^ _');
+  PrintLn('  ` a b c d e f g h j i k l m n o p q r s t u v w x y z { | } ~ '#127#27'[10m');
   PrintLn;
   PrintLn(#27'[93mCSI 80 m'#27'[94m: Turn full block mode on (10 will turn if off).');
   PrintLn;
   PrintLn(#27'[97;80m    ! " # $ % & '' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?');
-  PrintLn('  @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ / ] ^ _'#27'[10m');
+  PrintLn('  ` a b c d e f g h j i k l m n o p q r s t u v w x y z { | } ~ '#127#27'[10m');
   PrintLn;
   PrintLn(#27'[93mCSI 81 m'#27'[94m: Turn separated  block mode on (10 will turn if off).');
   PrintLn;
   PrintLn(#27'[97;81m    ! " # $ % & '' ( ) * + , - . / 0 1 2 3 4 5 6 7 8 9 : ; < = > ?');
-  PrintLn('  @ A B C D E F G H I J K L M N O P Q R S T U V W X Y Z [ / ] ^ _'#27'[10m');
-  PrintLn;
+  PrintLn('  ` a b c d e f g h j i k l m n o p q r s t u v w x y z { | } ~ '#127#27'[10m');
+	PrintLn;
 
   Print(SGR(ANSI_GREEN) + 'Press '+HOTSPOT(3,1,0,'Q')+'['
     + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
