@@ -85,7 +85,7 @@
             01 - solid (first color)
             10 - horiz grad (first -> second color)
             11 - vert grad (first -> second color)
-        z : overall size
+        z : height scale
             000 - 25%
             001 - 50%
             010 - 75%
@@ -147,9 +147,12 @@
     ESC / CSI CODES - see vtx.txt
 
 */
+"use strict";
 
+vtx: {
+    
 // globals
-var
+const
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
         // VGA 0-15 - transparent will switch to #000000 when appropriate
@@ -200,7 +203,7 @@ var
         '#808080', '#8A8A8A', '#949494', '#9E9E9E', '#A8A8A8', '#B2B2B2',
         '#BCBCBC', '#C6C6C6', '#D0D0D0', '#DADADA', '#E4E4E4', '#EEEEEE'
     ],
-    cbmColors,
+
     // commodore colors
     vic20Colors = [ // vic-20 in 22 column mode
         '#000000', '#FFFFFF', '#782922', '#87D6DD', '#AA5FB6', '#55A049',
@@ -217,108 +220,9 @@ var
         '#1C49D9', '#4487EF', '#BBC238', '#E9F491', '#D974DA', '#EECFED',
         '#68C8C2', '#B2F0EC', '#BECEBC', '#FFFFFF', '#000000' // fake black
     ],
-
-    // strings that get transmogrified by the HTTP server.
-    // only change these if you are not using the VTX HTTP server.
-    codePage = vtxdata.codePage,    // '@CodePage@',
-    wsConnect = vtxdata.wsConnect,  // 'ws://@InternetIP@:@WSPort@',
-    crtCols = vtxdata.crtCols,      // @Columns@,        // columns side of row on crt.
-    crtRows = vtxdata.crtRows,
-    xScale = vtxdata.xScale,        // @XScale@,          // scale everything this much on x.
-    term = vtxdata.term,            // '@Terminal@',        // ANSI or PETSCII
-    cbm = (vtxdata.term == 'PETSCII'),
-    initStr = vtxdata.initStr,      // '@Initialize@',   // terminal initialize
-
-    ws = null,                  // websocket connection.
-
-    // timers / intevals
-    irqWriteBuffer = null,      // print buffer (33ms)
-    irqCheckResize = null,
-    irqCursor = null,
-    irqBlink = null,
-
+    
     hex =   '0123456789ABCDEF',
     b64 =   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
-    fontName,                   // font used
-    fontSize,                   // font size to use
-    rowSize,                    // character size
-    colSize,                    // cell width in pixels
-    crtWidth,                   // crt width in pixels
-    pageWidth,                  // with of html in pixels
-
-    pageLeft,                   // left position of page div.
-    pageTop,                    // top position of page div.
-
-    elPage = document.getElementsByTagName('html')[0],
-    crsr,                       // cursor element
-    crsrRow,                    // cursor position
-    crsrCol,                    // ''
-    crsrSaveRow = 0,            // saved position
-    crsrSaveCol = 0,            // ''
-    cellSaveAttr = 0,           // save attribute (ESC 7 / ESC 8)
-    pageAttr,                   // current page attributes
-    crsrAttr,                   // color of cursor (only fg used)
-    crsrBlink,                  // cursor blink state
-    crsrSkipTime,               // skip cursor draws on heavy character output
-    cellAttr,                   // current active attributes
-    cellBlinkSlow,              // text blink states
-    cellBlinkFast,
-    defPageAttr,                // default page
-    defCrsrAttr,                // default crsr
-    defCellAttr,                // default cell attributes.
-    defRowAttr = 0x02c00,       // def row attr
-    lastChar,                   // last printable character outputed.
-    lastHotSpot = null,         // last mouseover hotspot
-    hotspotAttr = 0x0C0F040B,   // hotspot colors
-    audio,                      // audio element
-
-    termState,                  // TERMSTATE_...
-
-    pageDiv = null,             // page contents div
-    ctrlDiv = null,             // controls panel
-    textDiv = null,             // text plane
-    soundBell = null,           // bell sound
-    textPos = null,             // ul x,y of textdiv
-
-    // ansi parsing vars
-    parms = '',                 // parameters for CSI
-    interm = '',                // intermediate for CSI
-    ansiState = 0,
-
-    // mode switches
-    modeVTXANSI = false,        // CSI ?50 h/l to switch out of old ANSI.SYS mode.
-    modeBlinkBright = false,    // CSI ?33 h/l to switch blink for bright background.
-    modeCursor = true,          // CSI ?25 h/l to turn cursor on / off.
-    modeBoldFont = false,       // CSI ?31 h/l to use font 1 for bold.
-    modeNoBold = false,         // CSI ?32 h/l to disallow bold.
-    modeBlinkFont = false,      // CSI ?34 h/l to use font 2 for blink.
-    modeNoBlink = false,        // CSI ?35 h/l to disallow blink.
-    modeSpeed = 0,              // baud emulation speed.
-    modeCBMShift = true,        // PETSCII shift enabled
-    modeDOORWAY = false,        // DOORWAY mode
-    modeAutoWrap = true,        // Autowrap Mode
-    modeNextGlyph = false,      // if DOORWAY mode, print glyph associated with this byte!
-
-    // scroll region info.
-    regionTopRow,               // top row of scroll region.
-    regionBottomRow,            // bottom row of scroll region.
-    modeRegionOrigin,           // origin in region?
-
-    // display buffer.
-    conBuffer = '',             // console output buffer.
-
-    // Attrs are integer arrays, base 0 (i.e.: row 1 = index 0)
-    conRowAttr  = [],           // row attributes array of number
-    conCellAttr = [],           // character attributes array of array or number
-    conText = [],               // raw text - array of string
-    conHotSpots = [],           // clickable hotspots
-    spriteDefs = [],            // sprite definitions - contains url / or data url
-    audioDefs = [],             // audio definitions - type 0 coded. 1,2 TODO
-
-    // array 0..15 (0-9:ANSI selectable,10/11:special,12-15:reserved)
-    conFont = [],               // the 10 fonts used for CSI 10-19 m
-    conFontCP = [],             // associated code page for font.
-    conFontNum = 0,             // current font being used.
 
     // attributes
     A_CELL_FGCOLOR_MASK     = 0x000000FF,
@@ -347,15 +251,15 @@ var
     A_ROW_PATTERN_SOLID     = 0x00010000, // solid color1
     A_ROW_PATTERN_HORZ      = 0x00020000, // horizontal gradient color1 to color2
     A_ROW_PATTERN_VERT      = 0x00030000, // vertical gradient color1 to color2
-    A_ROW_SIZE_MASK         = 0x001C0000, // 25,50,75,100,125,150,175,200
-    A_ROW_SIZE_25           = 0x00000000, // 0 00
-    A_ROW_SIZE_50           = 0x00040000, // 0 01
-    A_ROW_SIZE_75           = 0x00080000, // 0 10
-    A_ROW_SIZE_100          = 0x000C0000, // 0 11
-    A_ROW_SIZE_125          = 0x00100000, // 1 00
-    A_ROW_SIZE_150          = 0x00140000, // 1 01
-    A_ROW_SIZE_175          = 0x00180000, // 1 10
-    A_ROW_SIZE_200          = 0x001C0000, // 1 11
+    A_ROW_HEIGHT_MASK       = 0x001C0000, // 25,50,75,100,125,150,175,200
+    A_ROW_HEIGHT_25         = 0x00000000, // 0 00
+    A_ROW_HEIGHT_50         = 0x00040000, // 0 01
+    A_ROW_HEIGHT_75         = 0x00080000, // 0 10
+    A_ROW_HEIGHT_100        = 0x000C0000, // 0 11
+    A_ROW_HEIGHT_125        = 0x00100000, // 1 00
+    A_ROW_HEIGHT_150        = 0x00140000, // 1 01
+    A_ROW_HEIGHT_175        = 0x00180000, // 1 10
+    A_ROW_HEIGHT_200        = 0x001C0000, // 1 11
     A_ROW_WIDTH_MASK        = 0x00600000, // 50,100,150,200
     A_ROW_WIDTH_50          = 0x00000000,
     A_ROW_WIDTH_100         = 0x00200000,
@@ -377,7 +281,6 @@ var
     A_CRSR_ORIENTATION      = 0x00000400,   // 0 = horz, 1 = vert
 
     // special key commands
-    DO_ESC =            -1,
     DO_CAPLK =          -2,
     DO_NUMLK =          -3,
     DO_SCRLK =          -4,
@@ -389,8 +292,6 @@ var
     TS_YMS_START =      3,  // ymodem send header of file.
     TS_YMS_PUTPACKET =  4,  // ymodem send packet
     TS_YMS_PUTWAIT =    5,  // ymodem wait for C on send
-
-    ovl = {},               // overlay dialog stuff for file transfers
 
     // bitspersecond / 100 rates for speed emulation.
     bauds =     [ 0,3,6,12,24,48,96,192,384,576,768,1152 ],
@@ -1511,7 +1412,7 @@ var
                     renderAll();
                     return 0;
                 } else
-                    return x09; },
+                    return 0x09; },
         12: 0,                  // clear (numpad5 numlk off)
         13: CR,                 // enter
         16: 0,                  // shift
@@ -1523,7 +1424,7 @@ var
         20: DO_CAPLK,           // caps lock
         27: function () {       // esc
                 // run/stop cbm
-                return cbm?0x03:DO_ESC; }, // 0x1B; },
+                return cbm?0x03:_ESC; }, // 0x1B; },
         32: ' ',                // spacebar
         33: function(){         // pgup
                 return modeDOORWAY?'\x00\x49':CSI+'V'; },
@@ -1888,8 +1789,202 @@ var
         keysS0C0A0, keysS1C0A0, keysS0C1A0, keysS1C1A0,
         keysS0C0A1, keysS1C0A1, keysS0C1A1, keysS1C1A1 ],
 
+    // vtx system fonts loaded in boot up.
+    bootFonts = [
+        'UVGA16', 'MICROKNIGHT', 'MICROKNIGHTPLUS',
+        'MOSOUL', 'P0TNOODLE', 'TOPAZ', 'TOPAZPLUS',
+        'VIC200', 'VIC201', 'C640', 'C641', 'C1280',
+        'C1281', 'ATARI' ],
+
+    // telnet commands
+    TN_IS           = 0x00,
+    TN_SEND         = 0x01,
+    TN_BIN          = 0x00,
+    TN_ECHO         = 0x01,
+    TN_RECONNECT    = 0x02,
+    TN_SGA          = 0x03,
+    TN_STATUS       = 0x05,
+    TN_TMARK        = 0x06,
+    TN_SLOC         = 0x17,
+    TN_TTYPE        = 0x18,
+    TN_NAWS         = 0x1F,
+    TN_TSPEED       = 0x20,
+    TN_RFC          = 0x21,
+    TN_LM           = 0x22,
+    TN_XLOC         = 0x23,
+    TN_EVARS        = 0x24,
+    TN_AUTH         = 0x25,
+    TN_NEWE         = 0x27,
+    TN_SE           = 0xF0,
+    TN_NOP          = 0xF1,
+    TN_DM           = 0xF2,
+    TN_BRK          = 0xF3,
+    TN_IP           = 0xF4,
+    TN_AO           = 0xF5,
+    TN_AYT          = 0xF6,
+    TN_EC           = 0xF7,
+    TN_EL           = 0xF8,
+    TN_GA           = 0xF9,
+    TN_SB           = 0xFA,
+    TN_WILL         = 0xFB,
+    TN_WONT         = 0xFC,
+    TN_DO           = 0xFD,
+    TN_DONT         = 0xFE,
+    TN_IAC          = 0xFF,
+
+    // TELNET states for Q method
+    // option is enabled ONLY IF state is TNS_YES
+    TNQ_NO          = 0,
+    TNQ_YES         = 1,
+    TNQ_WANTNO      = 2,
+    TNQ_WANTYES     = 3,
+    TNQ_WANTNO_OP   = 4,
+    TNQ_WANTYES_OP  = 5,
+
+    // for ymodem crc16 
+    CRC_POLY        = 0x1021;
+    
+let
+    // strings that get transmogrified by the HTTP server.
+    // only change these if you are not using the VTX HTTP server.
+    codePage = vtxdata.codePage,  
+    wsConnect = vtxdata.wsConnect,
+    crtCols = vtxdata.crtCols,   
+    crtRows = vtxdata.crtRows,
+    xScale = vtxdata.xScale,     
+    term = vtxdata.term,         
+    cbm = (vtxdata.term == 'PETSCII'),
+    initStr = vtxdata.initStr,   
+
+    cbmColors,                      // the correct color palette for a PETSCII
+
+    ws = null,                  // websocket connection.
+
+    // timers / intevals
+    irqWriteBuffer = null,      // print buffer (33ms)
+    irqCheckResize = null,
+    irqCursor = null,
+    irqBlink = null,
+
+    fontName,                   // font used
+    fontSize,                   // font size to use
+    rowSize,                    // character size
+    colSize,                    // cell width in pixels
+    crtWidth,                   // crt width in pixels
+    pageWidth,                  // with of html in pixels
+
+    pagePos,
+    pageLeft,                   // left position of page div.
+    pageTop,                    // top position of page div.
+
+    elPage = document.getElementsByTagName('html')[0],
+    crsr,                       // cursor element
+    crsrRow,                    // cursor position
+    crsrCol,                    // ''
+    crsrSaveRow = 0,            // saved position
+    crsrSaveCol = 0,            // ''
+    cellSaveAttr = 0,           // save attribute (ESC 7 / ESC 8)
+    pageAttr,                   // current page attributes
+    crsrAttr,                   // color of cursor (only fg used)
+    crsrBlink,                  // cursor blink state
+    crsrSkipTime,               // skip cursor draws on heavy character output
+    cellAttr,                   // current active attributes
+    cellBlinkSlow,              // text blink states
+    cellBlinkFast,
+    defPageAttr,                // default page
+    defCrsrAttr,                // default crsr
+    defCellAttr,                // default cell attributes.
+    defRowAttr = 0x02c00,       // def row attr
+    lastChar,                   // last printable character outputed.
+    lastHotSpot = null,         // last mouseover hotspot
+    hotspotAttr = 0x0C0F040B,   // hotspot colors
+    conBaud = 0,                // baud emulation speed.
+    audio,                      // audio element
+
+    termState,                  // TERMSTATE_...
+
+    pageDiv = null,             // page contents div
+    ctrlDiv = null,             // controls panel
+    textDiv = null,             // text plane
+    soundBell = null,           // bell sound
+    textPos = null,             // ul x,y of textdiv
+
+    // ansi parsing vars
+    parms = '',                 // parameters for CSI
+    interm = '',                // intermediate for CSI
+    ansiState = 0,
+
+    // mode switches
+    modeVTXANSI = false,        // CSI ?50 h/l to switch out of old ANSI.SYS mode.
+    modeBlinkBright = false,    // CSI ?33 h/l to switch blink for bright background.
+    modeCursor = true,          // CSI ?25 h/l to turn cursor on / off.
+    modeBoldFont = false,       // CSI ?31 h/l to use font 1 for bold.
+    modeNoBold = false,         // CSI ?32 h/l to disallow bold.
+    modeBlinkFont = false,      // CSI ?34 h/l to use font 2 for blink.
+    modeNoBlink = false,        // CSI ?35 h/l to disallow blink.
+    modeCBMShift = true,        // PETSCII shift enabled
+    modeDOORWAY = false,        // DOORWAY mode
+    modeAutoWrap = true,        // Autowrap Mode
+    modeNextGlyph = false,      // if DOORWAY mode, print glyph associated with this byte!
+    modeRegionOrigin,           // origin in region?
+
+    // scroll region info.
+    regionTopRow,               // top row of scroll region.
+    regionBottomRow,            // bottom row of scroll region.
+
+    // display buffer.
+    conBuffer = '',             // console output buffer.
+
+    // Attrs are integer arrays, base 0 (i.e.: row 1 = index 0)
+    conRowAttr  = [],           // row attributes array of number
+    conCellAttr = [],           // character attributes array of array or number
+    conText = [],               // raw text - array of string
+    conHotSpots = [],           // clickable hotspots
+    spriteDefs = [],            // sprite definitions - contains url / or data url
+    audioDefs = [],             // audio definitions - type 0 coded. 1,2 TODO
+
+    // array 0..15 (0-9:ANSI selectable,10/11:special,12-15:reserved)
+    conFont = [],               // the 10 fonts used for CSI 10-19 m
+    conFontCP = [],             // associated code page for font.
+    conFontNum = 0,             // current font being used.
+
+    ovl = {},                   // overlay dialog stuff for file transfers
+
     shiftState, ctrlState, altState,
-    numState, capState, scrState;
+    numState, capState, scrState,
+
+    bootTimer,
+    bootDiv = [],
+
+    tnState,        // telnet read state (IAC cmds)
+    tnCmd,          // current telnet command
+    tnQUs   = new Uint8Array(256),  // tables for telnet q method
+    tnQHim  = new Uint8Array(256),
+
+    // YModem rigmarole
+    ymTimer,
+    ymCCount,
+    ymPacketSize,               // current size of packet.
+    ymPacketPos,                // current position in buffer.
+    ymPacketBuff = [],          // buffer for send / receive.
+    ymFileName,
+    ymFileSize,                 // file size. -1 if unknown.
+    ymModifiedDate,             // secs since 1/1/1970 in octal
+    ymFilePos,                  // current position in file.
+    ymFileData = new Blob([], {type: 'application/octet-stream'}),
+    ymEOTCount,
+    ymNakCount,
+    ymNextBlock,
+    ymSendStartTime;            // timer for when to abort
+
+    
+// add event listener
+function addListener(obj, eventName, listener) {
+    if(obj.addEventListener)
+        obj.addEventListener(eventName, listener, false)
+    else
+        obj.attachEvent("on" + eventName, listener);
+}
 
 // create an element
 function domElement(type, options, styles, txt) {
@@ -1909,15 +2004,6 @@ function domElement(type, options, styles, txt) {
 }
 
 // load fonts and boot
-var
-    bootTimer,
-    bootDiv = [],
-    bootFonts = [
-        'UVGA16', 'MICROKNIGHT', 'MICROKNIGHTPLUS',
-        'MOSOUL', 'P0TNOODLE', 'TOPAZ', 'TOPAZPLUS',
-        'VIC200', 'VIC201', 'C640', 'C641', 'C1280',
-        'C1281', 'ATARI' ];
-
 function bootVTX() {
     var
         i, l, str,
@@ -1976,7 +2062,7 @@ function bootVTX2() {
         hd = document.getElementsByTagName('head')[0];
 
     // wait for the required data.
-    while (!vtxdata);
+    while (!vtxdata){};
 
     // format the TITLE tag - only if empty or missing.
     if (!t)
@@ -2003,15 +2089,6 @@ if (!String.prototype.splice) {
     }
 }
 
-// add event listener
-function addListener(obj, eventName, listener) {
-    if(obj.addEventListener)
-        obj.addEventListener(eventName, listener, false)
-    else
-        obj.attachEvent("on" + eventName, listener);
-}
-
-
 // which row is the mouse on?
 function getMouseCell(e) {
     var
@@ -2027,12 +2104,12 @@ function getMouseCell(e) {
     if ((y >= dt) && (x >= textPos.left) && (x < textPos.left + crtWidth)) {
         // on the page. find row
         for (i = 0; i < conRowAttr.length; i++) {
-            size = getRowAttrSize(conRowAttr[i]) / 100;
+            size = getRowAttrHeight(conRowAttr[i]) / 100;
             width = getRowAttrWidth(conRowAttr[i]) / 100;
             rh = Math.round(fontSize * size);
             if ((y >= dt) && (y < (dt + rh))) {
                 // on this row. get col
-                c = (x - textPos.left) / (xScale * colSize * size * width);
+                c = (x - textPos.left) / (xScale * colSize * width);
                 return { row: i, col: Math.floor(c) };
             }
             dt += rh;
@@ -2122,6 +2199,7 @@ function mouseMove(e) {
 function click(e) {
     var
         x, y,
+        win,
         hs;
 
     // for now, just fix meta key states
@@ -2147,7 +2225,7 @@ function click(e) {
 
             case 1:
                 // url
-                var win = window.open(hs.val, '_blank');
+                win = window.open(hs.val, '_blank');
                 win.focus();
                 break;
         }
@@ -2236,12 +2314,6 @@ function keyDown(e) {
                 case DO_SCRLK:
                     scrState = !scrState;
                     setBulbs();
-                    break;
-
-                case DO_ESC:
-                    sendData(_ESC);
-                    e.keyCode = 0;
-                    return (e.returnValue = false);
                     break;
 
                 default:
@@ -2375,10 +2447,8 @@ function isprint(chr) {
 function colsOnRow(rownum) {
     var
         cols = crtCols,
-        size = getRowAttrSize(conRowAttr[rownum]) / 100,
         width = getRowAttrWidth(conRowAttr[rownum]) / 100;
 
-    cols *= 1 / size;
     cols *= 1 / width;
     return cols;
 }
@@ -2498,7 +2568,6 @@ function getDefaultFontSize() {
     data = ctx.getImageData(0, 0, bmpw, bmph).data;
     txtTop = txtLeft = bmpw;
     txtRight = txtBottom = 0;
-    var x, y, d;
     for (y = 0; y < bmph; y++)
         for (x = 0; x < bmpw; x++) {
             d = data[(y * bmpw+ x) * 4];
@@ -2629,7 +2698,7 @@ function doBlink(){
         y = textDiv.getBoundingClientRect().top;
         for (r = 0; r < conRowAttr.length; r++) {
             // check if row is visible
-            rh = rowSize * getRowAttrSize(conRowAttr[r]) / 100;
+            rh = rowSize * getRowAttrHeight(conRowAttr[r]) / 100;
             if ((y + rh > 0) && (y < window.innerHeight)) {
                 // look for blink
                 // refresh blinkable text.
@@ -2649,12 +2718,11 @@ function doBlink(){
 // compute font size (width) for row - figure in scale (row is dom element)
 function getRowFontSize(rownum) {
     var
-        w, h, rattr, size;
+        w, h, rattr;
 
     rattr = conRowAttr[rownum];
-    size = getRowAttrSize(rattr);
-    w = colSize * (size / 100) * (getRowAttrWidth(rattr) / 100);
-    h = rowSize * (size / 100);
+    w = colSize * (getRowAttrWidth(rattr) / 100);
+    h = rowSize * (getRowAttrHeight(rattr) / 100);
     return { width: w, height:h };
 }
 
@@ -2670,7 +2738,9 @@ function btoi(str) {
 
 // convert 24bit int to 4 digit base64
 function itob(val) {
-    var str = b64c[val & 0x3f];
+    var 
+        str = b64c[val & 0x3f];
+        
     val >>= 6;
     str = b64c[val & 0x3f] + str;
     val >>= 6;
@@ -2685,7 +2755,7 @@ function itoh(i, d) {
         str = '';
 
     d = d || 0;
-    for (; i; str = hex.charAt(i & 0x0F) + str, i >>= 4);
+    for (; i; str = hex.charAt(i & 0x0F) + str, i >>= 4){};
     if (d > 0)
         while (str.length < d) str = '0' + str;
     return str;
@@ -2694,8 +2764,8 @@ function itoh(i, d) {
 // convert hex string to integer
 function htoi(h) {
     var
-        i, l,
-        v;
+        i, l, v;
+        
     h = h || '0';
     for (h = h.toUpperCase(), v = 0, i = 0, l = h.length; i < l; i++) {
         v <<= 4;
@@ -2712,6 +2782,8 @@ function makeRowAttr(c1, c2, bp, size, width, marquee) {
     width = width || 100;
     marquee = marquee || false;
 
+    var v;
+    
     // round size to nearest valid 25%
     size = Math.round(size / 25) - 1;
     if (size < 0) size = 0;
@@ -2724,14 +2796,13 @@ function makeRowAttr(c1, c2, bp, size, width, marquee) {
     if (width > 3) width = 3;
     width <<= 21;
 
-    var v = (c1 & 0xFF)
+    v = (c1 & 0xFF)
         | ((c2 & 0xFF) << 8)
         | bp
         | size
         | width
         | (marquee ? A_ROW_MARQUEE : 0);
 
-    var tmp = itoh(v, 6);
     return v;
 }
 
@@ -2752,13 +2823,13 @@ function setRowAttrColor2(attr, color2) {
 function setRowAttrPattern(attr, pattern) {
     return (attr & ~A_ROW_PATTERN_MASK) | pattern;
 }
-function setRowAttrSize(attr, size) {
+function setRowAttrHeight(attr, height) {
     // round size to nearest valid 25%
-    size = Math.round(size / 25) - 1;
-    if (size < 0) size = 0;
-    if (size > 7) size = 7;
-    size <<= 18;
-    return (attr & ~A_ROW_SIZE_MASK) | size;
+    height = Math.round(height / 25) - 1;
+    if (height < 0) height = 0;
+    if (height > 7) height = 7;
+    height <<= 18;
+    return (attr & ~A_ROW_HEIGHT_MASK) | height;
 }
 function setRowAttrWidth(attr, width) {
     // round width to nearest valid 50%
@@ -2777,7 +2848,7 @@ function setRowAttrMarquee(attr, marquee) {
 function getRowAttrColor1(attr) { return attr & 0xFF; }
 function getRowAttrColor2(attr) { return (attr >> 8) & 0xFF; }
 function getRowAttrPattern(attr) { return attr & A_ROW_PATTERN_MASK; }
-function getRowAttrSize(attr) { return (((attr & A_ROW_SIZE_MASK) >> 18) + 1) * 25.0; }
+function getRowAttrHeight(attr) { return (((attr & A_ROW_HEIGHT_MASK) >> 18) + 1) * 25.0; }
 function getRowAttrWidth(attr) { return (((attr & A_ROW_WIDTH_MASK) >> 21) + 1) * 50.0; }
 function getRowAttrMarquee(attr) { return (attr & A_ROW_MARQUEE) != 0; }
 
@@ -2906,10 +2977,10 @@ function adjustRow(rownum) {
         row, size, width, h, w, x, cnv, i, nw;
 
     row = getRowElement(rownum);
-    size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
-    width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
-    h = rowSize * size;             // height of char
-    w = colSize * size * width;     // width of char
+    size = getRowAttrHeight(conRowAttr[rownum]) / 100;  // .25 - 2
+    width = getRowAttrWidth(conRowAttr[rownum]) / 100;  // .5 - 2
+    h = rowSize * size;     // height of char
+    w = colSize * width;    // width of char
 
     // get current size
     cnv = row.firstChild;
@@ -2949,11 +3020,11 @@ function redrawRow(rownum){
 
     // clear end of row
     row = getRowElement(rownum);
-    size = getRowAttrSize(conRowAttr[rownum]) / 100;    // .25 - 2
-    width = getRowAttrWidth(conRowAttr[rownum])/ 100;   // .5 - 2
-    w = xScale * colSize * size * width;     // width of char
+    size = getRowAttrHeight(conRowAttr[rownum]) / 100;  // .25 - 2
+    width = getRowAttrWidth(conRowAttr[rownum]) / 100;  // .5 - 2
+    w = xScale * colSize * width;   // width of char
     h = fontSize * size;            // height of char
-    x = w * l;                  // left pos of char on canv
+    x = w * l;                      // left pos of char on canv
 
     cnv = row.firstChild;
     if (!cnv) {
@@ -3024,11 +3095,11 @@ function renderCell(rownum, colnum, hilight, bottom) {
     if (colnum >= conText[rownum + rowadj].length)   return;
 
     // get size of this row
-    size = getRowAttrSize(conRowAttr[rownum + rowadj]) / 100;    // .25 - 2
-    width = getRowAttrWidth(conRowAttr[rownum + rowadj])/ 100;   // .5 - 2
+    size = getRowAttrHeight(conRowAttr[rownum + rowadj]) / 100; // .25 - 2
+    width = getRowAttrWidth(conRowAttr[rownum + rowadj]) / 100; // .5 - 2
     
-    w = xScale * colSize * size * width;    // width of char
-    x = w * colnum;                         // left pos of char on canv
+    w = xScale * colSize * width;   // width of char
+    x = w * colnum;                 // left pos of char on canv
 
     // don't render off page unless marquee
     if ((x > w * crtCols) && !(conRowAttr[rownum] & A_ROW_MARQUEE))
@@ -3066,6 +3137,7 @@ function renderCell(rownum, colnum, hilight, bottom) {
 
     // get blink attributes
     tblinks = attr & (A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
+
     // move bold / blink to proper font if mode is on
     if (modeBoldFont && tbold)
         tfnt = 1;
@@ -3259,7 +3331,7 @@ function renderCell(rownum, colnum, hilight, bottom) {
 
         // transmogrify
         ctx.setTransform(
-            xScale * size * width,      // x scale
+            xScale * width,             // x scale
             0,                          // y skew
             xScale * xskew,             // x skew
             yScale * size,              // y scale
@@ -3508,6 +3580,9 @@ function initDisplay() {
         i, o, p, pos,
         cssel,
         fsize,
+        style,
+        css,
+        head,
         defattrs;
 
     // find the page / text div
@@ -3524,12 +3599,7 @@ function initDisplay() {
 
     // codepage from AKAs - abort if invalid
     if (!codePageData[codePage]) {
-        if (!codePageAKAs[codePage]) {
-            if ((codePage != 'UTF8') && (codePage != 'UTF16')) {
-                //document.write('Invalid code page.');
-                //return;
-            }
-        } else
+        if (codePageAKAs[codePage]) 
             codePage = codePageAKAs[codePage];
     }
 
@@ -3566,14 +3636,14 @@ function initDisplay() {
     }
 
     pageDiv.style['width'] = (crtWidth*xScale) + 'px';
-    var pagePos = getElementPosition(pageDiv);
+    pagePos = getElementPosition(pageDiv);
     pageLeft = pagePos.left;
     pageTop = pagePos.top;
 
     // build marquee CSS
-    var style = document.createElement('style');
+    style = document.createElement('style');
     style.type = 'text/css';
-    var css = '.marquee { animation: marquee 12s linear infinite; } '
+    css = '.marquee { animation: marquee 12s linear infinite; } '
         + '@keyframes marquee { '
         + '0% { transform: translate( ' + (xScale * crtCols * colSize) + 'px, 0); } '
         + '100% { transform: translate(-100%, 0); }}';
@@ -3581,7 +3651,7 @@ function initDisplay() {
         style.styleSheet.cssText = css
     else
         style.appendChild(document.createTextNode(css));
-    var head = document.head || document.getElementsByTagName('head')[0];
+    head = document.head || document.getElementsByTagName('head')[0];
     head.appendChild(style);
 
     defCellAttr = vtxdata.defCellAttr;
@@ -3708,6 +3778,7 @@ function initDisplay() {
     pageDiv.appendChild(audio);
 
     // websocket connect
+    tnState = 0;
     ws = new WebSocket(wsConnect, ['telnet']);
     ws.binaryType = "arraybuffer";
     ws.onmessage = function(e) {
@@ -3717,6 +3788,10 @@ function initDisplay() {
 
         data = new Uint8Array(e.data);
         //dump(data,0,data.length);
+
+        // do telnet handshaking negotiations - return new data w/o IAC...'s
+        if (vtxdata.telnet == 1) 
+            data = tnNegotiate(data);
 
         // convert data to string
         str = '';
@@ -3762,16 +3837,19 @@ function initDisplay() {
         }
     }
     ws.onopen = function() {
+        if (vtxdata.telnet)
+            tnInit();
         setBulbs();
     }
     ws.onclose = function() {
-        modeSpeed = 0;
+        conBaud = 0;
         conBufferOut(
             cbm
             ?'\r\rDISCONNECTED.\r'
             :'\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
         document.body.style['cursor'] = 'default';
         audio.pause();
+        pageDiv.removeChild(audio);
         setBulbs();
     }
     ws.onerror = function(error) {
@@ -3832,10 +3910,6 @@ function UFT8ArrayToStr(array) {
     }
     return out;
 }
-
-// light it up
-addListener(window, 'load', bootVTX);
-//addListener(document, 'DOMContentLoaded', bootVTX);
 
 function fadeScreen(fade) {
     var
@@ -3976,24 +4050,6 @@ function fadeScreen(fade) {
     }
 }
 
-// YModem rigmarole
-var
-    ymTimer,
-    ymCCount,
-    ymPacketSize,               // current size of packet.
-    ymPacketPos,                // current position in buffer.
-    ymPacketBuff = [],          // buffer for send / receive.
-    ymFileName,
-    ymFileSize,                 // file size. -1 if unknown.
-    ymModifiedDate,             // secs since 1/1/1970 in octal
-    ymFilePos,                  // current position in file.
-    ymFileData = new Blob([], {type: 'application/octet-stream'}),
-    ymEOTCount,
-    ymNakCount,
-    ymNextBlock,
-    ymSendStartTime,            // timer for when to abort
-    CRC_POLY = 0x1021;
-
 function updateCRC16(crcIn, byteIn) {
     var
         crc = crcIn,
@@ -4068,6 +4124,7 @@ function ymRStateMachine(data){
         i, j, result = [],
         block, block2,
         crc16A, crc16B,
+        tmpblob,
         str, b, tmp, bytes = [];
 
     if (!data) return result;
@@ -4209,7 +4266,7 @@ function ymRStateMachine(data){
                         for (j = 0; j < ymPacketSize - 4; j++)
                             tmp[j] = ymPacketBuff[2 + j];
                         ymPacketBuff = [];
-                        var tmpblob = new Blob([ymFileData, tmp]);
+                        tmpblob = new Blob([ymFileData, tmp]);
                         ymFileData = tmpblob;
                         ovl['transferred'].innerHTML = formatSize(ymFileData.size);
 
@@ -4233,7 +4290,7 @@ function formatSize(size) {
         mag,
         mags = [ 'B','KB','MB','GB' ];
 
-    for (mag = 0; size >= 1000; size /= 1000, mag++);
+    for (mag = 0; size >= 1000; size /= 1000, mag++){};
     return size.toFixed(2) + ' ' + mags[mag];
 }
 
@@ -4636,9 +4693,14 @@ function getUnicode(cp, ch) {
 // send data to remote (or echo local if not connected)
 // only send arraybuffer data
 // add convert from native to node's codepage.
+// need to escape 0xFF if in telnet mode!
 function sendData(data) {
     var
-        unsent, i, l, str;
+        i, l, 
+        str,
+        pos,
+        len,
+        tmp;
 
     if (typeof data === 'string') {
         // string to aray buffer
@@ -4652,10 +4714,35 @@ function sendData(data) {
         str = String.fromCharCode(data);
         data = new Uint8Array([data]);
     }
-
+    
     if (!(data instanceof Uint8Array))
         throw 'Invalid data in sendData().';
 
+    if (vtxdata.telnet) {
+        // escape 0xFF's
+        if (data.indexOf(0xFF) >= 0) {
+            // spilt up / recombine
+            tmp = [];
+            len = 0;
+            while ((pos = data.indexOf(0xFF)) >= 0) {
+                tmp.push(data.slice(0, pos));
+                len += pos;
+                tmp.push(new Uint8Array([0xFF,0xFF]));
+                len += 2;
+                data = data.slice(pos + 1);
+            }
+            len += data.length;
+            tmp.push(data);
+        
+            // join tmp into new data
+            data = new Uint8(len);
+            for (pos = 0, i = 0; i < tmp.length; i++){
+                data.set(tmp[i], pos);
+                pos += tmp[i].length;
+            }
+        }
+    }
+    
     // check code page conversions.
     if (ws && (ws.readyState == 1)) {
         ws.send(data.buffer);
@@ -4809,7 +4896,7 @@ function resetTerminal() {
     modeNoBold = false;
     modeBlinkFont = false;
     modeNoBlink = false;
-    modeSpeed = 0;
+    conBaud = 0;
     modeDOORWAY = false;
     cellAttr = defCellAttr;
     pageAttr = defPageAttr;
@@ -4830,13 +4917,19 @@ function conCharOut(chr) {
         def,
         i, j, l,            // generic idx, length
         r, c, v,            // row, col idx
-        hs,                 // hotspot
         crsrrender = false, // redraw cursor?
         doCSI = false,      // execute compiled CSI at end?
         parm,               // parameters
         str,
         els, div, img,      // for svg sprite creation
-        fromRow, toRow;     // indexes for scrolling.
+        fromRow, toRow,     // indexes for scrolling.
+        hs = {},            // hotspot
+        row, c1, c2,
+        rpos,
+        csize,
+        spriteTop,
+        spriteLeft,
+        el;
 
     if (cbm) {
         // PETSCII ------------------------------------------------------------
@@ -5062,7 +5155,7 @@ function conCharOut(chr) {
                         expandToRow(crsrRow);
                         expandToCol(crsrRow, crsrCol);
                         crsrCol--;
-                        delChar(crsrRow, crsrCol);
+                        //delChar(crsrRow, crsrCol);  // backspace is not destructive
                         crsrrender = true;
                     }
                     break;
@@ -5417,7 +5510,7 @@ function conCharOut(chr) {
                                 conFontCP[parm[0]] = 'ARMSCII_8';
                                 break;
 
-                            //case  7: // haik8 codepage (use only with armscii8 screenmap)
+                            case  7: // haik8 codepage (use only with armscii8 screenmap)
                                 conFont[parm[0]] = fontName;
                                 conFontCP[parm[0]] = 'HAIK8';
                                 break;
@@ -5695,7 +5788,7 @@ function conCharOut(chr) {
                     parm = fixParams(parm, [3,1]);
                     parm[0] = minMax(parm[0], 0, 7, 3);
                     parm[1] = minMax(parm[1], 0, 3, 1);
-                    conRowAttr[crsrRow] = setRowAttrSize(conRowAttr[crsrRow],
+                    conRowAttr[crsrRow] = setRowAttrHeight(conRowAttr[crsrRow],
                         (parm[0] + 1) * 25);
                     conRowAttr[crsrRow] = setRowAttrWidth(conRowAttr[crsrRow],
                         (parm[1] + 1) * 50);
@@ -5713,7 +5806,7 @@ function conCharOut(chr) {
                             case 1: // url binds
                                 if (l >= 4) {
                                     // need all the parts.
-                                    var hs = {
+                                    hs = {
                                         type:   parm[0],
                                         row:    crsrRow,
                                         col:    crsrCol,
@@ -5741,9 +5834,9 @@ function conCharOut(chr) {
                     conRowAttr[crsrRow] = setRowAttrPattern(conRowAttr[crsrRow], parm[2] << 16);
  
                     // set row attrs here
-                    var row = getRowElement(crsrRow);
-                    var c1 = ansiColors[parm[0]];
-                    var c2 = ansiColors[parm[1]];
+                    row = getRowElement(crsrRow);
+                    c1 = ansiColors[parm[0]];
+                    c2 = ansiColors[parm[1]];
                     switch (parm[2] << 16) {
                         case A_ROW_PATTERN_SOLID:
                             row.style['background'] = c1;
@@ -5815,6 +5908,12 @@ function conCharOut(chr) {
                     break;
  
                 case 0x5F:  // _ - VTX Media Codes. Sprites & Audio
+                    if (parms.length == 0) {
+                        
+                        // syncronet got here how?
+                        console.log('CSI '+ parms + interm + String.fromCharCode(chr));
+                        break;
+                    }
                     if (parm[0] == 0) {
                         // sprite commands
                         switch (parm[1]) {
@@ -5897,10 +5996,10 @@ function conCharOut(chr) {
                                     if (div != null)
                                         div.parentNode.removeChild(div);
  
-                                    var rpos = getElementPosition(getRowElement(crsrRow));
-                                    var csize = getRowFontSize(crsrRow);
-                                    var spriteTop = rpos.top - pageTop;
-                                    var spriteLeft = crsrCol * csize.width;
+                                    rpos = getElementPosition(getRowElement(crsrRow));
+                                    csize = getRowFontSize(crsrRow);
+                                    spriteTop = rpos.top - pageTop;
+                                    spriteLeft = crsrCol * csize.width;
  
                                     // make a new one.
                                     div = domElement(
@@ -5912,6 +6011,7 @@ function conCharOut(chr) {
                                         {   position:   'absolute',
                                             left:       spriteLeft + 'px',
                                             top:        spriteTop + 'px',
+                                            backgroundColor: 'green',
                                             width:      (colSize * parm[4]) + 'px',
                                             height:     (rowSize * parm[5]) + 'px',
                                             overflow:   'hidden'});
@@ -5920,7 +6020,11 @@ function conCharOut(chr) {
                                         'img',
                                         {   onload:     fitSVGToDiv,
                                             src:        spriteDefs[parm[3]] },
-                                        {   visibility: 'hidden'});
+                                        {   visibility: 'hidden',
+                                            position:   'relative',
+                                            left:'0px',
+                                            top:'0px'
+                                        });
                                         
                                     div.appendChild(img);
                                     if (parm[6] == 0)
@@ -5932,7 +6036,7 @@ function conCharOut(chr) {
                             
                             case 2:
                                 // move sprite to new r c.
-                                var el = document.getElementById('sprite'+parm[2]);
+                                el = document.getElementById('sprite'+parm[2]);
                                 if ((el) && (l == 6))
                                     moveSprite(el, parm[3], parm[4], parm[5]);
                                 break;
@@ -6321,7 +6425,7 @@ function conCharOut(chr) {
                         //      6=9600,7=19200,8=38400,9=57600,10=76800,11=115200
                         parm = fixParams(parm, [ 0, 0 ]);
                         if (parm[0] < 2) {
-                            modeSpeed = bauds[parm[1]] * 100;
+                            conBaud = bauds[parm[1]] * 100;
                         }
                     } else if (interm == '') {
                         // CSI t ; b 'r' : Set scroll window (DECSTBM).
@@ -6406,11 +6510,14 @@ function stripNL(strin) {
 // decode hex3 string, return as Uint8Array
 // remove whitespaces. Note: string data in Hex3 is UTF8
 function decodeHex3(strin) {
+    var
+        ret,    // decoded result
+        i, l,   // idx / length
+        p;      // ptr into strin
+        
     strin = strin.replace(/\s/g,'');
-    var ret = new Uint8Array(strin.length >> 1);
-    var i, l, v;
-    var p = 0;
-    for (i = 0, l = ret.length; i < l; i++){
+    ret = new Uint8Array(strin.length >> 1);
+    for (p = 0, i = 0, l = ret.length; i < l; i++) {
         ret[i] = ((strin.charCodeAt(p    ) & 0x0F) << 4)
                | ((strin.charCodeAt(p + 1) & 0x0F));
         p += 2;
@@ -6426,11 +6533,11 @@ function doWriteBuffer() {
 
     if (conBuffer.length > 0) {
         // how many bytes to send since last call.
-        if (modeSpeed == 0) {
+        if (conBaud == 0) {
             strOut = conBuffer;
             conBuffer = '';
         } else {
-            bytes = modeSpeed / 300;
+            bytes = conBaud / 300;
             if (conBuffer.length < bytes){
                 strOut = conBuffer;
                 conBuffer = '';
@@ -6446,7 +6553,7 @@ function doWriteBuffer() {
 // do all writing here.
 function conBufferOut(data) {
     conBuffer += data;
-    if (modeSpeed == 0) {
+    if (conBaud == 0) {
         conStrOut(conBuffer);
         conBuffer = '';
     }
@@ -6461,9 +6568,9 @@ function conStrOut(str) {
     str = str || '';
     l = str.length;
     for (i = 0; i < l; i++) {
-        oldSpeed = modeSpeed;
+        oldSpeed = conBaud;
         conCharOut(str.charCodeAt(i));
-        if (modeSpeed != oldSpeed) {
+        if (conBaud != oldSpeed) {
             // move rest back to buffer!
             conBuffer = str.substring(i+1) + conBuffer;
             break;
@@ -6471,3 +6578,261 @@ function conStrOut(str) {
     }
 }
 
+// perform telnet handshaking - return data with telnet commands removed.
+// must be state machine.
+// data is Uint8Array. return UInt8Array
+function tnNegotiate(data) {
+    var
+        v0, v1, v2, v3,
+        i, l, b, outdata, outp;
+    
+    outdata = new Uint8Array(data.length);  
+    outp = 0;   // pointer into output
+    l = data.length;
+    for (i = 0; i < l; i++) {
+        b = data[i];
+        switch (tnState) {
+            case 0:
+                // not in any state. looking for IAC's
+                if (b == TN_IAC)
+                    tnState++
+                else
+                    outdata[outp++] = b;
+                break;
+                
+            case 1:
+                // recieved a TN_IAC
+                switch (b) {
+                    case TN_IAC:
+                        // escaped 0xFF.
+                        outdata[outp++] = b;
+                        tnState = 0;
+                        break;
+                        
+                    case TN_SE:    // subneg end
+                    case TN_NOP:   // no operation
+                    case TN_DM:    // data mark
+                    case TN_BRK:   // break
+                    case TN_IP:    // interrupt process
+                    case TN_AO:    // abort output
+                    case TN_AYT:   // are you there? try responding with NUL
+                    case TN_EC:    // erase char
+                    case TN_EL:    // erase line
+                    case TN_GA:    // go ahead
+                        // ignore for now.
+                        tnState = 0;
+                        break;
+                        
+                    case TN_SB:
+                        // subneg begin
+                        tnState = 3;
+                        break;
+                        
+                    case TN_WILL:
+                    case TN_WONT:
+                    case TN_DO:
+                    case TN_DONT:
+                        tnCmd = b;
+                        tnState = 2;
+                        break;
+
+                    default:
+                        // ??
+                        outdata[outp++] = b;
+                        tnState = 0;
+                        break;
+                }
+                break;
+                
+            case 2:
+                // have IAC + cmd so far
+                switch (tnCmd) {
+                    case TN_WILL:
+                        // server would like to do something. send DO or DONT
+                        if (tnQUs[b] == TNQ_WANTYES)
+                            tnQUs[b] = TNQ_YES
+                        else {
+                            switch (b) {
+                                case TN_BIN:    // binary
+                                case TN_SGA:    // suppress go ahead
+                                case TN_ECHO:   // echo
+                                case TN_NAWS:   // negotiate about window size
+                                case TN_TTYPE:  // terminal type
+                                case TN_TSPEED: // terminal speed
+                                    tnSendCmd(TN_DO, b);
+                                    tnQHim[b] = TNQ_YES;
+                                    break;
+                                
+                                default:
+                                    tnSendCmd(TN_DONT, b);
+                                    tnQHim[b] = TNQ_NO;
+                                    break;
+                            }
+                        }
+                        break;
+                   
+                    case TN_WONT:
+                        if ((tnQUs[b] == TNQ_WANTYES) || (tnQUs[b] == TNQ_WANTNO))
+                            // response to my request to do or dont
+                            tnQUs[b] = TNQ_NO
+                        else {
+                            // server wants to not do
+                            tnSendCmd(TN_DONT, b);
+                            tnQHim[b] = TNQ_NO;
+                        }
+                        break;                            
+                    
+                    case TN_DO:
+                        if (tnQUs[b] == TNQ_WANTYES) {
+                            // response to my request to will
+                            tnQUs[b] = TNQ_YES;
+                            
+                            // send some SB stuff now
+                            if (b == TN_NAWS) {
+                                v0 = crtCols & 0xFF;
+                                v1 = (crtCols >> 8) & 0xFF;
+                                v2 = crtRows & 0xFF;
+                                v3 = (crtRows >> 8) & 0xFF;
+                                tnSendCmd(TN_SB, TN_NAWS, v1, v0, v3, v2);
+                                tnSendCmd(TN_SE);
+                            }
+                        } else {
+                            // server wants us to do
+                            switch (b) {
+                                case TN_BIN:
+                                case TN_SGA:
+                                case TN_ECHO:
+                                case TN_NAWS:
+                                case TN_TTYPE:
+                                case TN_TSPEED:
+                                    tnSendCmd(TN_WILL, b);
+                                    tnQUs[b] = TNQ_YES;
+                                    break;
+                                    
+                                default:
+                                    tnSendCmd(TN_WONT, b);
+                                    tnQUs[b] = TNQ_NO;
+                                    break;
+                            }
+                        }
+                        break;
+                        
+                    case TN_DONT:
+                        // server wants me to not do something. send WONT
+                        if (tnQUs[b] == TNQ_WANTYES)
+                            // response to my request to will
+                            tnQUs[b] = TNQ_NO
+                        else {
+                            // server wants us to not do. respond WONT
+                            tnSendCmd(TN_WONT, b);
+                            tnQUs[b] = TNQ_NO;
+                        }
+                        break;
+                }
+                tnState = 0;
+                break;
+            
+            case 3:
+                // have IAC SB
+                tnCmd = b;
+                tnState = 4;
+                break;
+            
+            case 4:
+                // this should be SEND (1)
+                if (b == TN_SEND) 
+                    switch (tnCmd) {
+                        case TN_TTYPE:
+                            // will neg term type;
+                            tnSendCmd(TN_SB, tnCmd, TN_IS, vtxdata.term);
+                            tnSendCmd(TN_SE);
+                            break;
+                            
+                        case TN_TSPEED:
+                            // will neg terminal speed
+                            tnSendCmd(TN_SB, tnCmd, TN_IS, '921600,921600');
+                            tnSendCmd(TN_SE);
+                            break;
+                            
+                        case TN_NEWE:
+                            // new environment
+                            tnSendCmd(TN_SB, tnCmd, TN_IS, 0);
+                            tnSendCmd(TN_SE);
+                            break;
+                            
+                        default:
+                            // ? why are we being asked this? server on drugs?
+                            tnSendCmd(TN_DONT, tnCmd);
+                            outdata[outp++] = b;
+                            break;
+                    }
+                tnState = 0;
+                break;
+        }
+    }
+    // truncate outdata at outp.
+    return outdata.slice(0, outp);
+}
+
+// send telnet commands.. send bytes or strings as parameters
+function tnSendCmd() {
+    var
+        i, j, 
+        l1, l2,
+        outbuff,
+        bytebuff = [];
+    
+    bytebuff.push(TN_IAC);
+    l1 = arguments.length;
+    for (i = 0; i < l1; i++) 
+        if (typeof arguments[i] === 'string') {
+            // put string into bytebuff
+            l2 = arguments[i].length;
+            for (j = 0; j < l2; j++)
+                bytebuff.push(arguments[i].charCodeAt(j));
+        } else if (typeof arguments[i] === 'number') 
+            // put this byte into bytebuff
+            bytebuff.push(arguments[i]);
+    
+    // send bytebuff
+    l1 = bytebuff.length;
+    outbuff = new Uint8Array(l1);
+    for (i = 0; i < l1; i++)
+        outbuff[i] = bytebuff[i];
+    ws.send(outbuff);
+}
+
+// send initial barrage of settings.
+function tnInit() {
+    var
+        i;
+    
+    tnQHim.fill(TNQ_NO);
+    tnQUs.fill(TNQ_NO);
+    
+    // set initial telnet options
+    tnQUs[TN_BIN] =     TNQ_WANTYES;
+    tnQHim[TN_BIN] =    TNQ_WANTYES;
+    tnQUs[TN_SGA] =     TNQ_WANTYES;
+    tnQHim[TN_SGA] =    TNQ_WANTYES;
+    tnQHim[TN_ECHO] =   TNQ_WANTYES;
+    tnQUs[TN_NAWS] =    TNQ_WANTYES;
+    tnQUs[TN_TTYPE] =   TNQ_WANTYES;
+    tnQUs[TN_TSPEED] =  TNQ_WANTYES;
+    
+    for (i = 0; i < 256; i++) {
+        if (tnQUs[i] == TNQ_WANTYES) 
+            tnSendCmd(TN_WILL, i)
+        else if (tnQUs[i] == TNQ_WANTNO)
+            tnSendCmd(TN_WONT, i);
+        
+        if (tnQHim[i] == TNQ_WANTYES)
+            tnSendCmd(TN_DO, i)
+        else if (tnQHim[i] == TNQ_WANTNO)
+            tnSendCmd(TN_DONT, i);
+    }
+}
+
+addListener(window, 'load', bootVTX);
+
+};

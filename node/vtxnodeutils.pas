@@ -90,7 +90,7 @@ procedure MoveDown(n : integer);
 procedure MoveRight(n : integer);
 procedure MoveLeft(n : integer);
 
-function ROWSIZE(s, w : integer) : string;
+function ROWSIZE(h, w : integer) : string;
 function ROWCOLOR(color1, color2 : integer; style : TRowStyles) : string;
 function UP(n : integer) : string;
 function DOWN(n : integer) : string;
@@ -437,15 +437,15 @@ begin
   Print(CSI + inttostr(n) + 'D');
 end;
 
-function ROWSIZE(s, w : integer) : string;
+function ROWSIZE(h, w : integer) : string;
 begin
-  s := Round(s / 25) - 1;
+  h := Round(h / 25) - 1;
   w := Round(w / 50) - 1;
-  if s < 0 then s := 0;
-  if s > 7 then s := 7;
+  if h < 0 then h := 0;
+  if h > 7 then h := 7;
   if w < 0 then w := 0;
   if w > 3 then w := 3;
-  result := CSI + IntToStr(s) + ';' + IntToStr(w) + '[';
+  result := CSI + IntToStr(h) + ';' + IntToStr(w) + '[';
 end;
 
 function ROWCOLOR(color1, color2 : integer; style : TRowStyles) : string;
