@@ -1,12 +1,13 @@
 # VTX_ClientServer
 
-updated: 08-AUG-2017
+updated: 10-AUG-2017
 
 
 ## Intro
 
 VTX consists of a web / websocket server written in FreePascal, and a browser 
-based javascript client. 
+based javascript client.  The client can be run as a stand alone item if the
+operator has their own webserver and access to a websocket proxy.
 
 The server software listens to two separate ports while running. A port for 
 HTTP, and a separate port for Web Sockets.
@@ -191,6 +192,100 @@ scope of this project, but feel free to tinker, or retrofit existing packages
 to work with VTX.
 
 
+## Client Only Setup.
+
+To run the client without using the VTX server software, all you need is a web page and access to a websocket proxy server.
+
+Files needed:
+    vtxdata.js          (see below for customizing)
+    vtxclient.js        (or vtxclient.min.js)
+    vtxclient.css
+    *.woff              (terminal fonts needed for the client. include ALL of these or the client will not boot.)
+    *.png               (24x24px images for the UI. customize if you want to replace these.)
+    bell.ogg            (bing! the bell sound. customize if you want to replace this.)
+    
+In the HTML that will contain the client, in the <HEAD>, include:
+
+```html
+    <link type='text/css' href='vtxclient.css' rel='stylesheet'>
+    <script type='text/javascript' src='https://cdn.jsdelivr.net/pako/1.0.3/pako.min.js'></script>
+    <script type='text/javascript' src='vtxdata.js'></script>
+    <script type='text/javascript' src='vtxclient.min.js'></script>
+```
+
+In the <BODY> of your page, place something like:
+
+```html
+        <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
+        <!-- terminal divs -->
+        <div id='vtxpage' class='noselect'>
+            <!-- page background color / z=0 sprites -->
+            <div id='vtxtext' class='noselect'>
+                <!-- text / z=1 sprites -->
+            </div>
+        </div>
+        <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
+```
+
+The vtxpage div element will house the client once the vtxclient.js has booted up.
+
+The CSS file can be customized a little too to help make the client fit your style. Refer to vtxclient.css for info.
+
+Place the two javascript files on your webserver so the HTML can get at them.
+
+The contents of the vtxdata is information the client needs to connect to your system.    
+
+sysName will be place in the <TITLE> of the page if it is missing or blank.
+
+wsConnect is the url:port to the websocket service that will direct you to your system.
+
+term is the terminal type that gets reported to the telnet server. Use PETSCII if you
+are connecting to a Commodore style board.
+
+codePage is the default codepage of the system.
+
+crtCols, crtRows are the dimensions of the a normal terminal screen. Rows may grow as upto crtHistory.
+Lines of data beyond crtHistory get appended to the bottom, and rows from the top of the terminal
+get truncated.
+
+xScale is a scaling factor for displaying the terminal.
+
+initStr contains optional ANSI codes that can be sent to the term prior to connection
+to set it into whatever modes the system operator desires.
+
+defPageAttr is a value that defines the colors of the page, bits 7-0 are the colors of the page,
+bits 15-8 is the border color (the parent container outside of the main vtxpage div). Colors
+are 0x00 - 0xFF (ANSI colors whereas color 0 = transparent).
+
+defCrsrAttr is the default cursor attributes or how the cursor will be displayed. Bits 7-0 are
+the color (0x00 - 0xFF), bit 9-8 define the style (0=none, 1=thin, 2=thick, 3=full block),
+bit 10 defines the orientation (0=horizontal, 1=vertical)
+
+defCellAttr defines the default character attributes (what CSI 0 m reverts to). Bits 7-0 are
+the foreground color, bits 15-8 are the background color. Other bits can be set as well. See
+the documention at the head of vtxclient.js on GitHub.
+
+telnet lets the client know if the server is connecting to a telnet service if set to 1. If the value
+is set to 0, no telnet handshaking negotiations will take place once a connection is made.
+
+```javascript
+var vtxdata = {
+  sysName:     "VTX Home System",
+  wsConnect:   "ws://142.105.247.156:7003",
+  term:        "ANSI",
+  codePage:    "CP437",
+  crtCols:     80,
+  crtRows:     25,
+  crtHistory:  500,
+  xScale:      1,
+  initStr:     "",
+  defPageAttr: 0xF410,
+  defCrsrAttr: 0x0207,
+  defCellAttr: 0x0007,
+  telnet:      1
+};
+```
+
 ## Roadmap
 
 Investigate ability for websocket server to accept non-'user' connections from
@@ -211,12 +306,6 @@ bdf2svg (in utils).
 
 ## To Do($) / To Fix(!) / Investigate(?)
 
-! Sprite positions appears to be off. Verify & correct.
-
-$ Telnet negotiation moved from server to client.
-
-$ Encapsulate all vtx functions / variables into vtx object.
-
 $ HTTP requests as new thread.
 
 ? WSS / certificate &| poor-mans client<->server encryption with rotating keys.
@@ -225,3 +314,4 @@ $ Redo website.
 
 ? thin version of uvga16.
 
+? ATASCII term
