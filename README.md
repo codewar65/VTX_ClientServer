@@ -198,14 +198,17 @@ to work with VTX.
 
 To run the client without using the VTX server software, all you need is a web page and access to a websocket proxy server.
 
-Files Needed:
+### Files Needed:
+
 *   vtxdata.js          (see below for customizing)
 *   vtxclient.js        (or vtxclient.min.js)
 *   vtxclient.css
 *   *.woff              (terminal fonts needed for the client. include ALL of these or the client will not boot.)
 *   *.png               (24x24px images for the UI. customize if you want to replace these.)
 *   bell.ogg            (bing! the bell sound. customize if you want to replace this.)
-    
+
+### HTML additions.
+
 In the HTML that will contain the client, in the <HEAD>, include:
 
 ```html
@@ -235,39 +238,41 @@ The CSS file can be customized a little too to help make the client fit your sty
 
 Place the two javascript files on your webserver so the HTML can get at them.
 
+### vtxdata.js
+
 The contents of the vtxdata is information the client needs to connect to your system.    
 
-sysName will be place in the <TITLE> of the page if it is missing or blank.
+**sysName** will be place in the <TITLE> of the page if it is missing or blank.
 
-wsConnect is the url:port to the websocket service that will direct you to your system.
+**wsConnect** is the url:port to the websocket service that will direct you to your system.
 
-term is the terminal type that gets reported to the telnet server. Use PETSCII if you
+**term** is the terminal type that gets reported to the telnet server. Use PETSCII if you
 are connecting to a Commodore style board.
 
-codePage is the default codepage of the system.
+**codePage** is the default codepage of the system.
 
-crtCols, crtRows are the dimensions of the a normal terminal screen. Rows may grow as upto crtHistory.
-Lines of data beyond crtHistory get appended to the bottom, and rows from the top of the terminal
+**crtCols**, **crtRows** are the dimensions of the a normal terminal screen. Rows may grow as upto **crtHistory**.
+Lines of data beyond **crtHistory** get appended to the bottom, and rows from the top of the terminal
 get truncated.
 
-xScale is a scaling factor for displaying the terminal.
+**xScale** is a scaling factor for displaying the terminal. A value of 1 is no scaling, values larger than 1 would double the size of the terminal horizontally.
 
-initStr contains optional ANSI codes that can be sent to the term prior to connection
+**initStr** contains optional ANSI codes that can be sent to the term prior to connection
 to set it into whatever modes the system operator desires.
 
-defPageAttr is a value that defines the colors of the page, bits 7-0 are the colors of the page,
+**defPageAttr** is a value that defines the colors of the page, bits 7-0 are the colors of the page,
 bits 15-8 is the border color (the parent container outside of the main vtxpage div). Colors
 are 0x00 - 0xFF (ANSI colors whereas color 0 = transparent).
 
-defCrsrAttr is the default cursor attributes or how the cursor will be displayed. Bits 7-0 are
+**defCrsrAttr** is the default cursor attributes or how the cursor will be displayed. Bits 7-0 are
 the color (0x00 - 0xFF), bit 9-8 define the style (0=none, 1=thin, 2=thick, 3=full block),
 bit 10 defines the orientation (0=horizontal, 1=vertical)
 
-defCellAttr defines the default character attributes (what CSI 0 m reverts to). Bits 7-0 are
+**defCellAttr** defines the default character attributes (what CSI 0 m reverts to). Bits 7-0 are
 the foreground color, bits 15-8 are the background color. Other bits can be set as well. See
 the documention at the head of vtxclient.js on GitHub.
 
-telnet lets the client know if the server is connecting to a telnet service if set to 1. If the value
+**telnet** lets the client know if the server is connecting to a telnet service if set to 1. If the value
 is set to 0, no telnet handshaking negotiations will take place once a connection is made.
 
 ```javascript
