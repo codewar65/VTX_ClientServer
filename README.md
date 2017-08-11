@@ -286,24 +286,6 @@ var vtxdata = {
 };
 ```
 
-## Roadmap
-
-Investigate ability for websocket server to accept non-'user' connections from
-other VTX servers for passing private network information like mail or 
-echo-style messages.
-
-Migrate away from Synape TCP libraries to low level sockets in HTTP and WS 
-servers.
-
-Migrate telnet negotiation handshaking to the client so the VTX client can be 
-used as stand alone websocket telnet client.
-
-Encapsulate vtx client functions and variables into a vtx object. (vtx = {})
-
-Softfonts - Built in bitmap font to vector font converter using method in 
-bdf2svg (in utils).
-
-
 ## To Do($) / To Fix(!) / Investigate(?)
 
 $ HTTP requests as new thread.
