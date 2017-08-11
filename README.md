@@ -196,13 +196,13 @@ to work with VTX.
 
 To run the client without using the VTX server software, all you need is a web page and access to a websocket proxy server.
 
-Files needed:
-    vtxdata.js          (see below for customizing)
-    vtxclient.js        (or vtxclient.min.js)
-    vtxclient.css
-    *.woff              (terminal fonts needed for the client. include ALL of these or the client will not boot.)
-    *.png               (24x24px images for the UI. customize if you want to replace these.)
-    bell.ogg            (bing! the bell sound. customize if you want to replace this.)
+Files Needed:
+*   vtxdata.js          (see below for customizing)
+*   vtxclient.js        (or vtxclient.min.js)
+*   vtxclient.css
+*   *.woff              (terminal fonts needed for the client. include ALL of these or the client will not boot.)
+*   *.png               (24x24px images for the UI. customize if you want to replace these.)
+*   bell.ogg            (bing! the bell sound. customize if you want to replace this.)
     
 In the HTML that will contain the client, in the <HEAD>, include:
 
