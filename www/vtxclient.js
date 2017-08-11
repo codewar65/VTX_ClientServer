@@ -286,6 +286,7 @@ const
     DO_SCRLK =          -4,
 
     // terminal states
+    TS_OFFLINE =        -1, // not connected
     TS_NORMAL =         0,  // normal terminal mode. no xfers.
     TS_YMR_START =      1,  // ymodem download started. sending G's.
     TS_YMR_GETPACKET =  2,  // ymodem download packet
@@ -1901,7 +1902,7 @@ let
     conBaud = 0,                // baud emulation speed.
     audio,                      // audio element
 
-    termState,                  // TERMSTATE_...
+    termState,                  // TS_...
 
     pageDiv = null,             // page contents div
     ctrlDiv = null,             // controls panel
@@ -2166,7 +2167,7 @@ function mouseMove(e) {
     ctrlState = e.ctrlKey;
     altState = e.altKey;
 
-    if (termState != TS_NORMAL) return;
+    if (termState > TS_NORMAL) return;
 
     // check if over a hotspot
     hs = getHotSpot(e);
@@ -2208,7 +2209,7 @@ function click(e) {
     ctrlState = e.ctrlKey;
     altState = e.altKey;
 
-    if (termState != TS_NORMAL) return;
+    if (termState > TS_NORMAL) return;
 
     hs = getHotSpot(e);
     if (hs) {
@@ -2260,7 +2261,7 @@ function keyDown(e) {
     ctrlState = e.ctrlKey;
     altState = e.altKey;
 
-    if (termState != TS_NORMAL) return;
+    if (termState > TS_NORMAL) return;
 
     stateIdx = (shiftState ? 1 : 0) + (ctrlState ? 2 : 0) + (altState ? 4 : 0);
 
@@ -3463,16 +3464,39 @@ function fitSVGToDiv(e) {
 
 // set indicators
 function setBulbs() {
-    if (!ws) return;
+    var 
+        el;
 
-    document.getElementById('osbulb').src = ((ws.readyState == 1) ? 'os1':'os0') + '.png';
+    // set the online indicator button        
+    el = document.getElementById('osbulb');
+    if (termState == TS_OFFLINE) {
+        el.src = 'os0.png';
+        el.title = 'Connect';
+    } else {
+        el.src = 'os1.png';
+        el.title = 'Disconnect';
+    }
+
+    // set the caps/num/scr lock indicators
     document.getElementById('clbulb').src = (capState ? 'cl1':'cl0') + '.png';
     document.getElementById('nlbulb').src = (numState ? 'nl1':'nl0') + '.png';
     document.getElementById('slbulb').src = (scrState ? 'sl1':'sl0') + '.png';
 
-    if (termState == TS_NORMAL){
-        document.getElementById('ulbtn').style['visibility'] = 'visible';
-        document.getElementById('dlbtn').style['visibility'] = 'visible';
+    // set the ul/dl buttons
+    if (termState == TS_NORMAL) {
+        el = document.getElementById('ulbtn');
+        el.src = 'ul1.png';
+        el.style['visibility'] = 'visible';
+        el = document.getElementById('dlbtn');
+        el.src = 'dl1.png';
+        el.style['visibility'] = 'visible';
+    } else if (termState == TS_OFFLINE) {
+        el = document.getElementById('ulbtn');
+        el.src = 'ul0.png';
+        el.style['visibility'] = 'visible';
+        el = document.getElementById('dlbtn');
+        el.src = 'dl0.png';
+        el.style['visibility'] = 'visible';
     } else {
         // buttons not visible in file transfer mode.
         document.getElementById('ulbtn').style['visibility'] = 'hidden';
@@ -3574,6 +3598,104 @@ function newCrsr() {
         o.style['background-color'] = ansiColors[c];
 }
 
+// connect / disconnect. called from connect UI element.
+function termConnect() {
+    if (termState == TS_OFFLINE) {
+        tnState = 0;
+        ws = new WebSocket(wsConnect, ['telnet']);
+        ws.binaryType = "arraybuffer";
+        ws.onmessage = function(e) {
+            // binary data in.
+            var
+                i, j, str, data;
+
+            data = new Uint8Array(e.data);
+            //dump(data,0,data.length);
+
+            // do telnet handshaking negotiations - return new data w/o IAC...'s
+            if (vtxdata.telnet == 1) 
+                data = tnNegotiate(data);
+
+            // convert data to string
+            str = '';
+            switch (codePage){
+                case 'UTF8':
+                    str = UFT8ArrayToStr(data);
+                    break;
+
+                case 'UTF16':
+                    break;
+
+                default:
+                    // straight string
+                    for (i = 0; i < data.length; i++)
+                        str += String.fromCharCode(data[i]);
+                    break;
+            }
+
+            switch (termState) {
+                case TS_NORMAL:
+                    // convert from codepage
+                    conBufferOut(str);
+                    break;
+
+                case TS_YMR_START:
+                case TS_YMR_GETPACKET:
+                    data = ymRStateMachine(data);
+                    if (data.length > 0) {
+                        // transfer ended midway. output the rest.
+                        conBufferOut(str);
+                    }
+                    break;
+
+                case TS_YMS_START:
+                case TS_YMS_PUTPACKET:
+                case TS_YMS_PUTWAIT:
+                    data = ymSStateMachine(data);
+                    if (data.length > 0) {
+                        // transfer ended midway. output the rest.
+                        conBufferOut(str);
+                    }
+                    break;
+            }
+        }
+        ws.onopen = function() {
+            if (vtxdata.telnet)
+                tnInit();
+            termState = TS_NORMAL;
+            setBulbs();
+        }
+        ws.onclose = function() {
+            conBaud = 0;
+            conBufferOut(
+                cbm
+                ?'\r\rDISCONNECTED.\r'
+                :'\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
+            document.body.style['cursor'] = 'default';
+            audio.pause();
+            pageDiv.removeChild(audio);
+            termState = TS_OFFLINE;
+            setBulbs();
+        }
+        ws.onerror = function(error) {
+            conBufferOut(
+                cbm
+                ?'\r\rERROR : ' + error.reason.toUpper() + '\r'
+                :'\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
+            setBulbs();
+        }
+    } else {
+        ws.close();
+    }
+}
+function encodeAscii(str) {
+    var i,l,strout = '';
+    l=str.length;
+    for (i=0;i<l;i++)
+        strout+=';'+str.charCodeAt(i).toString();
+    return strout.substring(1);
+}
+
 // setup the crt and cursor
 function initDisplay() {
     var
@@ -3584,6 +3706,8 @@ function initDisplay() {
         css,
         head,
         defattrs;
+
+//testArrayStuff();
 
     // find the page / text div
     pageDiv = document.getElementById('vtxpage');
@@ -3699,7 +3823,7 @@ function initDisplay() {
 
     crsrHome();
     textPos = textDiv.getBoundingClientRect();
-    termState = TS_NORMAL; // set for standard terminal mode, not in file xfer mode
+    termState = TS_OFFLINE; // set for standard terminal mode, not in file xfer mode
 
     // indicators and controls
     ctrlDiv = domElement(
@@ -3716,9 +3840,11 @@ function initDisplay() {
         'img',
         {   src:        'os0.png',
             id:         'osbulb',
+            onclick:    termConnect,
             width:      24,
             height:     24,
-            title:      'Online Status' }));
+            title:      'Connect/Disconnect' },
+        {   cursor:     'pointer'}));
 
     ctrlDiv.appendChild(domElement(
         'img',
@@ -3746,7 +3872,7 @@ function initDisplay() {
 
     ctrlDiv.appendChild(domElement(
         'img',
-        {   src:        'ul.png',
+        {   src:        'ul0.png',
             id:         'ulbtn',
             onclick:    ymSendStart,
             width:      24,
@@ -3756,7 +3882,7 @@ function initDisplay() {
 
     ctrlDiv.appendChild(domElement(
         'img',
-        {   src:        'dl.png',
+        {   src:        'dl0.png',
             id:         'dlbtn',
             onclick:    ymRecvStart,
             width:      24,
@@ -3777,89 +3903,25 @@ function initDisplay() {
             height:     '0px' });
     pageDiv.appendChild(audio);
 
-    // websocket connect
-    tnState = 0;
-    ws = new WebSocket(wsConnect, ['telnet']);
-    ws.binaryType = "arraybuffer";
-    ws.onmessage = function(e) {
-        // binary data in.
-        var
-            i, j, str, data;
-
-        data = new Uint8Array(e.data);
-        //dump(data,0,data.length);
-
-        // do telnet handshaking negotiations - return new data w/o IAC...'s
-        if (vtxdata.telnet == 1) 
-            data = tnNegotiate(data);
-
-        // convert data to string
-        str = '';
-        switch (codePage){
-            case 'UTF8':
-                str = UFT8ArrayToStr(data);
-                break;
-
-            case 'UTF16':
-                break;
-
-            default:
-                // straight string
-                for (i = 0; i < data.length; i++)
-                    str += String.fromCharCode(data[i]);
-                break;
-        }
-
-        switch (termState) {
-            case TS_NORMAL:
-                // convert from codepage
-                conBufferOut(str);
-                break;
-
-            case TS_YMR_START:
-            case TS_YMR_GETPACKET:
-                data = ymRStateMachine(data);
-                if (data.length > 0) {
-                    // transfer ended midway. output the rest.
-                    conBufferOut(str);
-                }
-                break;
-
-            case TS_YMS_START:
-            case TS_YMS_PUTPACKET:
-            case TS_YMS_PUTWAIT:
-                data = ymSStateMachine(data);
-                if (data.length > 0) {
-                    // transfer ended midway. output the rest.
-                    conBufferOut(str);
-                }
-                break;
-        }
-    }
-    ws.onopen = function() {
-        if (vtxdata.telnet)
-            tnInit();
-        setBulbs();
-    }
-    ws.onclose = function() {
-        conBaud = 0;
-        conBufferOut(
-            cbm
-            ?'\r\rDISCONNECTED.\r'
-            :'\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
-        document.body.style['cursor'] = 'default';
-        audio.pause();
-        pageDiv.removeChild(audio);
-        setBulbs();
-    }
-    ws.onerror = function(error) {
-        conBufferOut(
-            cbm
-            ?'\r\rERROR : ' + error.reason.toUpper() + '\r'
-            :'\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
-        setBulbs();
-    }
     conBufferOut(initStr);
+
+    if (vtxdata.autoConnect && (vtxdata.autoConnect > 0))
+        // websocket connect
+        termConnect()
+    else {
+        // let user know how to connect. heh-
+        if (vtxdata.term != 'PETSCII') {
+            conStrOut('\n\r\x1b#6\x1b[38;5;46;58mVTX\x1b[32;78m Terminal Client\n\r');
+            conStrOut('\x1b#6\x1b[38;5;46;59mVTX\x1b[32;79m Version 0.9 Beta\n\r');
+            conStrOut('\n\r\x1b[m2017 Dan Mecklenburg Jr.\n\r');
+            conStrOut('Visit \x1b[1;45;1;1;' 
+                + encodeAscii('https://github.com/codewar65/VTX_ClientServer') 
+                + '\\https://github.com/codewar65/VTX_ClientServer for more info.\n\r');
+            conStrOut('\n\r\x1b[38;5;46mCLICK CONNECT...\x1b[m\n\r');
+        }
+    }
+
+    setBulbs();
 
     // key events
     addListener(document, 'keydown', keyDown);
@@ -4744,7 +4806,7 @@ function sendData(data) {
     }
     
     // check code page conversions.
-    if (ws && (ws.readyState == 1)) {
+    if (ws && (ws.readyState == 1) && (termState != TS_OFFLINE)) {
         ws.send(data.buffer);
     } else {
         conBufferOut(str);
@@ -6239,7 +6301,8 @@ function conCharOut(chr) {
                     break;
 
                 case 0x6D:  // m - Character Attr
-                    if (l < 1) parm[0] = 0; // don't use fixparms. variable parameters.
+                    // don't use fixparms. variable parameters.
+                    if (l == 0) parm[l++] = 0; 
                     parm[0] = minMax(parm[0], 0, 255);
                     for (i = 0; i < l; i++) {
                         switch (parm[i]) {
@@ -6834,5 +6897,44 @@ function tnInit() {
 }
 
 addListener(window, 'load', bootVTX);
+
+// insert an typed array into an typed array
+function insertInto(thisArr, pos, insertArr) {
+    if (thisArr.constructor === insertArr.constructor) {
+        var tl = thisArr.length, 
+            il = insertArr.length;
+        if (il > 0) {
+            var newArr = new thisArr.constructor(tl + il);
+            if (pos > tl) pos = tl;
+            if (pos < 0) pos = 0;
+            newArr.set(thisArr.subarray(0, pos), 0);
+            newArr.set(insertArr, pos);
+            newArr.set(thisArr.subarray(pos), pos + il);
+            return newArr;
+        } else
+            return thisArr;
+    } else {
+        throw new Error('TypedArray mismatch in insertInto().');
+        die();
+    }
+}
+
+// insert an typed array into an typed array
+function deleteFrom(thisArr, start, end) {
+    if (end > start) {
+        var tl = thisArr.length, 
+        end = end || tl;
+        var len = end - start,
+            newArr;
+        if (end > tl) end = tl;
+        newArr = new thisArr.constructor(tl - len);
+        newArr.set(thisArr.subarray(0, start), 0);
+        newArr.set(thisArr.subarray(end), start);
+        return newArr;
+    } else {
+        throw new Error('End is before start in deleteFrom().');
+        die();
+    }
+}
 
 };
