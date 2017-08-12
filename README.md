@@ -114,7 +114,7 @@ Keys mapped to:
 * Return      = End Line
 * SHIFT DEL   = Delete row
 * SHIFT INS   = Insert Row
-* CTRL G      = Bell
+* CTRL 2      = Bell
 * DEL         = Delete
 * INS         = Insert
 
@@ -319,10 +319,8 @@ var vtxdata = {
 
 $ HTTP requests as new thread.
 
-? WSS / certificate &| poor-mans client<->server encryption with rotating keys.
+? WSS / certificate support in server.
 
 $ Redo website.
 
 ? thin version of uvga16.
-
-? ATASCII term

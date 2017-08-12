@@ -542,4 +542,4 @@ x    0x9B : Return
     0x9F : Set Tabstop (SHIFT + Tab)
     0xFD : Bell (CTRL + 2)
 x    0xFE : Delete (CTRL + Backspace)
-    0xFF : Insert (CTRL + >)
+x    0xFF : Insert (CTRL + >)

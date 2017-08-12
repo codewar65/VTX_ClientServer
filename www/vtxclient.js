@@ -1733,8 +1733,9 @@ const
                 // black
                 return cbm?0x90:0; },
         50: function(){         // 2
-                // white
-                return cbm?0x05:0; },
+                if (cbm)            return 0x05     // white
+                else if (atari)     return 0xFD     // bell
+                else                return 0; },
         51: function(){         // 3
                 // red
                 return cbm?0x1C:0; },
