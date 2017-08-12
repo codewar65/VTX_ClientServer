@@ -227,7 +227,7 @@ To run the client without using the VTX server software, all you need is a web p
 *   vtxclient.css
 *   *.woff              (terminal fonts needed for the client. include ALL of these or the client will not boot.)
 *   *.png               (24x24px images for the UI. customize if you want to replace these.)
-*   bell.ogg            (bing! the bell sound. customize if you want to replace this.)
+*   bell.mp3            (bing! the bell sound. customize if you want to replace this.)
 
 ### HTML additions.
 
