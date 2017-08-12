@@ -1630,7 +1630,9 @@ const
                 return cbm?0x8E:0; },
         36: function(){         // home
                 // clr cbm
-                return cbm?0x93:0; },
+                if (cbm)            return 0x93
+                else if (atari)     return 0x7D
+                else                return 0; },
 
         45: function (){        // insert
                 if (atari)              return 0x9D // insert row

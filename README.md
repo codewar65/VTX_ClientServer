@@ -66,9 +66,7 @@ volume, play, stop.
 
 ## PETSCII Mode
 
-VIC 20, Commodore 64 or 128 font support.
-
-All PETSCII controls are emulated.
+VIC 20, Commodore 64 or 128 font support. All PETSCII controls are emulated. Color palette depends on CodePage.
 
 Keys mapped to:
 * Backspace   = BACK/DEL
@@ -99,6 +97,26 @@ Keys mapped to:
 * Alt 8       = Lt Gray
 * F1-F8       = F1-F8
 * Tab         = Toggle Text / Graphics
+
+
+## ATASCII Mode
+
+ATARI 8bit font support. All ATASCII controls are emulated. Only two color support (0/1).
+
+Keys mapped to:
+* ESC         = Escape
+* Arrows      = Cursor move
+* Shift HOME  = Clear Screen 
+* Backspace   = Backspace
+* Tab         = Tab
+* SHIFT Tab   = Set Tabstop
+* CTRL Tab    = Clear Tabstop
+* Return      = End Line
+* SHIFT DEL   = Delete row
+* SHIFT INS   = Insert Row
+* CTRL G      = Bell
+* DEL         = Delete
+* INS         = Insert
 
 
 ## Compiling
@@ -138,9 +156,11 @@ WSPort : The websocket port number.
 
 NodeType : 'ExtProc' or 'Telnet'
 
+Terminal : Terminal type. PETSCII, ATASCII or other..
+
 CodePage: The codepage that is running on the node process telnet service. 
 Currently supported Code Pages:
-ARMSCII_8, ATASCII, C128, C64, CP437, CP667, CP668, CP737, CP770, CP771, CP772, 
+ARMSCII_8, ATARI, C128, C64, CP437, CP667, CP668, CP737, CP770, CP771, CP772, 
 CP773, CP774, CP775, CP790, CP808, CP813, CP819, CP850, CP851, CP852, CP853, 
 CP855, CP857, CP858, CP859, CP860, CP861, CP863, CP865, CP866, CP867, CP869, 
 CP872, CP878, CP895, CP900, CP912, CP915, CP920, CP991, CP1117, CP1118, CP1119, 
@@ -161,6 +181,8 @@ TelnetPort : The port number the telnet server is running on.
 
 MaxConnections : maximum number of websocket connections allowed to operate at
 the same time.
+
+AutoConnect : 0 = don't autoconnect on lauch, 1 = connect on launch.
 
 
 ## Running VTXServ
