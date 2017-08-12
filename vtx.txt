@@ -118,6 +118,10 @@ Sequences (# : to be implemented)
             40 - Topaz Plus (Amiga)      
             41 - MicroKnight (Amiga)
             42 - Topaz (Amiga)      
+            100 - TI-99/4
+#           101 - Teletext
+#           102 - TRS-80 Model I
+#           103 - TRS-80 Model III
 
     CSI n 'D' : Cursor Backwards (CUB). Move cursor n columns left. Stops at left of page. {1}
 
