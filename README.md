@@ -268,7 +268,7 @@ The contents of the vtxdata is information the client needs to connect to your s
 
 **sysName** will be place in the <TITLE> of the page if it is missing or blank.
 
-**wsConnect** is the url:port to the websocket service that will direct you to your system.
+**wsConnect** is the [ws/wss]://url:port to the websocket service that will direct you to your system.
 
 **term** is the terminal type that gets reported to the telnet server. Use PETSCII if you
 are connecting to a Commodore style board.
@@ -299,6 +299,8 @@ the documention at the head of vtxclient.js on GitHub.
 **telnet** lets the client know if the server is connecting to a telnet service if set to 1. If the value
 is set to 0, no telnet handshaking negotiations will take place once a connection is made.
 
+**autoConnect** 0 = don't autoconnect on launch, 1 = autoconnect.
+
 ```javascript
 var vtxdata = {
   sysName:     "VTX Home System",
@@ -313,7 +315,8 @@ var vtxdata = {
   defPageAttr: 0xF410,
   defCrsrAttr: 0x0207,
   defCellAttr: 0x0007,
-  telnet:      1
+  telnet:      1,
+  autoConnect: 0
 };
 ```
 
