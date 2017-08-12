@@ -1576,7 +1576,7 @@ const
                 else                    return CSI+'18~'; },
        119: function(){         // f8
                 if (cbm)                return 0x8C
-                else if (modeDOORWAY)   '\x00\x42'
+                else if (modeDOORWAY)   return '\x00\x42'
                 else                    return CSI+'19~'; },
        120: function(){         // f9
                 if (modeDOORWAY)        return '\x00\x43'
@@ -4129,14 +4129,32 @@ function initDisplay() {
         termConnect()
     else {
         // let user know how to connect. heh-
-        if (vtxdata.term != 'PETSCII') {
-            conStrOut('\n\r\x1b#6\x1b[38;5;46;58mVTX\x1b[32;78m Terminal Client\n\r');
-            conStrOut('\x1b#6\x1b[38;5;46;59mVTX\x1b[32;79m Version 0.9 Beta\n\r');
-            conStrOut('\n\r\x1b[m2017 Dan Mecklenburg Jr.\n\r');
-            conStrOut('Visit \x1b[1;45;1;1;' 
-                + encodeAscii('https://github.com/codewar65/VTX_ClientServer') 
-                + '\\https://github.com/codewar65/VTX_ClientServer for more info.\n\r');
-            conStrOut('\n\r\x1b[38;5;46mCLICK CONNECT...\x1b[m\n\r');
+        switch (vtxdata.term) {
+            case 'PETSCII':
+                conStrOut('\x0Evtx tERMINAL cLIENT\r');
+                conStrOut('vERSION 0.9\r');
+                conStrOut('2017 dAN mECKLENBURG jR.\r');
+                conStrOut('GITHUB.COM/CODEWAR65/vtx\xA4cLIENTsERVER\r');
+                conStrOut('\rcLICK cONNECT...\r');
+                break;
+                
+            case 'ATASCII':
+                conStrOut('VTX Terminal Client\x9B');
+                conStrOut('Version 0.9\x9B');
+                conStrOut('2017 Dan Mecklenburg Jr.\x9B');
+                conStrOut('github.com/codewar65/VTX_ClientServer\x9B');
+                conStrOut('\x9BClick Connect...\x9B');
+                break;
+                
+            default:
+                conStrOut('\n\r\x1b#6\x1b[38;5;46;58mVTX\x1b[32;78m Terminal Client\n\r');
+                conStrOut('\x1b#6\x1b[38;5;46;59mVTX\x1b[32;79m Version 0.9 Beta\n\r');
+                conStrOut('\n\r\x1b[m2017 Dan Mecklenburg Jr.\n\r');
+                conStrOut('Visit \x1b[1;45;1;1;' 
+                    + encodeAscii('https://github.com/codewar65/VTX_ClientServer') 
+                    + '\\https://github.com/codewar65/VTX_ClientServer for more info.\n\r');
+                conStrOut('\n\r\x1b[38;5;46mCLICK CONNECT...\x1b[m\n\r');
+                break;
         }
     }
 
