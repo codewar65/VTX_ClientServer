@@ -30,21 +30,14 @@
 
     TODO : ( see also TODO in code)
 
+        On Demand Fonts - allow normal font select, but onload of new font,
+            force redraw cells with the new font.
+    
         Client Ident - fix - currently crashing / not working all time.
 
         Codes for restore cursor attr, restore page attr
 
-        Add Audio Object
-
-        Audio and Sprite codes simalar layout
-
-        Telnet negotiations moved to client
-
         ATASCII
-
-        Encapsulate client code into vtx = { } object
-
-        Test all codes.
 
         Server: http requests out to separate threads
 
@@ -1396,7 +1389,24 @@ const
             0xE0E0, 0xE0E1, 0xE0E2, 0xE0E3, 0xE0E4, 0xE0E5, 0xE0E6, 0xE0E7,
             0xE0E8, 0xE0E9, 0xE0EA, 0xE0EB, 0xE0EC, 0xE0ED, 0xE0EE, 0xE0EF,
             0xE0F0, 0xE0F1, 0xE0F2, 0xE0F3, 0xE0F4, 0xE0F5, 0xE0F6, 0xE0F7,
-            0xE0F8, 0xE0F9, 0xE0FA, 0xE0FB, 0xE0FC, 0xE0FD, 0xE0FE, 0xE0FF])
+            0xE0F8, 0xE0F9, 0xE0FA, 0xE0FB, 0xE0FC, 0xE0FD, 0xE0FE, 0xE0FF]),
+        RAWHI: new Uint16Array([   // for RAW converted fonts - mapped to ASCII
+            0x0080, 0x0081, 0x0082, 0x0083, 0x0084, 0x0085, 0x0086, 0x0087,
+            0x0088, 0x0089, 0x008A, 0x008B, 0x008C, 0x008D, 0x008E, 0x008F,
+            0x0090, 0x0091, 0x0092, 0x0093, 0x0094, 0x0095, 0x0096, 0x0097,
+            0x0098, 0x0099, 0x009A, 0x009B, 0x009C, 0x009D, 0x009E, 0x009F,
+            0x00A0, 0x00A1, 0x00A2, 0x00A3, 0x00A4, 0x00A5, 0x00A6, 0x00A7,
+            0x00A8, 0x00A9, 0x00AA, 0x00AB, 0x00AC, 0x00AD, 0x00AE, 0x00AF,
+            0x00B0, 0x00B1, 0x00B2, 0x00B3, 0x00B4, 0x00B5, 0x00B6, 0x00B7,
+            0x00B8, 0x00B9, 0x00BA, 0x00BB, 0x00BC, 0x00BD, 0x00BE, 0x00BF,
+            0x00C0, 0x00C1, 0x00C2, 0x00C3, 0x00C4, 0x00C5, 0x00C6, 0x00C7,
+            0x00C8, 0x00C9, 0x00CA, 0x00CB, 0x00CC, 0x00CD, 0x00CE, 0x00CF,
+            0x00D0, 0x00D1, 0x00D2, 0x00D3, 0x00D4, 0x00D5, 0x00D6, 0x00D7,
+            0x00D8, 0x00D9, 0x00DA, 0x00DB, 0x00DC, 0x00DD, 0x00DE, 0x00DF,
+            0x00E0, 0x00E1, 0x00E2, 0x00E3, 0x00E4, 0x00E5, 0x00E6, 0x00E7,
+            0x00E8, 0x00E9, 0x00EA, 0x00EB, 0x00EC, 0x00ED, 0x00EE, 0x00EF,
+            0x00F0, 0x00F1, 0x00F2, 0x00F3, 0x00F4, 0x00F5, 0x00F6, 0x00F7,
+            0x00F8, 0x00F9, 0x00FA, 0x00FB, 0x00FC, 0x00FD, 0x00FE, 0x00FF])
     },
 
     // http://invisible-island.net/xterm/xterm-function-keys.html
@@ -1790,13 +1800,13 @@ const
         keysS0C0A0, keysS1C0A0, keysS0C1A0, keysS1C1A0,
         keysS0C0A1, keysS1C0A1, keysS0C1A1, keysS1C1A1 ],
 
-    // vtx system fonts loaded in boot up.
-    bootFonts = [
+    // all available to vtx client
+    vtxFonts = [
         'UVGA16', 'MICROKNIGHT', 'MICROKNIGHTPLUS',
         'MOSOUL', 'P0TNOODLE', 'TOPAZ', 'TOPAZPLUS',
         'VIC200', 'VIC201', 'C640', 'C641', 'C1280',
-        'C1281', 'ATARI' ],
-
+        'C1281', 'ATARI', 'TI994' ],
+        
     // telnet commands
     TN_IS           = 0x00,
     TN_SEND         = 0x01,
@@ -1869,6 +1879,9 @@ let
 
     fontName,                   // font used
     fontSize,                   // font size to use
+    vtxFontsLoaded,             // bools of loaded vtxFonts
+
+    
     rowSize,                    // character size
     colSize,                    // cell width in pixels
     crtWidth,                   // crt width in pixels
@@ -2007,21 +2020,54 @@ function domElement(type, options, styles, txt) {
 // load fonts and boot
 function bootVTX() {
     var
-        i, l, str,
+        i, j, l, str,
         el,
         t = document.getElementsByTagName('title')[0],
         hd = document.getElementsByTagName('head')[0],
+        bootFonts,
         testDiv;
 
     // load fonts
+    // set fonts to be loaded based on term
+    vtxFontsLoaded = new Array(vtxFonts.length);
+    vtxFontsLoaded.fill(false);
+    bootFonts = [];
+    if (vtxdata.term == 'PETSCII') {
+        switch (vtxdata.codePage) {
+            case 'VIC20':
+                bootFonts.push('VIC200');
+                bootFonts.push('VIC201');
+                break;
+                
+            case 'C64':
+                bootFonts.push('VIC200');
+                bootFonts.push('VIC201');
+                break;
+                
+            case 'C128':
+                bootFonts.push('VIC200');
+                bootFonts.push('VIC201');
+                break;
+                
+            default:
+                bootFonts.push('UVGA16');
+                break;
+        }
+    } else {
+        bootFonts.push('UVGA16');
+    }
+    
     // inject @font-faces
     str = '';
-    for (i = 0, l = bootFonts.length; i < l; i++) {
+    for (i = 0, l = bootFonts.length; i < l; i++) 
         str += '@font-face {\r\n '
             + '  font-family: "' + bootFonts[i] + '"; '
             + '  src: url("' + bootFonts[i] + '.woff") format("woff"); }\r\n';
-    }
-    el = domElement('style', { type: 'text/css' }, {}, str );
+    el = domElement(
+        'style', 
+        {   type:   'text/css',
+            id:     'vtxfonts'
+        }, {}, str );
     hd.appendChild(el);
 
     // loop through until ALL fonts have been loaded.
@@ -2045,8 +2091,15 @@ function bootVTX() {
                 count = bootFonts.length;
 
             for (i = bootFonts.length - 1; i >= 0; i--)
-                if (bootDiv[i].offsetWidth > 12)
+                if (bootDiv[i].offsetWidth > 12) {
+                    // mark as font loaded.
+                    for (j = 0; j < vtxFonts.length; j++)
+                        if (vtxFonts[j] == bootFonts[i]) {
+                            vtxFontsLoaded[j] = true;
+                            break;
+                        }
                     count--;
+                }
 
             if (count == 0) {
                 for (i = bootFonts.length - 1; i >= 0; i--)
@@ -2055,6 +2108,76 @@ function bootVTX() {
                 bootVTX2();
             }
         }, 50);
+}
+
+function loadSingleFont(fname){
+    var 
+        fn,
+        el,
+        str,
+        hd = document.getElementsByTagName('head')[0],
+        fontTimer,
+        testDiv;
+        
+    // return if it's already loaded.
+    fn = vtxFonts.indexOf(fname);
+    if ((fn >= 0) && !vtxFontsLoaded[fn]) {
+        // inject new @font-faces
+        str = '@font-face {\r\n '
+            + '  font-family: "' + fname + '"; '
+            + '  src: url("' + fname + '.woff") format("woff"); }\r\n';
+            
+            
+        el = document.getElementById('vtxfonts');
+        if (el)
+            el.innerHTML += str
+        else
+            el = domElement('style', { type: 'text/css' }, {}, str );
+        hd.appendChild(el);
+
+        testDiv = domElement('div',{},
+                    {   fontFamily:         fname + ', AdobeBlank',
+                        fontSize:           '24px',
+                        fontWeight:         'normal',
+                        color:              'transparent',
+                        display:            'inline-block',
+                        border:             '0px',
+                        padding:            '0px',
+                        margin:             '0px' },
+                    'Test 1..2..3..');
+        document.body.appendChild(testDiv);
+
+        fontTimer = setInterval(
+            function(){
+                if (testDiv.offsetWidth > 12) {
+                    // mark as font loaded.
+                    vtxFontsLoaded[fn] = true;
+                    document.body.removeChild(testDiv);
+                    clearInterval(fontTimer);
+                
+                    // redraw everything using this fomt.
+                    redrawFont(fname);
+                }
+            }, 50);
+    }
+}
+
+function redrawFont(fname) {
+    var
+        fn,
+        tfn,
+        r, c;
+
+    // convert fname to font number
+    fn = conFont.indexOf(fname);
+    if (fn >= 0) {
+        for (r = conRowAttr.length-1; r >= 0; r--)
+            for (c = conCellAttr[r].length - 1; c >= 0; c--) {
+                tfn = (conCellAttr[r][c] & A_CELL_FONT_MASK) >>> 28;
+                if (tfn == fn) 
+                    renderCell(r, c);
+            }
+    }
 }
 
 function bootVTX2() {
@@ -3672,8 +3795,10 @@ function termConnect() {
                 ?'\r\rDISCONNECTED.\r'
                 :'\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
             document.body.style['cursor'] = 'default';
-            audio.pause();
-            pageDiv.removeChild(audio);
+            if (audio) {
+                audio.pause();
+                pageDiv.removeChild(audio);
+            }
             termState = TS_OFFLINE;
             setBulbs();
         }
@@ -5241,13 +5366,18 @@ function conCharOut(chr) {
                     crsrrender = true;
                     break;
 
-//                case _DEL:   // delete
-//                    expandToRow(crsrRow);
-//                    expandToCol(crsrRow, crsrCol);
-//                    delChar(crsrRow, crsrCol);
-//                    redrawRow(crsrRow);
-//                    crsrrender = true;
-//                    break;
+                case _DEL:   // delete (not on font 10 or 11)
+                    if (conFontNum < 10) {
+                        expandToRow(crsrRow);
+                        expandToCol(crsrRow, crsrCol);
+                        delChar(crsrRow, crsrCol);
+                        redrawRow(crsrRow);
+                        crsrrender = true;
+                    } else {
+                        conPrintChar(chr);
+                        crsrrender = true;
+                    }
+                    break;
 
                 default:
                     switch (ansiState) {
@@ -5634,7 +5764,15 @@ function conCharOut(chr) {
                                 conFont[parm[0]] = 'TOPAZ';
                                 conFontCP[parm[0]] = 'RAW';
                                 break;
+                                
+                            case 100: // TI994 (TI-99/4)
+                                conFont[parm[0]] = 'TI994';
+                                conFontCP[parm[0]] = 'RAWHI';
+                                break;
                         }
+                        // load it if it's needed.
+                        loadSingleFont(conFont[parm[0]]);
+                        
                     } else {
                         // move backwards
                         parm = fixParams(parm, [1]);

@@ -21,6 +21,7 @@ rem bdf2svg -c -d -f 1 -r superpet.bin -o superpet_1.svg
 rem bdf2svg -c -d -f 0 -r pet-1.bin    -o pet-1.svg
 rem bdf2svg -i atari.bdf               -o ATARI.svg
 bdf2svg -a -d -f 0 -r atari.bin    -o ATARI.svg
+bdf2svg -i ti994.bdf               -o TI994.svg
 
 REM - convert to WOFF
 echo Open($1) > conv.pe
@@ -46,6 +47,7 @@ rem "c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe s
 rem "c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe superpet_1.svg
 rem "c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe pet-1.svg
 "c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe ATARI.svg
+"c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe TI994.svg
 
 del *.svg
 del conv.pe

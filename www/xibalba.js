@@ -11,5 +11,6 @@ var vtxdata = {
   defPageAttr: 0x1010,
   defCrsrAttr: 0x0207,
   defCellAttr: 0x0007,
-  telnet:      1
+  telnet:      1,
+  autoConnect: 0
 };
