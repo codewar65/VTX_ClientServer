@@ -63,13 +63,14 @@
         b : border color
         B : background color
 
-
     ROWATTR - numbers stored in conRowAttr[num]
 
         00000000 00101100 00000000 00000000 - default
    
         00000000 00000000 00000000 00000000  - bits
         ------DD mwwzzzbb ssssssss ffffffff
+        00000000 00101100 00000000 00000000
+           00       2C       00       00
 
         f : First Color (0-255)
         s : Second Color (0-255)
@@ -197,7 +198,7 @@ const
         '#BCBCBC', '#C6C6C6', '#D0D0D0', '#DADADA', '#E4E4E4', '#EEEEEE'
     ],
 
-    // commodore colors
+    // commodore colors.
     vic20Colors = [ // vic-20 in 22 column mode
         '#000000', '#FFFFFF', '#782922', '#87D6DD', '#AA5FB6', '#55A049',
         '#40318D', '#BFCE72', '#AA7449', '#EAB489', '#B86962', '#C7FFFF',
@@ -212,6 +213,11 @@ const
         '#000000', '#303030', '#EA311B', '#FC601C', '#36C137', '#77EC7C',
         '#1C49D9', '#4487EF', '#BBC238', '#E9F491', '#D974DA', '#EECFED',
         '#68C8C2', '#B2F0EC', '#BECEBC', '#FFFFFF', '#000000' // fake black
+    ],
+
+    // atari tty colors.
+    atariColors = [
+        '#0141A3', '#64ACFF'
     ],
     
     hex =   '0123456789ABCDEF',
@@ -1415,49 +1421,75 @@ const
 
         0:  0,                  // windows - ie
         8:  function (){        // backspace
-                return cbm?0x14:0x08; },
+                if (cbm)                return 0x14
+                else if (atari)         return 0x7E
+                else                    return _BS; },
         9:  function (){        // tab
                 if (cbm) {
                     // toggle text / gfx modes
                     conFontNum ^= 0x1;
                     renderAll();
                     return 0;
-                } else
-                    return 0x09; },
+                } else if (atari)       return 0x7F
+                else                    return 0x09; },
         12: 0,                  // clear (numpad5 numlk off)
-        13: CR,                 // enter
+        13: function () {       // enter
+                if (atari)              return 0x9B
+                else                    return _CR;
+            },
         16: 0,                  // shift
         17: 0,                  // ctrl
         18: 0,                  // alt
-//        19: 0,                  // pause/break
-        19: '\x1B[',            // (CSI shortcut)
-
+        19: 0,                  // pause/break
         20: DO_CAPLK,           // caps lock
         27: function () {       // esc
-                // run/stop cbm
-                return cbm?0x03:_ESC; }, // 0x1B; },
+                if (cbm)                return 0x03 // run/stop 
+                else                    return _ESC; },
         32: ' ',                // spacebar
         33: function(){         // pgup
-                return modeDOORWAY?'\x00\x49':CSI+'V'; },
+                if (modeDOORWAY)        return '\x00\x49'
+                else                    return CSI+'V'; },
         34: function(){         // pgdn
-                return modeDOORWAY?'\x00\x51':CSI+'U'; },
+                if (modeDOORWAY)        return '\x00\x51'
+                else                    return CSI+'U'; },
         35: function(){         // end
-                // text in cbm
-                return modeDOORWAY?'\x00\x4F':(cbm?0x0E:CSI+'K'); },
+                // text mode in cbm
+                if (cbm)                return 0x0E
+                else if (modeDOORWAY)   return '\x00\x4F'
+                else                    return CSI+'K'; },
         36: function () {       // home
-                return modeDOORWAY?'\x00\x47':(cbm?0x13:CSI+'H'); },
+                if (cbm)                return 0x13
+                else if (modeDOORWAY)   return '\x00\x47'
+                else                    return CSI+'H'; },
         37: function () {       // left arrow
-                return modeDOORWAY?'\x00\x4B':(cbm?0x9D:CSI+'D'); },
+                if (cbm)                return 0x9D
+                else if (atari)         return 0x1E
+                else if (modeDOORWAY)   return '\x00\x4B'
+                else                    return CSI+'D'; },
         38: function () {       // up arrow
-                return modeDOORWAY?'\x00\x48':(cbm?0x91:CSI+'A'); },
+                if (cbm)                return 0x91
+                else if (atari)         return 0x1C
+                else if (modeDOORWAY)   return '\x00\x48'
+                else                    return CSI+'A'; },
         39: function () {       // right arrow
-                return modeDOORWAY?'\x00\x4D':(cbm?0x1D:CSI+'C'); },
+                if (cbm)                return 0x1D
+                else if (atari)         return 0x1F
+                else if (modeDOORWAY)   return '\x00\x4D'
+                else                    return CSI+'C'; },
         40: function () {       // down arrow
-                return modeDOORWAY?'\x00\x50':(cbm?0x11:CSI+'B'); },
+                if (cbm)                return 0x11
+                else if (atari)         return 0x1D
+                else if (modeDOORWAY)   return '\x00\x50'
+                else                    return CSI+'B'; },
         45: function (){        // insert
-                return modeDOORWAY?'\x00\x52':(cbm?0x94:CSI+'@'); },
+                if (cbm)                return 0x94
+                else if (atari)         return 0xFF
+                else if (modeDOORWAY)   return '\x00\x52'
+                else                    return CSI+'@'; },
         46: function (){        // delete
-                return cbm?0x14:0x7f; },
+                if (cbm)                return 0x14
+                else if (atari)         return 0xFE
+                else                    return 0x7f; },
         48: '0',                // 0
         49: '1',                // 1
         50: '2',                // 2
@@ -1515,25 +1547,43 @@ const
        110: '.',                // decimal
        111: '/',                // divide
        112: function(){         // f1
-                return modeDOORWAY?'\x00\x3B':(cbm?0x85:ESC+'OP'); },
+                if (cbm)                return 0x85 
+                else if (modeDOORWAY)   return '\x00\x3B'
+                else                    return ESC+'OP'; },
        113: function(){         // f2
-                return modeDOORWAY?'\x00\x3C':(cbm?0x89:ESC+'OQ'); },
+                if (cbm)                return 0x89
+                else if (modeDOORWAY)   return '\x00\x3C'
+                else                    return ESC+'OQ'; },
        114: function(){         // f3
-                return modeDOORWAY?'\x00\x3D':(cbm?0x86:ESC+'OR'); },
+                if (cbm)                return 0x86
+                else if (modeDOORWAY)   return '\x00\x3D'
+                else                    return ESC+'OR'; },
        115: function(){         // f4
-                return modeDOORWAY?'\x00\x3E':(cbm?0x8A:ESC+'OS'); },
+                if (cbm)                return 0x8A
+                else if (modeDOORWAY)   return '\x00\x3E'
+                else                    return ESC+'OS'; },
        116: function(){         // f5 - browser refresh
-                return modeDOORWAY?'\x00\x3F':(cbm?0x87:ESC+'Ot'); },
+                if (cbm)                return 0x87
+                else if (modeDOORWAY)   return '\x00\x3F'
+                else                    return ESC+'Ot'; },
        117: function(){         // f6
-                return modeDOORWAY?'\x00\x40':(cbm?0x8B:CSI+'17~'); },
+                if (cbm)                return 0x8B
+                else if (modeDOORWAY)   return '\x00\x40'
+                else                    return CSI+'17~'; },
        118: function(){         // f7
-                return modeDOORWAY?'\x00\x41':(cbm?0x88:CSI+'18~'); },
+                if (cbm)                return 0x88
+                else if (modeDOORWAY)   return '\x00\x41'
+                else                    return CSI+'18~'; },
        119: function(){         // f8
-                return modeDOORWAY?'\x00\x42':(cbm?0x8C:CSI+'19~'); },
+                if (cbm)                return 0x8C
+                else if (modeDOORWAY)   '\x00\x42'
+                else                    return CSI+'19~'; },
        120: function(){         // f9
-                return modeDOORWAY?'\x00\x43':CSI+'20~'; },
+                if (modeDOORWAY)        return '\x00\x43'
+                else                    return CSI+'20~'; },
        121: function(){         // f10
-                return modeDOORWAY?'\x00\x44':CSI+'21~'; },
+                if (modeDOORWAY)        return '\x00\x44'
+                else                    return CSI+'21~'; },
        122: CSI+'23~',          // f11 - browser full screen
        123: CSI+'24~',          // f12
 
@@ -1568,16 +1618,26 @@ const
     keysS1C0A0 = {  // SHIFTed keys.
 
          9: function(){         // tab
-                return modeDOORWAY?'\x00\x0F':0; },
+                if (atari)              return 0x9F     // set tabstop
+                else if (modeDOORWAY)   return '\x00\x0F'
+                else                    return 0; },
         13: function(){         // enter
                 return cbm?0x8d:0; },
         32: '\xa0',             // spacebar
+        
         35: function(){         // end
                 // graphics cbm
                 return cbm?0x8E:0; },
         36: function(){         // home
                 // clr cbm
                 return cbm?0x93:0; },
+
+        45: function (){        // insert
+                if (atari)              return 0x9D // insert row
+                else                    return 0;; },
+        46: function (){        // delete
+                if (atari)              return 0x9C // delete row
+                else                    return 0; },
         48: ')',                // 0
         49: '!',                // 1
         50: '@',                // 2
@@ -1649,6 +1709,9 @@ const
        222: '"'                 // '
     },
     keysS0C1A0 = {  // CTRLed keys.
+         9: function(){         // tab
+                if (atari)              return 0x9E // clear tabstop
+                else                    return 0; },
         33: function(){         // pgup
                 return modeDOORWAY?'\x00\x84':0; },
         34: function(){         // pgdn
@@ -1865,6 +1928,7 @@ let
     xScale = vtxdata.xScale,     
     term = vtxdata.term,         
     cbm = (vtxdata.term == 'PETSCII'),
+    atari = (vtxdata.term == 'ATASCII'),
     initStr = vtxdata.initStr,   
 
     cbmColors,                      // the correct color palette for a PETSCII
@@ -1908,7 +1972,7 @@ let
     defPageAttr,                // default page
     defCrsrAttr,                // default crsr
     defCellAttr,                // default cell attributes.
-    defRowAttr = 0x02c00,       // def row attr
+    defRowAttr = 0x002c0000,    // def row attr
     lastChar,                   // last printable character outputed.
     lastHotSpot = null,         // last mouseover hotspot
     hotspotAttr = 0x0C0F040B,   // hotspot colors
@@ -1956,7 +2020,8 @@ let
     conHotSpots = [],           // clickable hotspots
     spriteDefs = [],            // sprite definitions - contains url / or data url
     audioDefs = [],             // audio definitions - type 0 coded. 1,2 TODO
-
+    conTabStop = [],            // programmable horizontal tab stops. (used in ATASCII for now)
+    
     // array 0..15 (0-9:ANSI selectable,10/11:special,12-15:reserved)
     conFont = [],               // the 10 fonts used for CSI 10-19 m
     conFontCP = [],             // associated code page for font.
@@ -1964,11 +2029,9 @@ let
 
     ovl = {},                   // overlay dialog stuff for file transfers
 
+    // keyboard meta key states
     shiftState, ctrlState, altState,
     numState, capState, scrState,
-
-    bootTimer,
-    bootDiv = [],
 
     tnState,        // telnet read state (IAC cmds)
     tnCmd,          // current telnet command
@@ -2025,6 +2088,8 @@ function bootVTX() {
         t = document.getElementsByTagName('title')[0],
         hd = document.getElementsByTagName('head')[0],
         bootFonts,
+        bootTimer,
+        bootDiv = [],
         testDiv;
 
     // load fonts
@@ -2032,29 +2097,35 @@ function bootVTX() {
     vtxFontsLoaded = new Array(vtxFonts.length);
     vtxFontsLoaded.fill(false);
     bootFonts = [];
-    if (vtxdata.term == 'PETSCII') {
-        switch (vtxdata.codePage) {
-            case 'VIC20':
-                bootFonts.push('VIC200');
-                bootFonts.push('VIC201');
-                break;
+    switch (vtxdata.term) {
+        case 'PETSCII':
+            switch (vtxdata.codePage) {
+                case 'VIC20':
+                    bootFonts.push('VIC200');
+                    bootFonts.push('VIC201');
+                    break;
                 
-            case 'C64':
-                bootFonts.push('VIC200');
-                bootFonts.push('VIC201');
-                break;
                 
-            case 'C128':
-                bootFonts.push('VIC200');
-                bootFonts.push('VIC201');
-                break;
+                case 'C128':
+                    bootFonts.push('C1280');
+                    bootFonts.push('C1281');
+                    break;
                 
-            default:
-                bootFonts.push('UVGA16');
-                break;
-        }
-    } else {
-        bootFonts.push('UVGA16');
+                case 'C64':
+                default:
+                    bootFonts.push('C640');
+                    bootFonts.push('C641');
+                    break;
+            }
+            break;
+        
+        case 'ATASCII':
+            bootFonts.push('ATARI');
+            break;
+            
+        default:
+            bootFonts.push('UVGA16');
+            break;
     }
     
     // inject @font-faces
@@ -2070,7 +2141,7 @@ function bootVTX() {
         }, {}, str );
     hd.appendChild(el);
 
-    // loop through until ALL fonts have been loaded.
+    // loop through until all fonts needed at boot.
     for (i = 0, l = bootFonts.length; i < l; i++) {
         bootDiv[i] = domElement('div',{},
                     {   fontFamily:         bootFonts[i] + ', AdobeBlank',
@@ -2162,6 +2233,7 @@ function loadSingleFont(fname){
     }
 }
 
+// global redraw a font change based on font name (i.e. VIC200, etc)
 function redrawFont(fname) {
     var
         fn,
@@ -2804,7 +2876,12 @@ function doCursor() {
         crsr.firstChild.style['background-color'] =
             ((crsrBlink = !crsrBlink) || (!modeCursor)) ?
             'transparent' :
-            cbmColors[cellAttr & 0xFF]
+            cbmColors[cellAttr & 0xF]
+    else if(atari)
+        crsr.firstChild.style['background-color'] =
+            ((crsrBlink = !crsrBlink) || (!modeCursor)) ?
+            'transparent' :
+            atariColors[cellAttr & 0x1]
     else
         crsr.firstChild.style['background-color'] =
             ((crsrBlink = !crsrBlink) || (!modeCursor)) ?
@@ -3281,7 +3358,7 @@ function renderCell(rownum, colnum, hilight, bottom) {
     }
 
     // adjust fg color if in BBS ANSI and turn off bold.
-    if (!modeVTXANSI) {
+    if (!cbm && !atari && !modeVTXANSI) {
         if (tbold && (tfg < 8)) {
             tfg += 8;
         }
@@ -3309,10 +3386,12 @@ function renderCell(rownum, colnum, hilight, bottom) {
     }
 
     // fix transparents
-    if (tfg == 0) 
-        tfg = 16;
-    if ((tbg == 0) && !modeVTXANSI) 
-        tbg = 16;
+    if (!cbm && !atari) {
+        if (tfg == 0) 
+            tfg = 16;
+        if ((tbg == 0) && !modeVTXANSI) 
+            tbg = 16;
+    }
 
     // fix stupid ansi
     if (ch.charCodeAt(0) == 0x2588) {
@@ -3330,6 +3409,9 @@ function renderCell(rownum, colnum, hilight, bottom) {
     if (cbm) {
         // PETSCII colors
         ctx.fillStyle = cbmColors[tbg]
+        ctx.fillRect(x, 0, w, h);
+    }  else if (atari) {
+        ctx.fillStyle = atariColors[tbg]; // this should be 0 or 1
         ctx.fillRect(x, 0, w, h);
     } else {
         // ANSI colors
@@ -3403,6 +3485,9 @@ function renderCell(rownum, colnum, hilight, bottom) {
         else if (cbm)
             // PETSCII color
             ctx.fillStyle = cbmColors[tfg]
+        else if (atari)
+            // ATASCII monochrome color
+            ctx.fillStyle = atariColors[tfg]
         else
             // ANSI color
             ctx.fillStyle = ansiColors[tfg];
@@ -3716,7 +3801,9 @@ function newCrsr() {
     }
     c = getCrsrAttrColor(crsrAttr);
     if (cbm)
-        o.style['background-color'] = cbmColors[c]
+        o.style['background-color'] = cbmColors[c & 0xF]
+    else if (atari)
+        o.style['background-color'] = atariColors[c & 0x1]
     else
         o.style['background-color'] = ansiColors[c];
 }
@@ -3876,6 +3963,10 @@ function initDisplay() {
         }
         conFontCP[0] = 'RAW';
         conFontCP[1] = 'RAW';
+    } else if (atari) {
+        conFontNum = 0;
+        conFont[0] = 'ATARI';
+        conFontCP[0] = 'RAW';
     } else {
         conFontNum = 0;                 // current font being used.
         for (i = 0; i < 16; i++) {      // set default font selects.
@@ -3925,8 +4016,11 @@ function initDisplay() {
     // set page attributes
     p = pageDiv.parentNode;
     if (cbm) {
-        p.style['background-color'] = cbmColors[(pageAttr >> 8) & 0xFF];
-        pageDiv.style['background-color'] = cbmColors[pageAttr & 0xFF];
+        p.style['background-color'] = cbmColors[(pageAttr >> 8) & 0xF];
+        pageDiv.style['background-color'] = cbmColors[pageAttr & 0xF];
+    } else if (atari) {
+        p.style['background-color'] = atariColors[(pageAttr >> 8) & 0x1];
+        pageDiv.style['background-color'] = atariColors[pageAttr & 0x1];
     } else {
         p.style['background-color'] = ansiColors[(pageAttr >> 8) & 0xFF];
         pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
@@ -4922,7 +5016,7 @@ function sendData(data) {
             tmp.push(data);
         
             // join tmp into new data
-            data = new Uint8(len);
+            data = new Uint8Array(len);
             for (pos = 0, i = 0; i < tmp.length; i++){
                 data.set(tmp[i], pos);
                 pos += tmp[i].length;
@@ -5314,6 +5408,109 @@ function conCharOut(chr) {
                     conPrintChar(chr);
                     crsrrender = true;
                 }
+                break;
+        }
+    } else if (atari) {
+        // ATASCII ------------------------------------------------------------
+        switch (chr) {
+            case 0x1C: // cursor up.
+                if (crsrRow > 0)
+                    crsrRow--;
+                crsrrender = true;
+                break;
+                
+            case 0x1D: // cursor down.
+                crsrRow++;
+                crsrrender = true;
+                break;
+                
+            case 0x1E: // cursor left.
+                if (crsrCol > 0)
+                    crsrCol--;
+                crsrrender = true;
+                break;
+                
+            case 0x1F: // cursor right.
+                crsrCol++;
+                if (crsrCol > crtCols){
+                    crsrCol = 0;
+                    crsrRow++;
+                }
+                crsrrender = true;
+                break;
+                
+            case 0x7D: // clear screen.
+                // clear entire screen.
+                // remove html rows
+                els = document.getElementsByClassName('vtx');
+                for (l = els.length, r = l - 1; r >= 0; r--)
+                    els[r].parentNode.removeChild(els[r]);
+                conRowAttr = [];
+                conCellAttr = [];
+                conText = [];
+                document.body.style['cursor'] = 'default';
+                crsrRow = crsrCol = 0;
+                crsrrender = true;
+                break;
+
+            case 0x7E: // backspace - TODO : find out if destructive
+                if (crsrCol > 0)
+                    crsrCol--;
+                crsrrender = true;
+                break;
+                
+            case 0x7F: // tab
+                // find next tabstop
+                for (i = crsrCol+1; i < crtCols; i++){ 
+                    if (conTabStop[i]) {
+                        crsrCol = i;
+                        crsrrender = true;
+                        break;
+                    }
+                }
+                break;
+            
+            case 0x9B: // return
+                crsrCol = 0;
+                crsrRow++;
+                crsrrender = true;
+                cellAttr = setCellAttrReverse(cellAttr, false);
+                break;
+            
+            case 0x9C: // delete row
+                delRow(crsrRow);
+                break;
+                
+            case 0x9D: // insert row
+                insRow(crsrRow);
+                break;
+                
+            case 0x9E: // clear tabstop
+            case 0x9F: // set tabstop
+                conTabStop[crsrCol] = (chr == 0x9F);
+                break;
+                
+            case 0xFD: // buzzer
+                soundBell.pause();
+                soundBell.play();
+                break;
+                
+            case 0xFE: // delete char
+                expandToRow(crsrRow);
+                expandToCol(crsrRow, crsrCol);
+                delChar(crsrRow, crsrCol);
+                redrawRow(crsrRow);
+                crsrrender = true;
+                break;
+                    
+            case 0xFF: // insert char
+                break;
+            
+            default:
+                // set reverse on off for each character in atari mode
+                cellAttr = setCellAttrReverse(cellAttr, (chr & 0x80));
+                conPrintChar(chr & 0x7F);
+                crsrrender = true;
                 break;
         }
     } else {

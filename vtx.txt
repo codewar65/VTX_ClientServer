@@ -527,18 +527,19 @@ Colors
     
 ATASCII
 =======    
-    0x1C : Cursor up (CTRL + -)
-    0x1D : Cursor down (CTRL + =)
-    0x1E : Cursor left (CTRL + +)
-    0x1F : Cursor right (CTRL + *)
+x    0x1B : Escape (ESC)
+x    0x1C : Cursor up (CTRL + -)
+x    0x1D : Cursor down (CTRL + =)
+x    0x1E : Cursor left (CTRL + +)
+x    0x1F : Cursor right (CTRL + *)
     0x7D : Clear screen (CTRL + < or SHIFT + <)
-    0x7E : Backspace
+x    0x7E : Backspace
     0x7F : Tab
-    0x9B : Return
+x    0x9B : Return
     0x9C : Delete line (SHIFT + Backspace)
     0x9D : Insert line (SHIFT + >)
     0x9E : Clear tabstop (CTRL + Tab)
     0x9F : Set Tabstop (SHIFT + Tab)
     0xFD : Bell (CTRL + 2)
-    0xFE : Delete (CTRL + Backspace)
+x    0xFE : Delete (CTRL + Backspace)
     0xFF : Insert (CTRL + >)
