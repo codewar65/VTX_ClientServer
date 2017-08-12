@@ -154,6 +154,8 @@ HTTPPort : The port number the web server will be listening to HTTP requests on.
 
 WSPort : The websocket port number.
 
+WSSecure : 0 = use ws, 1 = use wss
+
 NodeType : 'ExtProc' or 'Telnet'
 
 Terminal : Terminal type. PETSCII, ATASCII or other..
