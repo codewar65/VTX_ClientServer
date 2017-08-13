@@ -1,0 +1,52 @@
+
+The VTX Client is a HTML websocket telnet client written in javascript. If you operate a bulletin board system and are looking for an alternate terminal for your web site, VTX may be an option for you.
+
+VTX Client has been tested on latest versions of:
+* Internet Explorer (Windows)
+* Microsoft Edge (Windows)
+* FireFox (Windows / Linux)
+* Seamonkey (Windows / Linux)
+* Chrome (Windows / Linux)
+* Opera (Windows)
+
+It can connect to the following systems via a websocket connection.
+* ANSI BBS 
+* Commodore PETSCII (VIC20, C64, C128 modes)
+* Atari 8Bit ATASCII
+
+VTX currently supports Y-Modem 1K file transfer protocol.
+
+Configurable for code pages:
+* ANSI mode : ARMSCII_8, CP437, CP667, CP668, CP737, CP770, CP771, CP772, CP773, CP774, CP775, CP790, CP808, CP813, CP819, CP850, CP851, CP852, CP853, CP855, CP857, CP858, CP859, CP860, CP861, CP863, CP865, CP866, CP867, CP869, CP872, CP878, CP895, CP900, CP912, CP915, CP920, CP991, CP1117, CP1118, CP1119, CP1131, CP28593, CP65001, CPMIK, HAIK8, ISO8859_1, ISO8859_10, ISO8859_13, ISO8859_14, ISO8859_15, ISO8859_16, ISO8859_2, ISO8859_3, ISO8859_4, ISO8859_5, ISO8859_7, ISO8859_9, KOI8_R, KOI8_U, UTF8, UTF16, WIN1250, WIN1251, WIN1253, WIN1254, WIN1257
+* PETSCII mode : VIC20, C64, C128
+* ATASCII mode : ATARI
+
+VTX supports all standard ANSI sequences, including. 
+* iCE color support
+* aixterm color support
+* paletted color support (CSI 38;5 m / CSI 48;5 m)
+* bold, italics, underline, striketrough, two blink rates, reverse, conceal, faint support.
+* Font Select support (P0t-Noodle, Mo'soul, MicroKnight, Topaz, etc.)
+* Baud rate emulation 
+
+It also introduces many extended ANSI sequences to do things like:
+* SVG sprite graphics
+* MP3 Audio
+* VT100/220 style row double sizes
+* Individual codes for display text in double height.
+* Marquee text rows.
+* Gradient colored row background colors.
+* Configurable cursors.
+* Drop shadow and outline text attributes.
+* Teletext burst mode : Displays Teletext 7-bit text graphics.
+* Mouse clickable hotspots defined in ANSI.
+
+See (https://github.com/codewar65/VTX_ClientServer/blob/master/vtx.txt) for a list of current ANSI sequence support.
+
+VTX does not support ANSI music, RIP or NAPLPS graphics at this time.
+
+VTX client is now ready for beta testing. You get the goods at https://github.com/codewar65/VTX_ClientServer
+
+The VTX github also has source code for a mini Webserver / websocket proxy that you can run on your system for testing or if you do not have a web or websocket server.
+
+Follow VTX on Facebook.. (https://www.facebook.com/vtxemu/)
