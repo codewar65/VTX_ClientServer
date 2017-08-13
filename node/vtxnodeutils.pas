@@ -3,6 +3,8 @@ unit VTXNodeUtils;
 {$mode objfpc}{$H+}
 interface
 
+{ $define LOCAL}
+
 uses
   {$ifdef WINDOWS}
   Windows,
@@ -78,6 +80,7 @@ procedure Finish;
 procedure Print(str : string); inline;
 procedure PrintLn;
 procedure PrintLn(str : string);
+procedure PrintBin(buff : pbyte; len : integer);
 procedure Error(str : string); inline;
 
 function InStr : string;
@@ -329,6 +332,11 @@ begin
     end;
     setlength(barray, 0);
   {$endif}
+end;
+
+procedure PrintBin(buff : pbyte; len : integer);
+begin
+	pout.WriteBuffer(buff[0], len);
 end;
 
 procedure Error(str : string); inline;

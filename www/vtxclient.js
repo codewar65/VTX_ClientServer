@@ -30,8 +30,7 @@
 
     TODO : ( see also TODO in code)
 
-        On Demand Fonts - allow normal font select, but onload of new font,
-            force redraw cells with the new font.
+        On Demand Fonts - check.
     
         Client Ident - fix - currently crashing / not working all time.
 
@@ -44,17 +43,10 @@
         YModem download : remove CPMEOF's on files w/o filenames/sizes
         
 
-    HOTSPOTATTR
+    HOTSPOTATTR  (HOTSPOTHOVERATTR / HOTSPOTCLICKATTR)
+    
+        see CELLATTRS
 
-        00000000 00000000 00000000 00000000
-        BBBBBBBB FFFFFFFF bbbbbbbb ffffffff
-
-        f : mouseover foreground color
-        b : mouseover background color
-        F : click foreground color
-        B : click background color
-
-        default = 0x0C0F070B
 
     PAGEATTR
 
@@ -105,6 +97,8 @@
 
         00000000 00000000 00000000 00000000 - bits
         ZZZZosDD fKktuibr BBBBBBBB FFFFFFFF
+
+        00000000 00001000 00000010 11111111
                  
         F : Foreground Color (0-255) using aixterm palette
         B : Background Color (0-255)  -''-
@@ -219,6 +213,9 @@ const
     atariColors = [
         '#0141A3', '#64ACFF'
     ],
+
+    // convert teletext colors to ansi
+    ttxToAnsiColor = [ 16, 196, 46, 226, 21, 201, 51, 15 ],
     
     hex =   '0123456789ABCDEF',
     b64 =   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
@@ -1948,7 +1945,6 @@ let
     fontSize,                   // font size to use
     vtxFontsLoaded,             // bools of loaded vtxFonts
 
-    
     rowSize,                    // character size
     colSize,                    // cell width in pixels
     crtWidth,                   // crt width in pixels
@@ -1978,7 +1974,10 @@ let
     defRowAttr = 0x002c0000,    // def row attr
     lastChar,                   // last printable character outputed.
     lastHotSpot = null,         // last mouseover hotspot
-    hotspotAttr = 0x0C0F040B,   // hotspot colors
+    
+    hotspotHoverAttr,           // uses same attrs as cell
+    hotspotClickAttr,           // ''
+    
     conBaud = 0,                // baud emulation speed.
     audio,                      // audio element
 
@@ -2006,8 +2005,10 @@ let
     modeCBMShift = true,        // PETSCII shift enabled
     modeDOORWAY = false,        // DOORWAY mode
     modeAutoWrap = true,        // Autowrap Mode
+    modeSaveAutoWrap,
     modeNextGlyph = false,      // if DOORWAY mode, print glyph associated with this byte!
     modeRegionOrigin,           // origin in region?
+    modeTeletext = false,       // teletext bust mode?
 
     // scroll region info.
     regionTopRow,               // top row of scroll region.
@@ -2086,14 +2087,52 @@ function domElement(type, options, styles, txt) {
 // load fonts and boot
 function bootVTX() {
     var
+        el, hd = document.getElementsByTagName('head')[0],
+        testTimer,
+        testDiv;
+
+    // force load adobeblank
+    el = domElement(
+        'style',
+        {   type:  'text/css',
+            id:     'vtxfonts' }, {},
+            '@font-face { \n'
+                + '  font-family: "AdobeBlank"; '
+                + '  src: url("AdobeBlank.woff") format("woff"); }\n');
+    hd.appendChild(el);
+    
+    testDiv = domElement('div',{},
+                    {   fontFamily:         '"AdobeBlank", sans-serif',
+                        fontSize:           '24px',
+                        fontWeight:         'normal',
+                        color:              'transparent',
+                        display:            'inline-block',
+                        border:             '0px',
+                        padding:            '0px',
+                        margin:             '0px' },
+                    'Test 1..2..3..');
+    document.body.appendChild(testDiv)
+    testTimer = setInterval(
+        function(){
+            var w = testDiv.offsetWidth;
+            if (w < 32) {
+                document.body.removeChild(testDiv);
+                clearInterval(testTimer);
+                bootVTX1();
+            }
+        }, 50);
+}
+    
+
+function bootVTX1() {
+    var
         i, j, l, str,
         el,
         t = document.getElementsByTagName('title')[0],
         hd = document.getElementsByTagName('head')[0],
         bootFonts,
         bootTimer,
-        bootDiv = [],
-        testDiv;
+        bootDiv = [];
 
     // load fonts
     // set fonts to be loaded based on term
@@ -2132,22 +2171,18 @@ function bootVTX() {
     }
     
     // inject @font-faces
+    el = document.getElementById('vtxfonts');
     str = '';
     for (i = 0, l = bootFonts.length; i < l; i++) 
         str += '@font-face {\r\n '
             + '  font-family: "' + bootFonts[i] + '"; '
             + '  src: url("' + bootFonts[i] + '.woff") format("woff"); }\r\n';
-    el = domElement(
-        'style', 
-        {   type:   'text/css',
-            id:     'vtxfonts'
-        }, {}, str );
-    hd.appendChild(el);
+    el.innerHTML += str;
 
     // loop through until all fonts needed at boot.
     for (i = 0, l = bootFonts.length; i < l; i++) {
         bootDiv[i] = domElement('div',{},
-                    {   fontFamily:         bootFonts[i] + ', AdobeBlank',
+                    {   fontFamily:         bootFonts[i] + ', "AdobeBlank"',
                         fontSize:           '24px',
                         fontWeight:         'normal',
                         color:              'transparent',
@@ -2184,6 +2219,26 @@ function bootVTX() {
         }, 50);
 }
 
+function bootVTX2() {
+    var
+        t = document.getElementsByTagName('title')[0],
+        hd = document.getElementsByTagName('head')[0];
+
+    // wait for the required data.
+    while (!vtxdata){};
+
+    // format the TITLE tag - only if empty or missing.
+    if (!t)
+        hd.appendChild(domElement('title',{},{},vtxdata.sysName));
+    else {
+        if (!t.innerText || (t.innerText == ''))
+            t.innerText = vtxdata.sysName
+    }
+
+    // when all fonts loaded call initDisplay
+    window.setTimeout(initDisplay, 100);
+}
+
 function loadSingleFont(fname){
     var 
         fn,
@@ -2210,7 +2265,7 @@ function loadSingleFont(fname){
         hd.appendChild(el);
 
         testDiv = domElement('div',{},
-                    {   fontFamily:         fname + ', AdobeBlank',
+                    {   fontFamily:         fname + ', "AdobeBlank"',
                         fontSize:           '24px',
                         fontWeight:         'normal',
                         color:              'transparent',
@@ -2222,17 +2277,18 @@ function loadSingleFont(fname){
         document.body.appendChild(testDiv);
 
         fontTimer = setInterval(
-            function(){
-                if (testDiv.offsetWidth > 12) {
+            function(fontname){
+                var w = testDiv.offsetWidth;
+                if (w > 32) {
                     // mark as font loaded.
                     vtxFontsLoaded[fn] = true;
                     document.body.removeChild(testDiv);
                     clearInterval(fontTimer);
-                
+
                     // redraw everything using this fomt.
-                    redrawFont(fname);
+                    setTimeout(redrawFont(fontname),250);
                 }
-            }, 50);
+            }, 250, fname);
     }
 }
 
@@ -2253,26 +2309,6 @@ function redrawFont(fname) {
                     renderCell(r, c);
             }
     }
-}
-
-function bootVTX2() {
-    var
-        t = document.getElementsByTagName('title')[0],
-        hd = document.getElementsByTagName('head')[0];
-
-    // wait for the required data.
-    while (!vtxdata){};
-
-    // format the TITLE tag - only if empty or missing.
-    if (!t)
-        hd.appendChild(domElement('title',{},{},vtxdata.sysName));
-    else {
-        if (!t.innerText || (t.innerText == ''))
-            t.innerText = vtxdata.sysName
-    }
-
-    // when all fonts loaded call initDisplay
-    window.setTimeout(initDisplay, 100);
 }
 
 // string splice - why this is not standard is beyond me.
@@ -3050,10 +3086,10 @@ function setRowAttrMarquee(attr, marquee) {
 
 // get row attribute parts
 function getRowAttrColor1(attr) { return attr & 0xFF; }
-function getRowAttrColor2(attr) { return (attr >> 8) & 0xFF; }
+function getRowAttrColor2(attr) { return (attr >>> 8) & 0xFF; }
 function getRowAttrPattern(attr) { return attr & A_ROW_PATTERN_MASK; }
-function getRowAttrHeight(attr) { return (((attr & A_ROW_HEIGHT_MASK) >> 18) + 1) * 25.0; }
-function getRowAttrWidth(attr) { return (((attr & A_ROW_WIDTH_MASK) >> 21) + 1) * 50.0; }
+function getRowAttrHeight(attr) { return (((attr & A_ROW_HEIGHT_MASK) >>> 18) + 1) * 25.0; }
+function getRowAttrWidth(attr) { return (((attr & A_ROW_WIDTH_MASK) >>> 21) + 1) * 50.0; }
 function getRowAttrMarquee(attr) { return (attr & A_ROW_MARQUEE) != 0; }
 
 // create cell attribute
@@ -3133,7 +3169,7 @@ function setCellAttrFont(attr, font) {
 
 // get cell attribute parts
 function getCellAttrFG(attr) { return attr & 0xFF; }
-function getCellAttrBG(attr) { return (attr >> 8) & 0xFF; }
+function getCellAttrBG(attr) { return (attr >>> 8) & 0xFF; }
 function getCellAttrBold(attr) { return (attr & A_CELL_BOLD) != 0; }
 function getCellAttrItalics(attr) { return (attr & A_CELL_ITALICS) != 0; }
 function getCellAttrUnderline(attr) { return (attr & A_CELL_UNDERLINE) != 0; }
@@ -3143,9 +3179,9 @@ function getCellAttrShadow(attr) { return (attr & A_CELL_SHADOW) != 0; }
 function getCellAttrStrikethrough(attr) { return (attr & A_CELL_STRIKETHROUGH) != 0; }
 function getCellAttrOutline(attr) { return (attr & A_CELL_OUTLINE) != 0;}
 function getCellAttrReverse(attr) { return (attr & A_CELL_REVERSE) != 0; }
-function getCellAttrDisplay(attr) { return (attr & A_CELL_DISPLAY) != 0; }
+function getCellAttrDisplay(attr) { return (attr & A_CELL_DISPLAY_MASK); }
 function getCellAttrFaint(attr) { return (attr & A_CELL_FAINT) != 0; }
-function getCellAttrFont(attr) { return (attr & A_CELL_FONT_MASK) >> 28; }
+function getCellAttrFont(attr) { return (attr & A_CELL_FONT_MASK) >>> 28; }
 
 // create cursor attributes
 function makeCrsrAttr(color, size, orientation){
@@ -3172,8 +3208,8 @@ function setCrsrAttrOrientation(attr, orient) {
 
 // get cursor attributes
 function getCrsrAttrColor(attr) { return attr & 0xFF; }
-function getCrsrAttrSize(attr) { return (attr & A_CRSR_STYLE_MASK) >> 8; }
-function getCrsrAttrOrientation(attr) { return (attr & A_CRSR_ORIENTATION) >> 10; }
+function getCrsrAttrSize(attr) { return (attr & A_CRSR_STYLE_MASK) >>> 8; }
+function getCrsrAttrOrientation(attr) { return (attr & A_CRSR_ORIENTATION) >>> 10; }
 
 // if row size has changed, resize canvas, redraw row.
 function adjustRow(rownum) {
@@ -3329,10 +3365,17 @@ function renderCell(rownum, colnum, hilight, bottom) {
     ch = conText[rownum + rowadj].charAt(colnum);
     attr = conCellAttr[rownum + rowadj][colnum];
 
+    
+    // force highlight (for mouse selections)
+    if (hilight == 1) 
+        attr = hotspotHoverAttr
+    else if (hilight == 2) 
+        attr = hotspotClickAttr;
+    
     // extract colors and font to use
     tfg = (attr & 0xFF);
-    tbg = (attr >> 8) & 0xff;
-    tfnt = ((attr & A_CELL_FONT_MASK) >> 28) & 0xF;
+    tbg = (attr >>> 8) & 0xff;
+    tfnt = ((attr & A_CELL_FONT_MASK) >>> 28) & 0xF;
 
     // get bold and adust if not used
     tbold  = attr & A_CELL_BOLD;
@@ -3376,16 +3419,6 @@ function renderCell(rownum, colnum, hilight, bottom) {
         tbg += 8;
         attr &= ~(A_CELL_BLINKSLOW | A_CELL_BLINKFAST);
         tblinks = 0;
-    }
-
-    // force highlight (for mouse selections)
-    if (hilight == 1) {
-        tbg = (hotspotAttr >>  8) & 0xFF;
-        tfg = (hotspotAttr      ) & 0xFF;
-    } else if (hilight == 2) {
-        // TODO : fix for sign.
-        tbg = (hotspotAttr >>> 24) & 0xFF;
-        tfg = (hotspotAttr >> 16) & 0xFF;
     }
 
     // fix transparents
@@ -3497,21 +3530,17 @@ function renderCell(rownum, colnum, hilight, bottom) {
 
         // swap for special fonts.
         teletext = -1;
-        if ((tfnt == 10) || (tfnt == 11)) {
+        if ((tfnt == 11) || (tfnt == 12)) {
             // special teletext block font
             if (((ch >= ' ') && (ch <= '?')) || 
-                ((ch >= '`') && (ch <= '\x7f'))) {
-                teletext = tfnt - 10
-            } else
-                // use normal if not a block
-                ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[0];
-        } else {
-            if (cbm)
-                // PETSCII : render all text using conFontNum
-                ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[conFontNum]
-            else
-                ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[tfnt];
-        }
+                ((ch >= '`') && (ch <= '\x7f'))) 
+                teletext = tfnt - 11;
+            ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[tfnt];
+        } else if (cbm)
+            // PETSCII : render all text using conFontNum
+            ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[conFontNum]
+        else
+            ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[tfnt];
         
         ctx.textAlign = 'start';
         ctx.textBaseline = 'top';
@@ -3555,8 +3584,8 @@ function renderCell(rownum, colnum, hilight, bottom) {
             ctx.lineWidth = 1;
             ctx.strokeText(ch, 0, 0);
         } else {
-            if (teletext >= 0)
-                drawMosaicBlock(ctx, ch.charCodeAt(0), w, h, teletext)
+            if (teletext >= 0) 
+                drawMosaicBlock(ctx, ch.charCodeAt(0), w / width, h, teletext)
             else
                 ctx.fillText(ch, 0, 0);
         }
@@ -3576,7 +3605,7 @@ function renderCell(rownum, colnum, hilight, bottom) {
 // 0x20-0x3f/0x60-0x7f
 function drawMosaicBlock(ctx, ch, w, h, separated) {
     var
-        b = (ch<0x60)?(ch-0x20):(ch-0x40),
+        b,
         x, y,
         bit = 0x01,
         bw = Math.floor(w / 2),
@@ -3586,6 +3615,9 @@ function drawMosaicBlock(ctx, ch, w, h, separated) {
         xadj = w - (bw * 2),
         yadj = h - (bh * 3);
 
+    b = ch - 0x20;
+    if (b > 0x1f)
+        b -= 0x20;
     for (y = 0; y < 3; y++) {
         bx = 0;
         for (x = 0; x < 2; x++) {
@@ -3613,8 +3645,8 @@ function brightenRGB(colorstr, factor) {
         return colorstr;
 
     rgb = htoi(colorstr.substring(1));
-    r = (rgb >> 16) & 0xFF;
-    g = (rgb >>  8) & 0xFF;
+    r = (rgb >>> 16) & 0xFF;
+    g = (rgb >>>  8) & 0xFF;
     b =  rgb        & 0xFF;
     if (factor < 0) {
         factor += 1.0;
@@ -3823,32 +3855,31 @@ function termConnect() {
                 i, j, str, data;
 
             data = new Uint8Array(e.data);
-            //dump(data,0,data.length);
 
             // do telnet handshaking negotiations - return new data w/o IAC...'s
             if (vtxdata.telnet == 1) 
                 data = tnNegotiate(data);
 
             // convert data to string
-            str = '';
-            switch (codePage){
-                case 'UTF8':
-                    str = UFT8ArrayToStr(data);
-                    break;
-
-                case 'UTF16':
-                    break;
-
-                default:
-                    // straight string
-                    for (i = 0; i < data.length; i++)
-                        str += String.fromCharCode(data[i]);
-                    break;
-            }
-
             switch (termState) {
                 case TS_NORMAL:
-                    // convert from codepage
+                    // convert from codepage into string data
+                    switch (codePage){
+                        case 'UTF8':
+                            str = UFT8ArrayToStr(data);
+                            break;
+
+                        case 'UTF16':
+                            str = data.toString();
+                            break;
+
+                        default:
+                            // straight string
+                            str = '';
+                            for (i = 0; i < data.length; i++)
+                                str += String.fromCharCode(data[i]);
+                            break;
+                    }
                     conBufferOut(str);
                     break;
 
@@ -3857,6 +3888,7 @@ function termConnect() {
                     data = ymRStateMachine(data);
                     if (data.length > 0) {
                         // transfer ended midway. output the rest.
+                        // todo - convert data to str.
                         conBufferOut(str);
                     }
                     break;
@@ -3867,6 +3899,7 @@ function termConnect() {
                     data = ymSStateMachine(data);
                     if (data.length > 0) {
                         // transfer ended midway. output the rest.
+                        // todo - convert data to string.
                         conBufferOut(str);
                     }
                     break;
@@ -3880,10 +3913,12 @@ function termConnect() {
         }
         ws.onclose = function() {
             conBaud = 0;
-            conBufferOut(
-                cbm
-                ?'\r\rDISCONNECTED.\r'
-                :'\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
+            if (cbm)
+                conBufferOut('\r\rDISCONNECTED.\r')
+            else if (atari)
+                conBufferOut('\x9B\x9BDisconnected.\x9B')
+            else
+                conBufferOut('\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
             document.body.style['cursor'] = 'default';
             if (audio) {
                 audio.pause();
@@ -3893,10 +3928,12 @@ function termConnect() {
             setBulbs();
         }
         ws.onerror = function(error) {
-            conBufferOut(
-                cbm
-                ?'\r\rERROR : ' + error.reason.toUpper() + '\r'
-                :'\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
+            if (cbm)
+                conBufferOut('\r\rERROR : ' + error.reason.toUpper() + '\r')
+            else if (atari)
+                conBufferOut('\x9B\x9BError : ' + error.reason() + '\x09B')
+            else
+                conBufferOut('\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
             setBulbs();
         }
     } else {
@@ -3922,7 +3959,8 @@ function initDisplay() {
         head,
         defattrs;
 
-//testArrayStuff();
+    hotspotHoverAttr = 0x000800FF;
+    hotspotClickAttr = 0x000000FF;
 
     // find the page / text div
     pageDiv = document.getElementById('vtxpage');
@@ -3972,10 +4010,16 @@ function initDisplay() {
         conFontCP[0] = 'RAW';
     } else {
         conFontNum = 0;                 // current font being used.
-        for (i = 0; i < 16; i++) {      // set default font selects.
+        for (i = 0; i < 10; i++) {      // set default font selects.
             conFont[i] = fontName;
             conFontCP[i] = codePage;
         }
+        conFont[10] = fontName; // text only
+        conFont[11] = fontName; // text w/contiguous blocks
+        conFont[12] = fontName; // text w/separated blocks
+        conFontCP[10] = 'TELETEXT';
+        conFontCP[11] = 'TELETEXT';
+        conFontCP[12] = 'TELETEXT';
     }
 
     pageDiv.style['width'] = (crtWidth*xScale) + 'px';
@@ -4019,13 +4063,13 @@ function initDisplay() {
     // set page attributes
     p = pageDiv.parentNode;
     if (cbm) {
-        p.style['background-color'] = cbmColors[(pageAttr >> 8) & 0xF];
+        p.style['background-color'] = cbmColors[(pageAttr >>> 8) & 0xF];
         pageDiv.style['background-color'] = cbmColors[pageAttr & 0xF];
     } else if (atari) {
-        p.style['background-color'] = atariColors[(pageAttr >> 8) & 0x1];
+        p.style['background-color'] = atariColors[(pageAttr >>> 8) & 0x1];
         pageDiv.style['background-color'] = atariColors[pageAttr & 0x1];
     } else {
-        p.style['background-color'] = ansiColors[(pageAttr >> 8) & 0xFF];
+        p.style['background-color'] = ansiColors[(pageAttr >>> 8) & 0xFF];
         pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
     }
     pageWidth = elPage.clientWidth;
@@ -4187,7 +4231,7 @@ function UFT8ArrayToStr(array) {
     i = 0;
     while(i < len) {
         c = array[i++];
-        switch(c >> 4) {
+        switch(c >>> 4) {
             case 0: case 1: case 2:
             case 3: case 4: case 5: case 6: case 7:
                 // 0xxxxxxx
@@ -4657,7 +4701,7 @@ function twosCompliment(v) {
 }
 
 function highByte(v) {
-    return (v >> 8) & 0xff;
+    return (v >>> 8) & 0xff;
 }
 
 function lowByte(v) {
@@ -5204,7 +5248,7 @@ function resetTerminal() {
     pageAttr = defPageAttr;
     crsrAttr = defCrsrAttr;
 
-    pageDiv.parentNode.style['background-color'] = ansiColors[(pageAttr >> 8) & 0xFF];
+    pageDiv.parentNode.style['background-color'] = ansiColors[(pageAttr >>> 8) & 0xFF];
     pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
     conFontNum = 0;                 // current font being used.
     for (i = 0; i < 16; i++) {      // set default font selects.
@@ -5212,6 +5256,13 @@ function resetTerminal() {
         conFontCP[i] = codePage;
     }
 }
+
+var
+    ttxGraphics,    // text or graphics
+    ttxSeparated,   // separeted blocks?
+    ttxDouble,      // in double height text
+    ttxBottom,      // drawing bottom halfs flag
+    ttxHeld;        // held / release?
 
 // the big function - ansi sequence state machine. ###CALL conBufferOut!###
 function conCharOut(chr) {
@@ -5233,7 +5284,151 @@ function conCharOut(chr) {
         spriteLeft,
         el;
 
-    if (cbm) {
+    if (modeTeletext) {
+        // teletext burst mode - ESC to exit to ANSI
+        // if in col 0, set row for teletext
+        if (chr == _ESC) {
+            // exit
+            cellAttr = cellSaveAttr; // restore attributes
+            modeAutoWrap = modeSaveAutoWrap;
+            modeTeletext = false;
+        } else {
+            if (crsrCol == 0) {
+                // all rows are 40 cols.
+                if (crtCols >= 80) {
+                    conRowAttr[crsrRow] &= ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
+                    conRowAttr[crsrRow] |= (A_ROW_WIDTH_200);
+                    adjustRow(crsrRow);
+                }
+                // reset attributes for new row
+                cellAttr = 0xA0000000
+                    | (ttxToAnsiColor[0] << 8)
+                    | (ttxToAnsiColor[7]);
+                ttxGraphics = false;
+                ttxSeparated = false;
+                ttxBottom = false;
+                if (ttxDouble)
+                    ttxBottom = true;
+                ttxDouble = false;
+                ttxHeld = false;
+            }
+            if (ttxBottom) {
+                // ignore all text this row. only drop bottoms of previous row
+                // get text from above row.
+                if (chr == 0x0A) {
+                    crsrCol = 0;
+                    crsrRow++;
+                    expandToRow(crsrRow);
+                } else {
+                    chr = conText[crsrRow - 1].charCodeAt(crsrCol);
+                    cellAttr = conCellAttr[crsrRow - 1][crsrCol];
+                    var disp = getCellAttrDisplay(cellAttr);
+                    if (disp == A_CELL_DISPLAY_TOP) 
+                        // this is a bottom.
+                        cellAttr = setCellAttrDisplay(cellAttr, A_CELL_DISPLAY_BOTTOM)
+                    else {
+                        // else no show.
+                        cellAttr = setCellAttrDisplay(cellAttr, A_CELL_DISPLAY_NORMAL)
+                        chr = 0x20;
+                    }
+                    conPrintChar(chr);
+                }
+            } else {
+                switch (chr) {
+                    case 0x01:  // red alpha
+                    case 0x02:  // green alpha
+                    case 0x03:  // yellow alpha
+                    case 0x04:  // blue alpha
+                    case 0x05:  // magenta alpha
+                    case 0x06:  // cyan alpha
+                    case 0x07:  // white alpha **
+                        ttxGraphics = false;
+                        cellAttr = setCellAttrFG(cellAttr, ttxToAnsiColor[chr]);
+                        conPrintChar(0x20);
+                        break;
+                        
+                    case 0x08:  // blink
+                    case 0x09:  // blink off **
+                        cellAttr = setCellAttrBlinkFast(cellAttr, (chr == 0x08));
+                        conPrintChar(0x20);
+                        break;
+                        
+                    case 0x0A:  // box end (NL?)
+                        crsrCol = 0;
+                        crsrRow++;
+                        expandToRow(crsrRow);
+                        break;
+                        
+                    case 0x0B:  // box start (ignore)
+                        break;
+                        
+                    case 0x0C:  // normal height **
+                        cellAttr = setCellAttrDisplay(cellAttr, A_CELL_DISPLAY_NORMAL);
+                        conPrintChar(0x20);
+                        break;
+                        
+                    case 0x0D:  // double height
+                        cellAttr = setCellAttrDisplay(cellAttr, A_CELL_DISPLAY_TOP);
+                        ttxDouble = true;
+                        conPrintChar(0x20);
+                        break;
+                        
+                    case 0x0E:  // S0 (ignore)
+                    case 0x0F:  // S1 (ignore)
+                    case 0x10:  // DLE (ignore)
+                        break;
+                        
+                    case 0x11:  // red gfx
+                    case 0x12:  // green gfx
+                    case 0x13:  // yellow gfx
+                    case 0x14:  // blue gfx
+                    case 0x15:  // magenta gfx
+                    case 0x16:  // cyan gfx
+                    case 0x17:  // white gfx
+                        ttxGraphics = true;
+                        cellAttr = setCellAttrFG(cellAttr, ttxToAnsiColor[chr-0x10]);
+                        conPrintChar(0x20);
+                        break;
+    
+                    case 0x18:  // conceal (ignore)
+                        break;
+                        
+                    case 0x19:  // solid block gfx **
+                    case 0x1A:  // separated block gfx
+                        ttxSeparated = (chr == 0x1A);
+                        conPrintChar(0x20);
+                        break;
+                    
+                    case 0x1C:  // black background
+                        cellAttr = setCellAttrBG(cellAttr, ttxToAnsiColors[0]);
+                        conPrintChar(0x20);
+                        break;
+                        
+                    case 0x1D:  // new background
+                        cellAttr = setCellAttrBG(cellAttr, 
+                            getCellAttrFG(cellAttr));
+                        conPrintChar(0x20);
+                        break;
+                        
+                    case 0x1E:  // hold gfx
+                    case 0x1F:  // release gfx **
+                        txtHeld = (chr == 0x1E);
+                        conPrintChar(0x20);
+                        break;
+                        
+                    default:
+                        // print it.
+                        chr &= 0x7F;    // only use 7 bits
+                        // set font base on ttxGraphics / ttxSeparated
+                        var fnt = ttxGraphics ? (ttxSeparated ? 12 : 11) : 10;
+                        cellAttr = setCellAttrFont(cellAttr, fnt);
+                        conPrintChar(chr);
+                        break;
+                }
+            }
+            crsrrender = true;
+        }
+    } else if (cbm) {
         // PETSCII ------------------------------------------------------------
         switch (chr) {
             case 3:  // run/stop
@@ -5549,7 +5744,7 @@ function conCharOut(chr) {
                     if (modeDOORWAY)
                         modeNextGlyph = true;
                     break;
-
+    
                 case _BEL:     // bell
                     soundBell.pause();
                     soundBell.play();
@@ -5566,7 +5761,7 @@ function conCharOut(chr) {
                     break;
 
                 case _HT:     // horz tab
-                    crsrCol = ((crsrCol >> 3) + 1) << 3;
+                    crsrCol = ((crsrCol >>> 3) + 1) << 3;
                     if (crsrCol > colsOnRow(crsrRow))
                         crsrCol = colsOnRow(crsrRow);
                     crsrrender = true;
@@ -5596,7 +5791,7 @@ function conCharOut(chr) {
                         crsrrender = true;
                     }
                     break;
-
+    
                 default:
                     switch (ansiState) {
                         case 0:
@@ -5755,7 +5950,7 @@ function conCharOut(chr) {
                             break;
                     }
                     break;
-            }
+                }
         }
 
         if (doCSI) {
@@ -5987,6 +6182,11 @@ function conCharOut(chr) {
                                 conFont[parm[0]] = 'TI994';
                                 conFontCP[parm[0]] = 'RAWHI';
                                 break;
+                                
+                            case 101: // Teletext
+                                conFont[parm[0]] = fontName;
+                                conFontCP[parm[0]] = 'TELETEXT';
+                                break;
                         }
                         // load it if it's needed.
                         loadSingleFont(conFont[parm[0]]);
@@ -6033,7 +6233,7 @@ function conCharOut(chr) {
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
                     for (i = 0; i < parm[0]; i++) {
-                        crsrCol = (((crsrCol >> 3) + 1) << 3);
+                        crsrCol = (((crsrCol >>> 3) + 1) << 3);
                         if (crsrCol > colsOnRow(crsrRow)) {
                             crsrCol = colsOnRow(crsrRow);
                             break;
@@ -6192,7 +6392,7 @@ function conCharOut(chr) {
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
                     for (i = 0; i < parm[0]; i++) {
-                        crsrCol = (((crsrCol >> 3) + 1) << 3) - 16;
+                        crsrCol = (((crsrCol >>> 3) + 1) << 3) - 16;
                         if (crsrCol <= 0) {
                             crsrCol = 0;
                             break;
@@ -6272,53 +6472,87 @@ function conCharOut(chr) {
  
                 case 0x5E:  // ^ - Cursor / Page Modes
                     if (!parm.length){
-                        // no paremeters - reset cursor to default
+                        // no paremeters - reset to default
                     } else {
                         switch (parm[0]) {
                             case 0:// cursor color
-                                i = (parm[1] & 0xFF);
-                                crsrAttr = setCrsrAttrColor(crsrAttr, i);
+                                if (l == 1) 
+                                    crsrAttr = setCrsrAttrColor(
+                                        crsrAttr, 
+                                        getCrsrAttrColor(defCrsrAttr))
+                                else 
+                                    crsrAttr = setCrsrAttrColor(
+                                        crsrAttr, 
+                                        (parm[1] & 0xFF));
                                 newCrsr();
                                 break;
  
                             case 1:// cursor size
-                                i = (parm[1] & 0x03);
-                                crsrAttr = setCrsrAttrSize(crsrAttr, i);
+                                if (l == 1)
+                                    crsrAttr = setCrsrAttrSize(
+                                        crsrAttr, 
+                                        getCrsrAttrSize(defCrsrAttr))
+                                else 
+                                    crsrAttr = setCrsrAttrSize(
+                                        crsrAttr, 
+                                        (parm[1] & 0x03));
                                 newCrsr();
                                 break;
  
                             case 2:// cursor orientation
-                                i = (parm[1] ? A_CRSR_ORIENTATION : 0);
-                                crsrAttr = setCrsrAttrOrientation(crsrAttr, i);
+                                if (l == 1) 
+                                    crsrAttr = setCrsrAttrOrientation(
+                                        crsrAttr, 
+                                        (parm[1] ? A_CRSR_ORIENTATION : 0))
+                                else
+                                    crsrAttr = setCrsrAttrOrientation(
+                                        crsrAttr, 
+                                        getCrsrAttrOrientation(defCrsrAttr));
                                 newCrsr();
                                 break;
  
                             case 3:// page border color
-                                i = (parm[1] & 0xFF);
-                                pageAttr = setPageAttrBorder(pageAttr, i);
-                                pageDiv.parentNode.style['background-color'] = ansiColors[(pageAttr >> 8) & 0xFF];
+                                if (l == 1) 
+                                    pageAttr = setPageAttrBorder(
+                                        pageAttr,  
+                                        getPageAttrBorder(defPageAttr))
+                                else
+                                    pageAttr = setPageAttrBorder(
+                                        pageAttr,  
+                                        (parm[1] & 0xFF));
+                                if (cbm)
+                                    i = cbmColors[(pageAttr >>> 8) & 0xF]
+                                else if (atari)
+                                    i = atariColors[(pageAttr >>> 8) & 0x1]
+                                else 
+                                    i = ansiColors[(pageAttr >>> 8) & 0xFF];
+                                pageDiv.parentNode.style['background-color'] = i;
                                 break;
  
                             case 4:// page background color
-                                i = (parm[1] & 0xFF);
-                                pageAttr = setPageAttrBackground(pageAttr, i);
-                                pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
+                                if (l == 1)
+                                    pageAttr = setPageAttrBackground(
+                                        pageAttr, 
+                                        getOageAttrBackground(defPageAttr))
+                                else
+                                    pageAttr = setPageAttrBackground(
+                                        pageAttr, 
+                                        (parm[1] & 0xFF));
+                                if (cbm)
+                                    i = cbmColors[pageAttr & 0xF]
+                                else if (atari)
+                                    i = atariColors[pageAttr & 0x1]
+                                else 
+                                    i = ansiColors[pageAttr & 0xFF];
+                                pageDiv.style['background-color'] = i;
                                 break;
  
-                            case 5: // CSI '5' ; f ; b '^' : Set hotspot mouseover colors.
-                                hotspotAttr &= 0xFFFF0000;
-                                hotspotAttr |= (
-                                    (parm[1] & 0xFF) |
-                                    ((parm[2] & 0xFF) << 8)
-                                );
+                            case 5: // CSI '5^' : Set hotspot mouseover colors.
+                                hotspotHoverAttr = cellAttr;
                                 break;
  
-                            case 6: // CSI '6' ; f ; b '^' : Set hotspot click colors.
-                                hotspotAttr &= 0x0000FFFF;
-                                hotspotAttr |= (
-                                    ((parm[1] & 0xFF) << 16) |
-                                    ((parm[2] & 0xFF) << 24)
-                                );
+                            case 6: // CSI '6^' : Set hotspot click colors.
+                                hotspotClickAttr = cellAttr;
                                 break;
                         }
                     }
@@ -6648,6 +6882,16 @@ function conCharOut(chr) {
                             // VTX / ANSIBBS mode flip
                             modeVTXANSI = (chr == 0x68);
                             break;
+                            
+                        case '?51':
+                            // Teletext burst mode. (ESC to exit mode)
+                            crsrCol = 0;
+                            cellSaveAttr = cellAttr; // save attributes
+                            modeSaveAutoWrap = modeAutoWrap;
+                            modeAutoWrap = false;
+                            ttxBottom = false;
+                            modeTeletext = true;
+                            break;
 
                         case '=255':
                             // =255 : DOORWAY mode
@@ -6755,14 +6999,13 @@ function conCharOut(chr) {
                                 break;
 
                             // special built in fonts
-                            case 80: // teletext blocks 0x20-0x5F
-                            case 81: // teletext blocks 0x20-0x5F
-                            case 82: // reserved
+                            case 80: // teletext codepage text only
+                            case 81: // teletext codepage contiguous blocks 
+                            case 82: // teletext codepage separated blocks
                             case 83: // reserved
                             case 84: // reserved
                             case 85: // reserved
-                                cellAttr =
-                                    setCellAttrFont(cellAttr, (parm[i] - 70));
+                                cellAttr = setCellAttrFont(cellAttr, (parm[i] - 70));
                                 break;
 
                             // text foreground colors
@@ -6935,7 +7178,7 @@ function decodeHex3(strin) {
         p;      // ptr into strin
         
     strin = strin.replace(/\s/g,'');
-    ret = new Uint8Array(strin.length >> 1);
+    ret = new Uint8Array(strin.length >>> 1);
     for (p = 0, i = 0, l = ret.length; i < l; i++) {
         ret[i] = ((strin.charCodeAt(p    ) & 0x0F) << 4)
                | ((strin.charCodeAt(p + 1) & 0x0F));
@@ -7109,9 +7352,9 @@ function tnNegotiate(data) {
                             // send some SB stuff now
                             if (b == TN_NAWS) {
                                 v0 = crtCols & 0xFF;
-                                v1 = (crtCols >> 8) & 0xFF;
+                                v1 = (crtCols >>> 8) & 0xFF;
                                 v2 = crtRows & 0xFF;
-                                v3 = (crtRows >> 8) & 0xFF;
+                                v3 = (crtRows >>> 8) & 0xFF;
                                 tnSendCmd(TN_SB, TN_NAWS, v1, v0, v3, v2);
                                 tnSendCmd(TN_SE);
                             }
@@ -7253,44 +7496,5 @@ function tnInit() {
 }
 
 addListener(window, 'load', bootVTX);
-
-// insert an typed array into an typed array
-function insertInto(thisArr, pos, insertArr) {
-    if (thisArr.constructor === insertArr.constructor) {
-        var tl = thisArr.length, 
-            il = insertArr.length;
-        if (il > 0) {
-            var newArr = new thisArr.constructor(tl + il);
-            if (pos > tl) pos = tl;
-            if (pos < 0) pos = 0;
-            newArr.set(thisArr.subarray(0, pos), 0);
-            newArr.set(insertArr, pos);
-            newArr.set(thisArr.subarray(pos), pos + il);
-            return newArr;
-        } else
-            return thisArr;
-    } else {
-        throw new Error('TypedArray mismatch in insertInto().');
-        die();
-    }
-}
-
-// insert an typed array into an typed array
-function deleteFrom(thisArr, start, end) {
-    if (end > start) {
-        var tl = thisArr.length, 
-        end = end || tl;
-        var len = end - start,
-            newArr;
-        if (end > tl) end = tl;
-        newArr = new thisArr.constructor(tl - len);
-        newArr.set(thisArr.subarray(0, start), 0);
-        newArr.set(thisArr.subarray(end), start);
-        return newArr;
-    } else {
-        throw new Error('End is before start in deleteFrom().');
-        die();
-    }
-}
 
 };

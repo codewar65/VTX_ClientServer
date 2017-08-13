@@ -1,7 +1,7 @@
 program testvtx;
 
 uses
-  SysUtils, VTXNodeUtils;
+  SysUtils, VTXNodeUtils, classes;
 
 var
   vol : integer = 25;
@@ -63,9 +63,13 @@ begin
   	+ SGR(ANSI_YELLOW) + 'B' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Font Selection.');
 
-  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'B')+'['
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'C')+'['
   	+ SGR(ANSI_YELLOW) + 'C' + SGR(ANSI_BROWN)
     + ']' + SGR(ANSI_LTBLUE) + ' Audio.');
+
+  PrintLn(SGR(ANSI_BROWN) + ' '+HOTSPOT(3,1,0,'D')+'['
+  	+ SGR(ANSI_YELLOW) + 'D' + SGR(ANSI_BROWN)
+    + ']' + SGR(ANSI_LTBLUE) + ' Teletext Burst.');
 
   Print(UP(11) + SGR(ANSI_LTGREEN));
   PrintLn(RIGHT(30) + 'This is a demonstration of the VTX web and');
@@ -115,7 +119,7 @@ begin
     	Print(SOUNDVOL(vol));
     end;
 
-    if Pos(key, 'Q123456789ABC') <> 0 then
+    if Pos(key, 'Q123456789ABCD') <> 0 then
       result := key;
   until result <> '';
 end;
@@ -204,6 +208,12 @@ begin
   PrintSyntaxLn('CSI 3 ;', 'n', '^', 'Set Page Border Color.', 'n = (0-255:color). Def=0.');
   PrintLn;
   PrintSyntaxLn('CSI 4 ;', 'n', '^', 'Set Page Background Color.', 'n = (0-255:color). Def=0.');
+  PrintLn;
+  PrintLn(SGR(ANSI_YELLOW) + 'Hotspot Codes ' + SGR(ANSI_LTRED) + 'Alters the appearance of text for hotspots.');
+  PrintLn;
+  PrintSyntaxLn('CSI 5', #8, '^', 'Set mouseover color from current character attributes.', '');
+  PrintLn;
+  PrintSyntaxLn('CSI 6', #8, '^', 'Set click color from current character attributes.', '');
   PrintLn;
 
   Print(SGR(ANSI_GREEN) + 'Press '
@@ -809,6 +819,58 @@ begin
   until key = 'Q';
 end;
 
+procedure PrintTeletext(filename:string);
+var
+  fin : TFileStream;
+  len : integer;
+  buff : pbyte;
+begin
+  if fileexists(filename) then
+  begin
+	  fin := TFileStream.Create(filename, fmOpenRead);
+	  len := fin.Size;
+	  buff := GetMemory(len);
+	  fin.ReadBuffer(buff[0], len);
+	  fin.Free;
+	  Print(CSI + '?51h');
+	  PrintBin(buff, len);
+	  print(ESC);
+  	freememory(buff);
+  end;
+end;
+
+procedure PageD;
+var
+  key : string;
+
+begin
+  Print(VTXMODE + CLS + HOME + SGR(ANSI_LTCYAN, [SGR_RESET]));
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+    + ' Teletext Burst Mode');
+  PrintLn;
+
+  PrintLn(#27'[92mRaw Teletext can be rendered in the VTX client by setting the Teletext Burst');
+  PrintLn('mode on. This is done with a CSI ?51 h. Once in Teletext burst mode, an ESC');
+  PrintLn('will return to normal ANSI mode. This mode will take incoming 7-bit Teletext');
+  PrintLn('codes and render them in ANSI. If the terminal is operating in 80 column mode,');
+  PrintLn('they will be display in 40 columns.');
+  PrintLn;
+
+  PrintTeletext('2RW5Ekgt.bin');
+  PrintLn;
+
+  PrintTeletext('aJnFs710.bin');
+  PrintLn;
+
+  Print(#27'[10m'+SGR(ANSI_GREEN) + 'Press '+HOTSPOT(3,1,0,'Q')+'['
+    + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
+
+  repeat
+    key := upCase(GetKey);
+  until key = 'Q';
+end;
+
+
 var
   selection : string;
   loop : boolean;
@@ -841,6 +903,7 @@ begin
       'A':	PageA;
       'B':	PageB;
       'C':	PageC;
+      'D':	PageD;
 
       'Q':
         begin
