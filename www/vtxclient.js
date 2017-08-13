@@ -2068,7 +2068,7 @@ function addListener(obj, eventName, listener) {
 }
 
 // create an element
-function domElement(type, options, styles, txt) {
+function domElement(type, options = null, styles = null, txt = null) {
     var
         e = document.createElement(type),
         i;
@@ -2082,6 +2082,25 @@ function domElement(type, options, styles, txt) {
     if (txt)
         e.appendChild(document.createTextNode(txt));
     return e;
+}
+
+// keeps google closure compiler from bitching.
+function int(val) { return parseInt(val,10); }
+
+// clamp value to range. with optional fallback if out of bounds.
+function minMax(v, min, max, fallback = null) {
+    if (fallback == null) {
+        if (v < min) v = min;
+        if (v > max) v = max;
+    } else {
+        if (v < min) v = fallback;
+        if (v > max) v = fallback;
+    }
+    return v;
+}
+
+function between(mid, low, hi) {
+   return (low <= mid) && (mid <= hi);
 }
 
 // load fonts and boot
@@ -2277,7 +2296,7 @@ function loadSingleFont(fname){
         document.body.appendChild(testDiv);
 
         fontTimer = setInterval(
-            function(fontname){
+            function() {
                 var w = testDiv.offsetWidth;
                 if (w > 32) {
                     // mark as font loaded.
@@ -2286,9 +2305,11 @@ function loadSingleFont(fname){
                     clearInterval(fontTimer);
 
                     // redraw everything using this fomt.
-                    setTimeout(redrawFont(fontname),250);
+                    setTimeout( function() {
+                                    redrawFont(fname);
+                                }, 250);
                 }
-            }, 250, fname);
+            }, 250);
     }
 }
 
@@ -2306,7 +2327,7 @@ function redrawFont(fname) {
             for (c = conCellAttr[r].length - 1; c >= 0; c--) {
                 tfn = (conCellAttr[r][c] & A_CELL_FONT_MASK) >>> 28;
                 if (tfn == fn) 
-                    renderCell(r, c);
+                    renderCell(r, c, 0, false);
             }
     }
 }
@@ -2336,13 +2357,13 @@ function getMouseCell(e) {
     x = e.clientX;
     y = e.clientY + ty;
     dt = textPos.top;
-    if ((y >= dt) && (x >= textPos.left) && (x < textPos.left + crtWidth)) {
+    if ((y >= dt) && between(x, textPos.left, textPos.left + crtWidth - 1)) {
         // on the page. find row
         for (i = 0; i < conRowAttr.length; i++) {
             size = getRowAttrHeight(conRowAttr[i]) / 100;
             width = getRowAttrWidth(conRowAttr[i]) / 100;
             rh = Math.round(fontSize * size);
-            if ((y >= dt) && (y < (dt + rh))) {
+            if (between(y, dt, dt + rh - 1)) {
                 // on this row. get col
                 c = (x - textPos.left) / (xScale * colSize * width);
                 return { row: i, col: Math.floor(c) };
@@ -2364,10 +2385,8 @@ function getHotSpot(e) {
         // adjust to base-1 ansi coords
         for (i = 0; i < conHotSpots.length; i++) {
             hs = conHotSpots[i];
-            if ((mpos.row >= hs.row)
-                && (mpos.row < hs.row + hs.height)
-                && (mpos.col >= hs.col)
-                && (mpos.col < hs.col + hs.width))
+            if (between(mpos.row, hs.row, hs.row + hs.height - 1) &&
+                between(mpos.col, hs.col, hs.col + hs.width - 1))
                 return conHotSpots[i];
         }
     }
@@ -2500,12 +2519,12 @@ function keyDown(e) {
     stateIdx = (shiftState ? 1 : 0) + (ctrlState ? 2 : 0) + (altState ? 4 : 0);
 
     // translate for capslock
-    if ((kc >= 65) && (kc <= 90) && (stateIdx < 2) && capState)
+    if (between(kc, 65, 90) && (stateIdx < 2) && capState)
         stateIdx ^= 1;
 
     // reverse for PETSCII
     if (cbm) {
-        if ((kc >= 65) && (kc <= 90))
+        if (between(kc, 65, 90))
             stateIdx ^= 1;
     }
 
@@ -2580,8 +2599,8 @@ function keyPress(e) {
     ctrlState = e.ctrlKey;
     altState = e.altKey;
 
-    capState = (((cc >= 65) && (cc <= 90) && !shiftState)
-            || ((cc >= 97) && (cc <= 112) && shiftState));
+    capState = ((between(cc, 65, 90) && !shiftState)
+            || (between(cc, 97, 112) && shiftState));
 }
 
 // delete row from storage and element from html
@@ -2671,13 +2690,6 @@ function createNewRow() {
     return el;
 }
 
-// is this character a printable?
-function isprint(chr) {
-    if (chr < 32) return false;                 // C0 controls
-    if (chr >= 128 && chr < 160) return false;   // C1 controls
-    return true;
-}
-
 // compute number of visible cells on this row.
 function colsOnRow(rownum) {
     var
@@ -2686,18 +2698,6 @@ function colsOnRow(rownum) {
 
     cols *= 1 / width;
     return cols;
-}
-
-// clamp value to range. with optional fallback if out of bounds.
-function minMax(v, min, max, fallback) {
-    if (fallback == null) {
-        if (v < min) v = min;
-        if (v > max) v = max;
-    } else {
-        if (v < min) v = fallback;
-        if (v > max) v = fallback;
-    }
-    return v;
 }
 
 // flush out parameter array with defaults.
@@ -2725,13 +2725,11 @@ function getElementPosition(obj) {
 }
 
 // redraw the cursor. - attempt to scroll
-function crsrDraw(force) {
+function crsrDraw(force = false) {
     var
         row, rpos,
         csize,
         dt, wh;
-
-    force = force || false;
 
     expandToRow(crsrRow);
     row = getRowElement(crsrRow);
@@ -2785,7 +2783,7 @@ function getDefaultFontSize() {
     //cs = document.defaultView.getComputedStyle(document.body, null);
     cs = document.defaultView.getComputedStyle(pageDiv, null);
     fontName = cs['font-family'];
-    fontSize = parseInt(cs['font-size']);
+    fontSize = int(cs['font-size']);
     font = fontSize + 'px ' + fontName;
 
     // interrogate font
@@ -2822,23 +2820,6 @@ function getDefaultFontSize() {
     rowSize = Math.floor(txtBottom - txtTop) + 1;
 }
 
-// compute size of text based on text and font.
-function getTextWidth(text, font) {
-    // re-use canvas object for better performance
-    // probably not called enough to make a difference.
-    var
-        canvas = document.createElement('canvas'),
-        context, metrics;
-
-    context = canvas.getContext('2d');
-    context.font = font;
-    context.textBaseline='alphabetic';
-    context.textAlign='left';
-    metrics = context.measureText(text);
-    canvas = null;
-    return [metrics.width, metrics.height];
-}
-
 // get maximum row on document.
 function getMaxRow() {
     return conRowAttr.length - 1;
@@ -2850,40 +2831,34 @@ function getMaxCol(rownum) {
 }
 
 // home cursor
-function crsrHome() {
+function XcrsrHome() {
     crsrRow = crsrCol = 0; // base 0
     crsrDraw();
 }
 
 // move cursor
-function crsrMove(rownum, colnum) {
+function XcrsrMove(rownum, colnum) {
     crsrRow = rownum;
     crsrCol = colnum;
     crsrDraw();
 }
 
 // cursor up
-function crsrUp() {
+function XcrsrUp() {
     if (crsrRow > 0)
         crsrRow--;
     crsrDraw();
 }
 
-// cursor down
-function crsrDown() {
-    crsrRow++;
-    crsrDraw();
-}
-
 // cursor left
-function crsrLeft() {
+function XcrsrLeft() {
     if (crsrCol > 0)
         crsrCol--;
     crsrDraw();
 }
 
 // cursor right
-function crsrRight() {
+function XcrsrRight() {
     crsrCol++;
     crsrDraw();
 }
@@ -2966,29 +2941,6 @@ function getRowFontSize(rownum) {
     return { width: w, height:h };
 }
 
-// convert 4 digit base64 str to 24bit int
-function btoi(str) {
-    var
-        digits = str.split('');
-    return  (b64.indexOf(digits[0]) << 18) +
-            (b64.indexOf(digits[1]) << 12) +
-            (b64.indexOf(digits[2]) <<  6) +
-            (b64.indexOf(digits[3]));
-}
-
-// convert 24bit int to 4 digit base64
-function itob(val) {
-    var 
-        str = b64c[val & 0x3f];
-        
-    val >>= 6;
-    str = b64c[val & 0x3f] + str;
-    val >>= 6;
-    str = b64c[val & 0x3f] + str;
-    val >>= 6;
-    return b64c[val & 0x3f] + str;
-}
-
 // concert integer to hex string.
 function itoh(i, d) {
     var
@@ -3015,35 +2967,22 @@ function htoi(h) {
 }
 
 // create row attribute
-function makeRowAttr(c1, c2, bp, size, width, marquee) {
-
-    bp = bp || 0;
-    size = size || 100;
-    width = width || 100;
-    marquee = marquee || false;
-
-    var v;
+function makeRowAttr(
+    c1, 
+    c2, 
+    bp = 0,
+    height = 100,
+    width = 100, 
+    marquee = false) {
     
-    // round size to nearest valid 25%
-    size = Math.round(size / 25) - 1;
-    if (size < 0) size = 0;
-    if (size > 7) size = 7;
-    size <<= 18;
-
-    // round width to nearest valid 50%
-    width = Math.round(width / 50) - 1;
-    if (width < 0) width = 0;
-    if (width > 3) width = 3;
-    width <<= 21;
-
-    v = (c1 & 0xFF)
+    height = minMax(Math.round(height/ 25) - 1, 0, 7) << 18;
+    width = minMax(Math.round(width / 50) - 1, 0, 3) << 21;
+    return (c1 & 0xFF)
         | ((c2 & 0xFF) << 8)
         | bp
         | size
         | width
         | (marquee ? A_ROW_MARQUEE : 0);
-
-    return v;
 }
 
 function setPageAttrBorder(attr, color) {
@@ -3093,21 +3032,20 @@ function getRowAttrWidth(attr) { return (((attr & A_ROW_WIDTH_MASK) >>> 21) + 1)
 function getRowAttrMarquee(attr) { return (attr & A_ROW_MARQUEE) != 0; }
 
 // create cell attribute
-function makeCellAttr(fg, bg, bold, italics, underline, blinkslow, shadow,
-    strikethrough, outline, blinkfast, faint, font) {
+function makeCellAttr(
+    fg = 7, 
+    bg = 0, 
+    bold = false, 
+    italics = false, 
+    underline = false, 
+    blinkslow = false, 
+    shadow = false,
+    strikethrough = false, 
+    outline = false, 
+    blinkfast = false, 
+    faint = false, 
+    font = 0) {
 
-    fg = fg || 7;
-    bg = bg || 0;
-    bold = bold || false;
-    italics = italics || false;
-    underline = underline || false;
-    blinkslow = blinkslow || false;
-    shadow = shadow || false;
-    strikethrough = strikethrough || false;
-    outline = outline || false;
-    blinkfast = blinkfast || false;
-    faint = faint || false;
-    font = (font || 0) & 0xF;
     return (fg & 0xFF)
         | ((bg & 0xFF) << 8)
         | (bold ? A_CELL_BOLD : 0)
@@ -3119,8 +3057,7 @@ function makeCellAttr(fg, bg, bold, italics, underline, blinkslow, shadow,
         | (outline ? A_CELL_OUTLINE : 0)
         | (blinkfast ? A_CELL_BLINKFAST : 0)
         | (faint ? A_CELL_FAINT : 0)
-        | (font << 28)
-        ;
+        | ((font & 0xF) << 28);
 }
 
 // set cell attribute parts
@@ -3295,7 +3232,7 @@ function renderAll() {
 
 // force draw cells below on draw of top on tall cells. set bottom true.
 // bottom = true if this is the bottom half of the row above.
-function renderCell(rownum, colnum, hilight, bottom) {
+function renderCell(rownum, colnum, hilight=0, bottom=false) {
     var
         row,        // row element drawing to
         size,       // size factor (25%-200%)
@@ -3392,9 +3329,6 @@ function renderCell(rownum, colnum, hilight, bottom) {
         tfnt = 2;
     if (modeBoldFont && tbold && modeBlinkFont && tblinks)
         tfnt = 3;
-
-    // convert to proper glyph # for font used by this char
-    ch = String.fromCharCode(getUnicode(conFontCP[tfnt], ch.charCodeAt(0)));
 
     // reverse fg / bg for reverse on
     if (attr & A_CELL_REVERSE) {
@@ -3569,6 +3503,10 @@ function renderCell(rownum, colnum, hilight, bottom) {
             yadj = -h;
             yScale = 2.0;
         }
+        
+        // convert to proper glyph # for font used by this char
+        if (teletext == -1)
+            ch = String.fromCharCode(getUnicode(conFontCP[tfnt], ch.charCodeAt(0)));
 
         // transmogrify
         ctx.setTransform(
@@ -4014,12 +3952,10 @@ function initDisplay() {
             conFont[i] = fontName;
             conFontCP[i] = codePage;
         }
-        conFont[10] = fontName; // text only
-        conFont[11] = fontName; // text w/contiguous blocks
-        conFont[12] = fontName; // text w/separated blocks
-        conFontCP[10] = 'TELETEXT';
-        conFontCP[11] = 'TELETEXT';
-        conFontCP[12] = 'TELETEXT';
+        for (i = 10; i < 13; i++) {
+            conFont[i] = fontName; // text w/separated blocks
+            conFontCP[i] = 'TELETEXT';
+        }
     }
 
     pageDiv.style['width'] = (crtWidth*xScale) + 'px';
@@ -4087,7 +4023,7 @@ function initDisplay() {
     elPage = document.getElementsByTagName('html')[0];
     setTimers(true);
 
-    crsrHome();
+    crsrRow = crsrCol=0;
     textPos = textDiv.getBoundingClientRect();
     termState = TS_OFFLINE; // set for standard terminal mode, not in file xfer mode
 
@@ -4590,7 +4526,7 @@ function ymRStateMachine(data){
                             str = '';
                             while ((ymPacketBuff[j] != _SPACE) && (ymPacketBuff[j] != _NUL))
                                 str += String.fromCharCode(ymPacketBuff[j++]);
-                            ymFileSize = parseInt(str); // known size
+                            ymFileSize = int(str); // known size
                             ovl['filesize'].innerHTML = formatSize(ymFileSize);
                         } else {
                             ymFileSize = -1;            // unknown size
@@ -4934,7 +4870,7 @@ function cleanFileName(str) {
     for (i = 0, l = str.length; i < l; i++){
         c = str.charAt(i);
         ch = str.charCodeAt(i);
-        if ((ch > 32) && (ch < 127) &&
+        if (between(ch, 32, 126) &&
             (badchrs.indexOf(c) == -1))
             strout += c;
     }
@@ -4987,7 +4923,7 @@ function dump(buff, start, len){
     for (i = start; i < start + len; i++) {
 
         str += ' ' + itoh(buff[i], 2);
-        if ((buff[i] >= 32) && (buff[i] < 127))
+        if (between(buff[i], 32, 126))
             alpha += String.fromCharCode(buff[i])
         else
             alpha += '.';
@@ -5125,7 +5061,7 @@ function clearHotSpotsRows(row1, row2) {
         hs, i;
     for (i = conHotSpots.length - 1; i >= 0; i--) {
         hs = conHotSpots[i];
-        if ((hs.row >= row1) && (hs.row <= row2))
+        if (between(hs.row, row1, row2))
             conHotSpots.splice(i,1);
     }
 }
@@ -5136,7 +5072,7 @@ function moveHotSpotsRow(row, col1, col2, coladj) {
         hs, i;
     for (i = conHotSpots.length - 1; i >= 0; i--) {
         hs = conHotSpots[i];
-        if ((hs.row == row) && (hs.col >= col1) && (hs.col <= col2))
+        if ((hs.row == row) && between(hs.col, col1, col2))
             hs.col += coladj;
     }
 }
@@ -5147,7 +5083,7 @@ function moveHotSpotsRows(row1, row2, rowadj) {
         hs, i;
     for (i = conHotSpots.length - 1; i >= 0; i--) {
         hs = conHotSpots[i];
-        if ((hs.row >= row1) && (hs.row <= row2))
+        if (between(hs.row, row1, row2))
             hs.row += rowadj;
     }
 }
@@ -5214,21 +5150,20 @@ function scrollDown() {
 
 // output character using current attribute at cursor position.
 function conPrintChar(chr) {
-    if (isprint(chr)) {
-        crsrSkipTime = new Date().getTime();
-        conPutChar(crsrRow, crsrCol, chr, cellAttr);
-        crsrCol++;
-        if (!modeAutoWrap) {
-            if (crsrCol >= crtCols)
-                crsrCol--;
-        } else {
-            if (crsrCol == colsOnRow(crsrRow)) {
-                crsrCol = 0;
-                crsrRow++
-            }
+    
+    crsrSkipTime = new Date().getTime();
+    conPutChar(crsrRow, crsrCol, chr, cellAttr);
+    crsrCol++;
+    if (!modeAutoWrap) {
+        if (crsrCol >= crtCols)
+            crsrCol--;
+    } else {
+        if (crsrCol == colsOnRow(crsrRow)) {
+            crsrCol = 0;
+            crsrRow++
         }
-        lastChar = chr;
     }
+    lastChar = chr;
 }
 
 function resetTerminal() {
@@ -5251,9 +5186,13 @@ function resetTerminal() {
     pageDiv.parentNode.style['background-color'] = ansiColors[(pageAttr >>> 8) & 0xFF];
     pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
     conFontNum = 0;                 // current font being used.
-    for (i = 0; i < 16; i++) {      // set default font selects.
+    for (i = 0; i < 10; i++) {      // set default font selects.
         conFont[i] = fontName;
         conFontCP[i] = codePage;
+    }
+    for (i = 10; i < 13; i++) {
+        conFont[i] = fontName; // text w/separated blocks
+        conFontCP[i] = 'TELETEXT';
     }
 }
 
@@ -5780,7 +5719,7 @@ function conCharOut(chr) {
                     break;
 
                 case _DEL:   // delete (not on font 10 or 11)
-                    if (conFontNum < 10) {
+                    if (between(conFontNum, 10, 12)) { 
                         expandToRow(crsrRow);
                         expandToCol(crsrRow, crsrCol);
                         delChar(crsrRow, crsrCol);
@@ -5852,13 +5791,13 @@ function conCharOut(chr) {
                         case 2:
                             // start of CSI (ESC [)
                             // collect parameters until either intermediate or final
-                            if ((chr >= 0x30) && (chr <= 0x3F))
+                            if (between(chr, 0x30, 0x3F))
                                 parms += String.fromCharCode(chr)
-                            else if ((chr >= 0x20) && (chr <= 0x2F)) {
+                            else if (between(chr, 0x20, 0x2F)) {
                                 // intermediate byte
                                 interm = String.fromCharCode(chr);
                                 ansiState = 5;
-                            } else if ((chr >= 0x40) && (chr <= 0x7E)) {
+                            } else if (between(chr, 0x40, 0x7E)) {
                                 // final byte
                                 ansiState = 0;
                                 doCSI = true;
@@ -5938,9 +5877,9 @@ function conCharOut(chr) {
 
                         case 5:
                             // collecting intermediate bytes
-                            if ((chr >= 0x20) && (chr <= 0x2F))
+                            if (between(chr, 0x20, 0x2F))
                                 interm += String.fromCharCode(chr)
-                            else if ((chr >= 0x40) && (chr <= 0x7E)) {
+                            else if (between(chr, 0x40, 0x7E)) {
                                 // command?
                                 ansiState = 0;
                                 doCSI = true;
@@ -5964,7 +5903,7 @@ function conCharOut(chr) {
             // for our purposes, all parameters are integers. if not, leave as string.
             l = parm.length;
             for (i = 0; i < l; i++) {
-                v = parseInt(parm[i]);
+                v = int(parm[i]);
                 if (v.toString() == parm[i])
                     parm[i] = v;
             }
@@ -6587,7 +6526,7 @@ function conCharOut(chr) {
                                         case 0:
                                             // url : unicode encoded characters 
                                             for (i = 4; i < l; i++) 
-                                                str += String.fromCharCode(parseInt(parm[i]));
+                                                str += String.fromCharCode(int(parm[i]));
                                             spriteDefs[parm[2]] = stripNL(str);
                                             break;
                                              
@@ -6725,7 +6664,7 @@ function conCharOut(chr) {
                                         case 0:
                                             // url : unicode encoded characters 
                                             for (i = 4; i < l; i++) 
-                                                str += String.fromCharCode(parseInt(parm[i]));
+                                                str += String.fromCharCode(int(parm[i]));
                                             audioDefs[parm[2]] = str;
                                             break;
                                             
@@ -7131,8 +7070,8 @@ function moveSprite(el, nr, nc, t){
     var
         rpos = getElementPosition(getRowElement(nr)),
         csize = getRowFontSize(nr),
-        cx = parseInt(el.style['left']),
-        cy = parseInt(el.style['top']),
+        cx = int(el.style['left']),
+        cy = int(el.style['top']),
         steps, tmr, 
         sel,
         nx, ny;
