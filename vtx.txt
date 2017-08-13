@@ -177,6 +177,8 @@ Sequences (# : to be implemented)
 
     CSI n 'l' : Reset Mode (RM).
         n = '?50' : turns off VTX ANSI mode. #
+            '?51' : Teletext burst mode - ESC to return to ANSI mode.
+                render 7-bit codes once in mode to teletext display output.
             '?6' : 1,1=ul of scrolling region
             '?7' : auto wrap off
             '?25' : cursor hide
