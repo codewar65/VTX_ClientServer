@@ -308,7 +308,11 @@ var vtxdata = {
   sysName:     "VTX Home System",
   wsConnect:   "ws://142.105.247.156:7003",
   term:        "ANSI",
+  telnet:      1,
+  autoConnect: 0,
   codePage:    "CP437",
+  fontName:    'UVGA16',
+  fontSize:    '16px',
   crtCols:     80,
   crtRows:     25,
   crtHistory:  500,
@@ -316,11 +320,7 @@ var vtxdata = {
   initStr:     "",
   defPageAttr: 0xF410,
   defCrsrAttr: 0x0207,
-  defCellAttr: 0x0007,
-  telnet:      1,
-  autoConnect: 0,
-  fontName:    'UVGA16',
-  fontSize:    '16px'
+  defCellAttr: 0x0007
 };
 ```
 
