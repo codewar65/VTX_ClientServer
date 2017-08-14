@@ -1919,6 +1919,9 @@ const
     CRC_POLY        = 0x1021;
     
 let
+    // script path
+    vtxPath = '',
+    
     // strings that get transmogrified by the HTTP server.
     // only change these if you are not using the VTX HTTP server.
     codePage = vtxdata.codePage,  
@@ -2108,7 +2111,21 @@ function bootVTX() {
     var
         el, hd = document.getElementsByTagName('head')[0],
         testTimer,
-        testDiv;
+        testDiv,
+        i,
+        path, 
+        scripts;
+        
+    // get path of script for access to images, etc
+    vtxPath = '';
+    scripts = document.getElementsByTagName('script');
+    for (i = scripts.length - 1; i>=0; i--) {
+        if (scripts[i].src.toLowerCase().indexOf('vtxclient') >= 0) {
+            path = scripts[i].src.split('?')[0];
+            vtxPath = path.split('/').slice(0,-1).join('/')+'/';
+            break;
+        }
+    }
 
     // force load adobeblank
     el = domElement(
@@ -3651,32 +3668,32 @@ function setBulbs() {
     // set the online indicator button        
     el = document.getElementById('osbulb');
     if (termState == TS_OFFLINE) {
-        el.src = 'os0.png';
+        el.src = vtxPath + 'os0.png';
         el.title = 'Connect';
     } else {
-        el.src = 'os1.png';
+        el.src = vtxPath + 'os1.png';
         el.title = 'Disconnect';
     }
 
     // set the caps/num/scr lock indicators
-    document.getElementById('clbulb').src = (capState ? 'cl1':'cl0') + '.png';
-    document.getElementById('nlbulb').src = (numState ? 'nl1':'nl0') + '.png';
-    document.getElementById('slbulb').src = (scrState ? 'sl1':'sl0') + '.png';
+    document.getElementById('clbulb').src = vtxPath + (capState ? 'cl1':'cl0') + '.png';
+    document.getElementById('nlbulb').src = vtxPath + (numState ? 'nl1':'nl0') + '.png';
+    document.getElementById('slbulb').src = vtxPath + (scrState ? 'sl1':'sl0') + '.png';
 
     // set the ul/dl buttons
     if (termState == TS_NORMAL) {
         el = document.getElementById('ulbtn');
-        el.src = 'ul1.png';
+        el.src = vtxPath + 'ul1.png';
         el.style['visibility'] = 'visible';
         el = document.getElementById('dlbtn');
-        el.src = 'dl1.png';
+        el.src = vtxPath + 'dl1.png';
         el.style['visibility'] = 'visible';
     } else if (termState == TS_OFFLINE) {
         el = document.getElementById('ulbtn');
-        el.src = 'ul0.png';
+        el.src = vtxPath + 'ul0.png';
         el.style['visibility'] = 'visible';
         el = document.getElementById('dlbtn');
-        el.src = 'dl0.png';
+        el.src = vtxPath + 'dl0.png';
         el.style['visibility'] = 'visible';
     } else {
         // buttons not visible in file transfer mode.
@@ -3990,7 +4007,7 @@ function initDisplay() {
 
     // load bell sound
     soundBell = new Audio();
-    soundBell.src = 'bell.mp3';
+    soundBell.src = vtxPath + 'bell.mp3';
     soundBell.type = 'audio/mp3';
     soundBell.volume = 1;
     soundBell.preload = 'auto';
@@ -4040,7 +4057,7 @@ function initDisplay() {
     pos = 0;
     ctrlDiv.appendChild(domElement(
         'img',
-        {   src:        'os0.png',
+        {   src:        vtxPath + 'os0.png',
             id:         'osbulb',
             onclick:    termConnect,
             width:      24,
@@ -4050,7 +4067,7 @@ function initDisplay() {
 
     ctrlDiv.appendChild(domElement(
         'img',
-        {   src:        'cl0.png',
+        {   src:        vtxPath + 'cl0.png',
             id:         'clbulb',
             width:      24,
             height:     24,
@@ -4058,7 +4075,7 @@ function initDisplay() {
 
     ctrlDiv.appendChild(domElement(
         'img',
-        {   src:        'nl0.png',
+        {   src:        vtxPath + 'nl0.png',
             id:         'nlbulb',
             width:      24,
             height:     24,
@@ -4066,7 +4083,7 @@ function initDisplay() {
 
     ctrlDiv.appendChild(domElement(
         'img',
-        {   src:        'sl0.png',
+        {   src:        vtxPath + 'sl0.png',
             id:         'slbulb',
             width:      24,
             height:     24,
@@ -4074,7 +4091,7 @@ function initDisplay() {
 
     ctrlDiv.appendChild(domElement(
         'img',
-        {   src:        'ul0.png',
+        {   src:        vtxPath + 'ul0.png',
             id:         'ulbtn',
             onclick:    ymSendStart,
             width:      24,
@@ -4084,7 +4101,7 @@ function initDisplay() {
 
     ctrlDiv.appendChild(domElement(
         'img',
-        {   src:        'dl0.png',
+        {   src:        vtxPath + 'dl0.png',
             id:         'dlbtn',
             onclick:    ymRecvStart,
             width:      24,
