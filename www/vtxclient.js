@@ -2369,8 +2369,8 @@ function getMouseCell(e) {
         size, width, c, rh,
         ty, dt, i;
 
-    //ty = document.documentElement.scrollTop || document.body.scrollTop;
-    ty = 0;
+    ty = document.documentElement.scrollTop || document.body.scrollTop;
+    //ty = 0;
     x = e.clientX;
     y = e.clientY + ty;
     dt = textPos.top;
@@ -2766,7 +2766,8 @@ function crsrDraw(force = false) {
     csize = getRowFontSize(crsrRow);
 
     // set cursor siz / pos
-    crsr.style['top'] =     (rpos.top - pageTop) + 'px';
+    crsr.style['top'] =     (rpos.top - textPos.top) + 'px';
+    //crsr.style['top'] =     (rpos.top - pageTop) + 'px';
     crsr.style['left'] =    (xScale * crsrCol * csize.width) + 'px';
     crsr.style['width'] =   (xScale * csize.width) + 'px';
     crsr.style['height'] =  csize.height + 'px';
@@ -2893,12 +2894,14 @@ function getRowElement(row) {
 // called often to fix cursor on zoom / page resize
 function doCheckResize() {
     // page resize?
-    textPos = textDiv.getBoundingClientRect();
+    //textPos = textDiv.getBoundingClientRect();
+    textPos = getElementPosition(textDiv);
     if (elPage.clientWidth != pageWidth) {
         pageWidth = elPage.clientWidth;
         crsrDraw(true);
     }
-    //ctrlDiv.style['left'] = (6 + textPos.left + (crtWidth*xScale)) + 'px';
+    ctrlDiv.style['top'] = textPos.top + 'px';
+    ctrlDiv.style['left'] = (6 + textPos.left + (crtWidth*xScale)) + 'px';
 }
 
 // blink cursor (533ms is cursor blink speed based on DOS VGA).
@@ -3773,7 +3776,8 @@ function newCrsr() {
                 left:       '0px' });
 
         crsr.appendChild(o);
-        textDiv.appendChild(crsr);
+        pageDiv.appendChild(crsr);
+        //textDiv.appendChild(crsr);
     } else
         o = crsr.firstChild;
 
@@ -3933,6 +3937,9 @@ function initDisplay() {
                 className:  'noselect' });
     pageDiv.appendChild(textDiv);
     el.appendChild(pageDiv);
+
+    //textPos = textDiv.getBoundingClientRect();
+    textPos = getElementPosition(textDiv);
     
     // determine standard sized font width in pixels
     getDefaultFontSize(); // get fontName, colSize, rowSize
@@ -4077,6 +4084,7 @@ function initDisplay() {
         p.style['background-color'] = ansiColors[(pageAttr >>> 8) & 0xFF];
         pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
     }
+    // set event for page resize check and cursor blink
     pageWidth = elPage.clientWidth;
 
     // set initial states.
@@ -4088,26 +4096,13 @@ function initDisplay() {
     crsrRow = crsrCol = 0;
     crsrDraw();
 
-    // set event for page resize check and cursor blink
-    elPage = document.getElementsByTagName('html')[0];
     setTimers(true);
 
     crsrRow = crsrCol=0;
-    textPos = textDiv.getBoundingClientRect();
     termState = TS_OFFLINE; // set for standard terminal mode, not in file xfer mode
 
     // indicators and controls
     // ctrl for fixed ur
-/*
-    ctrlDiv = domElement(
-        'div',
-        {   id:             'ctrls' },
-        {   width:          '24px',
-            height:         '164px',
-            position:       'fixed',
-            top:            textPos.top + 'px',
-            left:           (6 + textPos.left + (crtWidth * xScale)) + 'px'});
-*/
     ctrlDiv = domElement(
         'div',
         {   id:             'ctrls' },
@@ -4116,7 +4111,6 @@ function initDisplay() {
             position:       'absolute',
             top:            textPos.top + 'px',
             left:           (6 + textPos.left + (crtWidth * xScale)) + 'px'});
-
     pos = 0;
     ctrlDiv.appendChild(domElement(
         'img',
