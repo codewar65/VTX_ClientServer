@@ -236,25 +236,27 @@ To run the client without using the VTX server software, all you need is a web p
 In the HTML that will contain the client, in the <HEAD>, include:
 
 ```html
-    <link type='text/css' href='vtxclient.css' rel='stylesheet'>
     <script type='text/javascript' src='https://cdn.jsdelivr.net/pako/1.0.3/pako.min.js'></script>
     <script type='text/javascript' src='vtxdata.js'></script>
     <script type='text/javascript' src='vtxclient.min.js'></script>
 ```
 
-In the <BODY> of your page, place something like:
+In the <BODY> of your page, place something like (the outer 2 divs are the border area and one to center the terminal on the page. you can tinker with these to suit your website):
 
 ```html
         <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
-        <!-- terminal divs -->
-        <div id='vtxpage' class='noselect'>
-            <!-- page background color / z=0 sprites -->
-            <div id='vtxtext' class='noselect'>
-                <!-- text / z=1 sprites -->
+        <div style='text-align:center'> <!-- center term on page -->
+        <div style='text-align:center;margin:0 auto;display:inline-block;padding:34px;'>
+
+            <div id='vtxpage' class='noselect'>
+                <div id='vtxtext' class='noselect'></div>
             </div>
+            
+        </div>
         </div>
         <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
 ```
+
 
 The vtxpage div element will house the client once the vtxclient.js has booted up.
 
@@ -316,7 +318,9 @@ var vtxdata = {
   defCrsrAttr: 0x0207,
   defCellAttr: 0x0007,
   telnet:      1,
-  autoConnect: 0
+  autoConnect: 0,
+  fontName:    'UVGA16',
+  fontSize:    '16px'
 };
 ```
 

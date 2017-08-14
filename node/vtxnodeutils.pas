@@ -302,7 +302,7 @@ var
   b : byte;
   barray : TBytes;
   hex : string;
-  utf : string;
+  utf : utf8string;
   val : integer;
 begin
   {$ifdef LOCAL}

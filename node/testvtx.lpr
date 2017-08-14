@@ -424,12 +424,12 @@ begin
 
   Print(SGR(ANSI_LTCYAN) + 'Colors 0 - 7 are low intensity colors.    ');
   for i := 0 to 7 do
-    Print(SGR(i) + ' ' + UNICODE($2586) + UNICODE($2586) + UNICODE($2586));
+    Print(SGR(i) + ' ' + UNICODE($2584) + UNICODE($2584) + UNICODE($2584));
   PrintLn;
 
   Print(SGR(ANSI_LTCYAN) + 'Colors 8 - 15 are high intensity colors.  ');
   for i := 8 to 15 do
-    Print(SGR(i) + ' ' + UNICODE($2586) + UNICODE($2586) + UNICODE($2586));
+    Print(SGR(i) + ' ' + UNICODE($2584) + UNICODE($2584) + UNICODE($2584));
   PrintLn;
   PrintLn;
 
@@ -440,7 +440,7 @@ begin
     for j := 0 to 23 do
     begin
       c := 16 + (i * 24) + j;
-      Print(#27'[38;5;' + inttostr(c) + 'm ' + UNICODE($2586) + '' + UNICODE($2586));
+      Print(#27'[38;5;' + inttostr(c) + 'm ' + UNICODE($2584) + UNICODE($2584));
     end;
     PrintLn;
   end;
@@ -451,7 +451,7 @@ begin
   for j := 0 to 23 do
   begin
     c := 232 + j;
-    Print(SGR(c) + ' ' + UNICODE($2586) + UNICODE($2586));
+    Print(SGR(c) + ' ' + UNICODE($2584) + UNICODE($2584));
   end;
   PrintLn;
   PrintLn;
