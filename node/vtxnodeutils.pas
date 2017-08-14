@@ -313,21 +313,8 @@ begin
     i := 0;
     while i < length(barray) do
     begin
-      // look out for #0 - convert to unicode
       b := barray[i];
-      if b = 0 then
-      begin
-        hex := char(barray[i + 1])
-          + char(barray[i + 2])
-          + char(barray[i + 3])
-          + char(barray[i + 4]);
-        val := Hex2Dec(hex);
-        utf := UnicodeToUTF8(val);
-        pout.WriteAnsiString(utf);
-        inc(i, 4);
-      end
-      else
-        pout.WriteByte(b);
+      pout.WriteByte(b);
       inc(i);
     end;
     setlength(barray, 0);
@@ -489,8 +476,7 @@ end;
 
 function UNICODE(n : integer) : string;
 begin
-  //result := UnicodeToUTF8(n);
-  result := #0 + IntToHex(n, 4);
+  result := UnicodeToUTF8(n);
 end;
 
 function URL(w, h, l : integer; urlstr : string) : string;

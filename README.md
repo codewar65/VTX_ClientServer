@@ -245,14 +245,11 @@ In the <BODY> of your page, place something like (the outer 2 divs are the borde
 
 ```html
         <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
-        <div style='text-align:center'> <!-- center term on page -->
-        <div style='text-align:center;margin:0 auto;display:inline-block;padding:34px;'>
-
-            <div id='vtxpage' class='noselect'>
-                <div id='vtxtext' class='noselect'></div>
+        <!-- center term on page -->
+        <div style='text-align:center'> 
+            <div id='vtxclient' style='text-align:center;margin:0 auto;display:inline-block;padding:34px;'>
+                <!-- VTX client will appears in here -->
             </div>
-            
-        </div>
         </div>
         <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
 ```

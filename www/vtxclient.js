@@ -3908,6 +3908,7 @@ function initDisplay() {
     var
         i, o, p, pos,
         cssel,
+        el, div1, div2,
         fsize,
         style,
         css,
@@ -3917,14 +3918,22 @@ function initDisplay() {
     hotspotHoverAttr = 0x000800FF;
     hotspotClickAttr = 0x000000FF;
 
-    // find the page / text div
-    pageDiv = document.getElementById('vtxpage');
-    if (!pageDiv)
-        return; // couldn't find it.
-    textDiv = document.getElementById('vtxtext');
-    if (!textDiv)
-        return; // couldn't find it.
-
+    // find where client is to go id='vtxclient'
+    el = document.getElementById('vtxclient');
+    if (!el) return;
+    
+    // build required inner divs
+    pageDiv = domElement(
+            'div',
+            {   id:         'vtxpage',
+                className:  'noselect' });
+    textDiv = domElement(
+            'div',
+            {   id:         'vtxtext',
+                className:  'noselect' });
+    pageDiv.appendChild(textDiv);
+    el.appendChild(pageDiv);
+    
     // determine standard sized font width in pixels
     getDefaultFontSize(); // get fontName, colSize, rowSize
     crtWidth = colSize * crtCols;
@@ -3980,10 +3989,9 @@ function initDisplay() {
     pageLeft = pagePos.left;
     pageTop = pagePos.top;
 
-    // build marquee CSS
+    // build CSS for VTX client
     style = document.createElement('style');
     style.type = 'text/css';
-
     css = '#vtxpage {'
         + ' font-family: ' + fontName + ';'
         + ' font-size: ' + fontSize + 'px;'
@@ -4018,7 +4026,7 @@ function initDisplay() {
         + '.fade {'
         + ' opacity: .5;'
         + ' background: #000055;'
-        + '}'
+        + '}\n'
         + '.noselect {'
         + ' -webkit-touch-callout: none;'
         + ' -webkit-user-select: none;'
@@ -4026,18 +4034,8 @@ function initDisplay() {
         + ' -moz-user-select: none;'
         + ' -ms-user-select: none;'
         + ' user-select: none;'
-        + '}';
-
-
-
-
-
-
-
-
-
-
-    css += '.marquee { animation: marquee 12s linear infinite; } '
+        + '}\n'
+        + '.marquee { animation: marquee 12s linear infinite; } '
         + '@keyframes marquee { '
         + '0% { transform: translate( ' + (xScale * crtCols * colSize) + 'px, 0); } '
         + '100% { transform: translate(-100%, 0); }}';
@@ -4047,7 +4045,7 @@ function initDisplay() {
         style.appendChild(document.createTextNode(css));
     head = document.head || document.getElementsByTagName('head')[0];
     head.appendChild(style);
-
+    
     defCellAttr = vtxdata.defCellAttr;
     defCrsrAttr = vtxdata.defCrsrAttr;
     defPageAttr = vtxdata.defPageAttr;
