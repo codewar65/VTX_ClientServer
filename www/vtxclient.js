@@ -31,7 +31,7 @@
     TODO : ( see also TODO in code)
 
         On Demand Fonts - check.
-    
+
         Client Ident - fix - currently crashing / not working all time.
 
         Codes for restore cursor attr, restore page attr
@@ -41,10 +41,10 @@
         Server: http requests out to separate threads
 
         YModem download : remove CPMEOF's on files w/o filenames/sizes
-        
+
 
     HOTSPOTATTR  (HOTSPOTHOVERATTR / HOTSPOTCLICKATTR)
-    
+
         see CELLATTRS
 
 
@@ -58,7 +58,7 @@
     ROWATTR - numbers stored in conRowAttr[num]
 
         00000000 00101100 00000000 00000000 - default
-   
+
         00000000 00000000 00000000 00000000  - bits
         ------DD mwwzzzbb ssssssss ffffffff
         00000000 00101100 00000000 00000000
@@ -89,7 +89,7 @@
         D : row display row type
             00 - normal
             01 - concealed
-            10 - top half of double height 
+            10 - top half of double height
             11 - bottom half of double height
         - : unused
 
@@ -99,7 +99,7 @@
         ZZZZosDD fKktuibr BBBBBBBB FFFFFFFF
 
         00000000 00001000 00000010 11111111
-                 
+
         F : Foreground Color (0-255) using aixterm palette
         B : Background Color (0-255)  -''-
         r : reversed (0-1)
@@ -114,7 +114,7 @@
         s : shadow (0-1)
         o : outlined (0-1)
         Z : font number 0-15 (10=mosaic block, 11=separated block).
-     
+
     CRSRATTRS
 
         00000000 00000000 00000000 00000000  - bits
@@ -138,7 +138,7 @@
 "use strict";
 
 vtx: {
-    
+
 // globals
 const
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
@@ -216,7 +216,7 @@ const
 
     // convert teletext colors to ansi
     ttxToAnsiColor = [ 16, 196, 46, 226, 21, 201, 51, 15 ],
-    
+
     hex =   '0123456789ABCDEF',
     b64 =   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
 
@@ -267,7 +267,7 @@ const
     A_ROW_DISPLAY_CONCEAL   = 0x01000000,
     A_ROW_DISPLAY_TOP       = 0x02000000,
     A_ROW_DISPLAY_BOTTOM    = 0x03000000,
-    
+
     A_CRSR_COLOR_MASK       = 0x000000FF, // 0-255
     A_CRSR_STYLE_MASK       = 0x00000300, // none,thin,thick,full
     A_CRSR_STYLE_NONE       = 0x00000000,
@@ -1326,10 +1326,10 @@ const
             0x0406, 0x0456, 0x00b7, 0x00a4, 0x0490, 0x0491, 0x2219, 0x00a0]),
 
         TELETEXT: new Uint16Array([ // TELETEXT
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
             0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027,
             0x0028, 0x0029, 0x002A, 0x002B, 0x002C, 0x002D, 0x002E, 0x002F,
             0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037,
@@ -1342,24 +1342,24 @@ const
             0x0068, 0x0069, 0x006A, 0x006B, 0x006C, 0x006D, 0x006E, 0x006F,
             0x0070, 0x0071, 0x0072, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077,
             0x0078, 0x0079, 0x007A, 0x00BC, 0x2016, 0x00BE, 0x00F7, 0x25A0,
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
             _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK
         ]),
-            
+
         RAW: new Uint16Array([   // for RAW converted fonts - mapped to ASCII/PETSCII points
             0xE000, 0xE001, 0xE002, 0xE003, 0xE004, 0xE005, 0xE006, 0xE007,
             0xE008, 0xE009, 0xE00A, 0xE00B, 0xE00C, 0xE00D, 0xE00E, 0xE00F,
@@ -1440,7 +1440,7 @@ const
         19: 0,                  // pause/break
         20: DO_CAPLK,           // caps lock
         27: function () {       // esc
-                if (cbm)                return 0x03 // run/stop 
+                if (cbm)                return 0x03 // run/stop
                 else                    return _ESC; },
         32: ' ',                // spacebar
         33: function(){         // pgup
@@ -1544,7 +1544,7 @@ const
        110: '.',                // decimal
        111: '/',                // divide
        112: function(){         // f1
-                if (cbm)                return 0x85 
+                if (cbm)                return 0x85
                 else if (modeDOORWAY)   return '\x00\x3B'
                 else                    return ESC+'OP'; },
        113: function(){         // f2
@@ -1621,7 +1621,7 @@ const
         13: function(){         // enter
                 return cbm?0x8d:0; },
         32: '\xa0',             // spacebar
-        
+
         35: function(){         // end
                 // graphics cbm
                 return cbm?0x8E:0; },
@@ -1869,7 +1869,7 @@ const
         'MOSOUL', 'P0TNOODLE', 'TOPAZ', 'TOPAZPLUS',
         'VIC200', 'VIC201', 'C640', 'C641', 'C1280',
         'C1281', 'ATARI', 'TI994' ],
-        
+
     // telnet commands
     TN_IS           = 0x00,
     TN_SEND         = 0x01,
@@ -1915,24 +1915,24 @@ const
     TNQ_WANTNO_OP   = 4,
     TNQ_WANTYES_OP  = 5,
 
-    // for ymodem crc16 
+    // for ymodem crc16
     CRC_POLY        = 0x1021;
-    
+
 let
     // script path
     vtxPath = '',
-    
+
     // strings that get transmogrified by the HTTP server.
     // only change these if you are not using the VTX HTTP server.
-    codePage = vtxdata.codePage,  
+    codePage = vtxdata.codePage,
     wsConnect = vtxdata.wsConnect,
-    crtCols = vtxdata.crtCols,   
+    crtCols = vtxdata.crtCols,
     crtRows = vtxdata.crtRows,
-    xScale = vtxdata.xScale,     
-    term = vtxdata.term,         
+    xScale = vtxdata.xScale,
+    term = vtxdata.term,
     cbm = (vtxdata.term == 'PETSCII'),
     atari = (vtxdata.term == 'ATASCII'),
-    initStr = vtxdata.initStr,   
+    initStr = vtxdata.initStr,
 
     cbmColors,                      // the correct color palette for a PETSCII
 
@@ -1977,10 +1977,10 @@ let
     defRowAttr = 0x002c0000,    // def row attr
     lastChar,                   // last printable character outputed.
     lastHotSpot = null,         // last mouseover hotspot
-    
+
     hotspotHoverAttr,           // uses same attrs as cell
     hotspotClickAttr,           // ''
-    
+
     conBaud = 0,                // baud emulation speed.
     audio,                      // audio element
 
@@ -2028,7 +2028,7 @@ let
     spriteDefs = [],            // sprite definitions - contains url / or data url
     audioDefs = [],             // audio definitions - type 0 coded. 1,2 TODO
     conTabStop = [],            // programmable horizontal tab stops. (used in ATASCII for now)
-    
+
     // array 0..15 (0-9:ANSI selectable,10/11:special,12-15:reserved)
     conFont = [],               // the 10 fonts used for CSI 10-19 m
     conFontCP = [],             // associated code page for font.
@@ -2061,7 +2061,7 @@ let
     ymNextBlock,
     ymSendStartTime;            // timer for when to abort
 
-    
+
 // add event listener
 function addListener(obj, eventName, listener) {
     if(obj.addEventListener)
@@ -2113,9 +2113,9 @@ function bootVTX() {
         testTimer,
         testDiv,
         i,
-        path, 
+        path,
         scripts;
-        
+
     // get path of script for access to images, etc
     vtxPath = '';
     scripts = document.getElementsByTagName('script');
@@ -2136,7 +2136,7 @@ function bootVTX() {
                 + '  font-family: "AdobeBlank"; '
                 + '  src: url("'+vtxPath+'AdobeBlank.woff") format("woff"); }\n');
     hd.appendChild(el);
-    
+
     testDiv = domElement('div',{},
                     {   fontFamily:         '"AdobeBlank", sans-serif',
                         fontSize:           '24px',
@@ -2158,7 +2158,7 @@ function bootVTX() {
             }
         }, 50);
 }
-    
+
 
 function bootVTX1() {
     var
@@ -2182,13 +2182,13 @@ function bootVTX1() {
                     bootFonts.push('VIC200');
                     bootFonts.push('VIC201');
                     break;
-                
-                
+
+
                 case 'C128':
                     bootFonts.push('C1280');
                     bootFonts.push('C1281');
                     break;
-                
+
                 case 'C64':
                 default:
                     bootFonts.push('C640');
@@ -2196,20 +2196,20 @@ function bootVTX1() {
                     break;
             }
             break;
-        
+
         case 'ATASCII':
             bootFonts.push('ATARI');
             break;
-            
+
         default:
             bootFonts.push('UVGA16');
             break;
     }
-    
+
     // inject @font-faces
     el = document.getElementById('vtxfonts');
     str = '';
-    for (i = 0, l = bootFonts.length; i < l; i++) 
+    for (i = 0, l = bootFonts.length; i < l; i++)
         str += '@font-face {\r\n '
             + '  font-family: "' + bootFonts[i] + '"; '
             + '  src: url("' + vtxPath + bootFonts[i] + '.woff") format("woff"); }\r\n';
@@ -2276,14 +2276,14 @@ function bootVTX2() {
 }
 
 function loadSingleFont(fname){
-    var 
+    var
         fn,
         el,
         str,
         hd = document.getElementsByTagName('head')[0],
         fontTimer,
         testDiv;
-        
+
     // return if it's already loaded.
     fn = vtxFonts.indexOf(fname);
     if ((fn >= 0) && !vtxFontsLoaded[fn]) {
@@ -2291,8 +2291,8 @@ function loadSingleFont(fname){
         str = '@font-face {\r\n '
             + '  font-family: "' + fname + '"; '
             + '  src: url("' + vtxPath + fname + '.woff") format("woff"); }\r\n';
-            
-            
+
+
         el = document.getElementById('vtxfonts');
         if (el)
             el.innerHTML += str
@@ -2343,7 +2343,7 @@ function redrawFont(fname) {
         for (r = conRowAttr.length-1; r >= 0; r--)
             for (c = conCellAttr[r].length - 1; c >= 0; c--) {
                 tfn = (conCellAttr[r][c] & A_CELL_FONT_MASK) >>> 28;
-                if (tfn == fn) 
+                if (tfn == fn)
                     renderCell(r, c, 0, false);
             }
     }
@@ -2799,8 +2799,8 @@ function getDefaultFontSize() {
 
     //cs = document.defaultView.getComputedStyle(document.body, null);
     cs = document.defaultView.getComputedStyle(pageDiv, null);
-    fontName = cs['font-family'];
-    fontSize = int(cs['font-size']);
+    fontName = vtxdata.fontName || cs['font-family'];
+    fontSize = int(vtxdata.fontSize) || int(cs['font-size']);
     font = fontSize + 'px ' + fontName;
 
     // interrogate font
@@ -2974,7 +2974,7 @@ function itoh(i, d) {
 function htoi(h) {
     var
         i, l, v;
-        
+
     h = h || '0';
     for (h = h.toUpperCase(), v = 0, i = 0, l = h.length; i < l; i++) {
         v <<= 4;
@@ -2985,13 +2985,13 @@ function htoi(h) {
 
 // create row attribute
 function makeRowAttr(
-    c1, 
-    c2, 
+    c1,
+    c2,
     bp = 0,
     height = 100,
-    width = 100, 
+    width = 100,
     marquee = false) {
-    
+
     height = minMax(Math.round(height/ 25) - 1, 0, 7) << 18;
     width = minMax(Math.round(width / 50) - 1, 0, 3) << 21;
     return (c1 & 0xFF)
@@ -3050,17 +3050,17 @@ function getRowAttrMarquee(attr) { return (attr & A_ROW_MARQUEE) != 0; }
 
 // create cell attribute
 function makeCellAttr(
-    fg = 7, 
-    bg = 0, 
-    bold = false, 
-    italics = false, 
-    underline = false, 
-    blinkslow = false, 
+    fg = 7,
+    bg = 0,
+    bold = false,
+    italics = false,
+    underline = false,
+    blinkslow = false,
     shadow = false,
-    strikethrough = false, 
-    outline = false, 
-    blinkfast = false, 
-    faint = false, 
+    strikethrough = false,
+    outline = false,
+    blinkfast = false,
+    faint = false,
     font = 0) {
 
     return (fg & 0xFF)
@@ -3270,7 +3270,7 @@ function renderCell(rownum, colnum, hilight=0, bottom=false) {
         tfnt,       // font number for this cell
         i, j, l,    // index / length
         rowadj,     // row index adjustment used for double height bottoms
-        tall, 
+        tall,
         teletext,
         xskew,      // skew amount for italics
         xadj,       // x adjustment to render character
@@ -3280,10 +3280,10 @@ function renderCell(rownum, colnum, hilight=0, bottom=false) {
     hilight = hilight || 0;     // flag for mouse over drawing. 0=normal,
                                 // 1=mouseover,2=click
     bottom = bottom || false;   // force draw bottoms of double. if this is set
-                                // draw the bottom haft of character in row 
+                                // draw the bottom haft of character in row
                                 // above this row.
     rowadj = bottom?-1:0;       // adjustment for retreiving character info.
-    
+
     // quick range check
     if (rownum + rowadj > conRowAttr.length)         return;
     if (colnum >= conText[rownum + rowadj].length)   return;
@@ -3291,7 +3291,7 @@ function renderCell(rownum, colnum, hilight=0, bottom=false) {
     // get size of this row
     size = getRowAttrHeight(conRowAttr[rownum + rowadj]) / 100; // .25 - 2
     width = getRowAttrWidth(conRowAttr[rownum + rowadj]) / 100; // .5 - 2
-    
+
     w = xScale * colSize * width;   // width of char
     x = w * colnum;                 // left pos of char on canv
 
@@ -3299,7 +3299,7 @@ function renderCell(rownum, colnum, hilight=0, bottom=false) {
     if ((x > w * crtCols) && !(conRowAttr[rownum] & A_ROW_MARQUEE))
         return;
 
-    // compute height    
+    // compute height
     row = getRowElement(rownum);
     h = fontSize * size;            // height of char
     stroke = h * 0.1;               // underline/strikethrough size
@@ -3319,13 +3319,13 @@ function renderCell(rownum, colnum, hilight=0, bottom=false) {
     ch = conText[rownum + rowadj].charAt(colnum);
     attr = conCellAttr[rownum + rowadj][colnum];
 
-    
+
     // force highlight (for mouse selections)
-    if (hilight == 1) 
+    if (hilight == 1)
         attr = hotspotHoverAttr
-    else if (hilight == 2) 
+    else if (hilight == 2)
         attr = hotspotClickAttr;
-    
+
     // extract colors and font to use
     tfg = (attr & 0xFF);
     tbg = (attr >>> 8) & 0xff;
@@ -3374,9 +3374,9 @@ function renderCell(rownum, colnum, hilight=0, bottom=false) {
 
     // fix transparents
     if (!cbm && !atari) {
-        if (tfg == 0) 
+        if (tfg == 0)
             tfg = 16;
-        if ((tbg == 0) && !modeVTXANSI) 
+        if ((tbg == 0) && !modeVTXANSI)
             tbg = 16;
     }
 
@@ -3410,9 +3410,9 @@ function renderCell(rownum, colnum, hilight=0, bottom=false) {
     }
 
     drawtxt = true;
-   
+
     // don't draw if in blink state
-    if (((attr & A_CELL_BLINKSLOW) && cellBlinkSlow)  
+    if (((attr & A_CELL_BLINKSLOW) && cellBlinkSlow)
         || ((attr & A_CELL_BLINKFAST) && cellBlinkFast)) {
         if (!modeNoBlink)
             drawtxt = false;
@@ -3430,40 +3430,40 @@ function renderCell(rownum, colnum, hilight=0, bottom=false) {
                     yadj = 0;
                     yScale = 1.0;
                     break;
-            
+
                 case A_CELL_DISPLAY_CONCEAL:
                     // don't draw if row is concealed.
                     drawtxt = false;
                     break;
-            
+
                 case A_CELL_DISPLAY_TOP:
                     yadj = 0;
                     yScale = 2.0;
                     break;
-            
+
                 case A_CELL_DISPLAY_BOTTOM:
                     yadj = -h;
                     yScale = 2.0;
                     break;
             }
             break;
-            
+
         case A_ROW_DISPLAY_CONCEAL:
             // don't draw if row is concealed.
             drawtxt = false;
             break;
-            
+
         case A_ROW_DISPLAY_TOP:
             yadj = 0;
             yScale = 2.0;
             break;
-            
+
         case A_ROW_DISPLAY_BOTTOM:
             yadj = -h;
             yScale = 2.0;
             break;
     }
-    
+
     if (drawtxt) {
         // select text color
         if (attr & A_CELL_FAINT)
@@ -3483,8 +3483,8 @@ function renderCell(rownum, colnum, hilight=0, bottom=false) {
         teletext = -1;
         if ((tfnt == 11) || (tfnt == 12)) {
             // special teletext block font
-            if (((ch >= ' ') && (ch <= '?')) || 
-                ((ch >= '`') && (ch <= '\x7f'))) 
+            if (((ch >= ' ') && (ch <= '?')) ||
+                ((ch >= '`') && (ch <= '\x7f')))
                 teletext = tfnt - 11;
             ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[tfnt];
         } else if (cbm)
@@ -3492,7 +3492,7 @@ function renderCell(rownum, colnum, hilight=0, bottom=false) {
             ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[conFontNum]
         else
             ctx.font = (tbold ? 'bold ' : '') + fontSize + 'px ' + conFont[tfnt];
-        
+
         ctx.textAlign = 'start';
         ctx.textBaseline = 'top';
 
@@ -3520,7 +3520,7 @@ function renderCell(rownum, colnum, hilight=0, bottom=false) {
             yadj = -h;
             yScale = 2.0;
         }
-        
+
         // convert to proper glyph # for font used by this char
         if (teletext == -1)
             ch = String.fromCharCode(getUnicode(conFontCP[tfnt], ch.charCodeAt(0)));
@@ -3533,13 +3533,13 @@ function renderCell(rownum, colnum, hilight=0, bottom=false) {
             yScale * size,              // y scale
             x + (xScale * xadj),        // x adj
             yadj);                      // y adj
-            
+
         if (attr & A_CELL_OUTLINE) {
             ctx.strokeStyle = ansiColors[tfg];
             ctx.lineWidth = 1;
             ctx.strokeText(ch, 0, 0);
         } else {
-            if (teletext >= 0) 
+            if (teletext >= 0)
                 drawMosaicBlock(ctx, ch.charCodeAt(0), w / width, h, teletext)
             else
                 ctx.fillText(ch, 0, 0);
@@ -3662,10 +3662,10 @@ function fitSVGToDiv(e) {
 
 // set indicators
 function setBulbs() {
-    var 
+    var
         el;
 
-    // set the online indicator button        
+    // set the online indicator button
     el = document.getElementById('osbulb');
     if (termState == TS_OFFLINE) {
         el.src = vtxPath + 'os0.png';
@@ -3812,7 +3812,7 @@ function termConnect() {
             data = new Uint8Array(e.data);
 
             // do telnet handshaking negotiations - return new data w/o IAC...'s
-            if (vtxdata.telnet == 1) 
+            if (vtxdata.telnet == 1)
                 data = tnNegotiate(data);
 
             // convert data to string
@@ -3931,7 +3931,7 @@ function initDisplay() {
 
     // codepage from AKAs - abort if invalid
     if (!codePageData[codePage]) {
-        if (codePageAKAs[codePage]) 
+        if (codePageAKAs[codePage])
             codePage = codePageAKAs[codePage];
     }
 
@@ -3983,7 +3983,61 @@ function initDisplay() {
     // build marquee CSS
     style = document.createElement('style');
     style.type = 'text/css';
-    css = '.marquee { animation: marquee 12s linear infinite; } '
+
+    css = '#vtxpage {'
+        + ' font-family: ' + fontName + ';'
+        + ' font-size: ' + fontSize + 'px;'
+        //+ ' min-height: 94vh;'
+        + ' margin: 0px auto;'
+        + ' padding: 0px;'
+        + ' border: 0px;'
+        + ' overflow: hidden;'
+        + ' text-overflow: clip;'
+        + ' z-index: 0;'
+        + ' position: relative;'
+        + '}\n'
+        + '#vtxtext {'
+        + ' width: 100%;'
+        + ' margin: 0px;'
+        + ' padding: 0px;'
+        + ' border: 0px;'
+        + ' overflow: hidden;'
+        + ' text-overflow: clip;'
+        + ' z-index: 10;'
+        + ' position: relative;'
+        + '}\n'
+        + '.vtx {'
+        + ' position: relative;'
+        + ' left: 0px;'
+        + ' line-height: 1em;'
+        + ' height: 1em;'
+        + ' vertical-align: top;'
+        + ' overflow: hidden;'
+        + ' text-overflow: clip;'
+        + '}\n'
+        + '.fade {'
+        + ' opacity: .5;'
+        + ' background: #000055;'
+        + '}'
+        + '.noselect {'
+        + ' -webkit-touch-callout: none;'
+        + ' -webkit-user-select: none;'
+        + ' -khtml-user-select: none;'
+        + ' -moz-user-select: none;'
+        + ' -ms-user-select: none;'
+        + ' user-select: none;'
+        + '}';
+
+
+
+
+
+
+
+
+
+
+    css += '.marquee { animation: marquee 12s linear infinite; } '
         + '@keyframes marquee { '
         + '0% { transform: translate( ' + (xScale * crtCols * colSize) + 'px, 0); } '
         + '100% { transform: translate(-100%, 0); }}';
@@ -4046,7 +4100,7 @@ function initDisplay() {
 
     // indicators and controls
     // ctrl for fixed ur
-/*    
+/*
     ctrlDiv = domElement(
         'div',
         {   id:             'ctrls' },
@@ -4064,7 +4118,7 @@ function initDisplay() {
             position:       'absolute',
             top:            textPos.top + 'px',
             left:           (6 + textPos.left + (crtWidth * xScale)) + 'px'});
-            
+
     pos = 0;
     ctrlDiv.appendChild(domElement(
         'img',
@@ -4148,7 +4202,7 @@ function initDisplay() {
                 conStrOut('GITHUB.COM/CODEWAR65/vtx\xA4cLIENTsERVER\r');
                 conStrOut('\rcLICK cONNECT...\r');
                 break;
-                
+
             case 'ATASCII':
                 conStrOut('VTX Terminal Client\x9B');
                 conStrOut('Version 0.9\x9B');
@@ -4156,13 +4210,13 @@ function initDisplay() {
                 conStrOut('github.com/codewar65/VTX_ClientServer\x9B');
                 conStrOut('\x9BClick Connect...\x9B');
                 break;
-                
+
             default:
                 conStrOut('\n\r\x1b#6\x1b[38;5;46;58mVTX\x1b[32;78m Terminal Client\n\r');
                 conStrOut('\x1b#6\x1b[38;5;46;59mVTX\x1b[32;79m Version 0.9 Beta\n\r');
                 conStrOut('\n\r\x1b[m2017 Dan Mecklenburg Jr.\n\r');
-                conStrOut('Visit \x1b[1;45;1;1;' 
-                    + encodeAscii('https://github.com/codewar65/VTX_ClientServer') 
+                conStrOut('Visit \x1b[1;45;1;1;'
+                    + encodeAscii('https://github.com/codewar65/VTX_ClientServer')
                     + '\\https://github.com/codewar65/VTX_ClientServer for more info.\n\r');
                 conStrOut('\n\r\x1b[38;5;46mCLICK CONNECT...\x1b[m\n\r');
                 break;
@@ -5006,7 +5060,7 @@ function getUnicode(cp, ch) {
 // need to escape 0xFF if in telnet mode!
 function sendData(data) {
     var
-        i, l, 
+        i, l,
         str,
         pos,
         len,
@@ -5024,7 +5078,7 @@ function sendData(data) {
         str = String.fromCharCode(data);
         data = new Uint8Array([data]);
     }
-    
+
     if (!(data instanceof Uint8Array))
         throw 'Invalid data in sendData().';
 
@@ -5043,7 +5097,7 @@ function sendData(data) {
             }
             len += data.length;
             tmp.push(data);
-        
+
             // join tmp into new data
             data = new Uint8Array(len);
             for (pos = 0, i = 0; i < tmp.length; i++){
@@ -5052,7 +5106,7 @@ function sendData(data) {
             }
         }
     }
-    
+
     // check code page conversions.
     if (ws && (ws.readyState == 1) && (termState != TS_OFFLINE)) {
         ws.send(data.buffer);
@@ -5178,7 +5232,7 @@ function scrollDown() {
 
 // output character using current attribute at cursor position.
 function conPrintChar(chr) {
-    
+
     crsrSkipTime = new Date().getTime();
     conPutChar(crsrRow, crsrCol, chr, cellAttr);
     crsrCol++;
@@ -5290,7 +5344,7 @@ function conCharOut(chr) {
                     chr = conText[crsrRow - 1].charCodeAt(crsrCol);
                     cellAttr = conCellAttr[crsrRow - 1][crsrCol];
                     var disp = getCellAttrDisplay(cellAttr);
-                    if (disp == A_CELL_DISPLAY_TOP) 
+                    if (disp == A_CELL_DISPLAY_TOP)
                         // this is a bottom.
                         cellAttr = setCellAttrDisplay(cellAttr, A_CELL_DISPLAY_BOTTOM)
                     else {
@@ -5313,38 +5367,38 @@ function conCharOut(chr) {
                         cellAttr = setCellAttrFG(cellAttr, ttxToAnsiColor[chr]);
                         conPrintChar(0x20);
                         break;
-                        
+
                     case 0x08:  // blink
                     case 0x09:  // blink off **
                         cellAttr = setCellAttrBlinkFast(cellAttr, (chr == 0x08));
                         conPrintChar(0x20);
                         break;
-                        
+
                     case 0x0A:  // box end (NL?)
                         crsrCol = 0;
                         crsrRow++;
                         expandToRow(crsrRow);
                         break;
-                        
+
                     case 0x0B:  // box start (ignore)
                         break;
-                        
+
                     case 0x0C:  // normal height **
                         cellAttr = setCellAttrDisplay(cellAttr, A_CELL_DISPLAY_NORMAL);
                         conPrintChar(0x20);
                         break;
-                        
+
                     case 0x0D:  // double height
                         cellAttr = setCellAttrDisplay(cellAttr, A_CELL_DISPLAY_TOP);
                         ttxDouble = true;
                         conPrintChar(0x20);
                         break;
-                        
+
                     case 0x0E:  // S0 (ignore)
                     case 0x0F:  // S1 (ignore)
                     case 0x10:  // DLE (ignore)
                         break;
-                        
+
                     case 0x11:  // red gfx
                     case 0x12:  // green gfx
                     case 0x13:  // yellow gfx
@@ -5356,33 +5410,33 @@ function conCharOut(chr) {
                         cellAttr = setCellAttrFG(cellAttr, ttxToAnsiColor[chr-0x10]);
                         conPrintChar(0x20);
                         break;
-    
+
                     case 0x18:  // conceal (ignore)
                         break;
-                        
+
                     case 0x19:  // solid block gfx **
                     case 0x1A:  // separated block gfx
                         ttxSeparated = (chr == 0x1A);
                         conPrintChar(0x20);
                         break;
-                    
+
                     case 0x1C:  // black background
                         cellAttr = setCellAttrBG(cellAttr, ttxToAnsiColors[0]);
                         conPrintChar(0x20);
                         break;
-                        
+
                     case 0x1D:  // new background
-                        cellAttr = setCellAttrBG(cellAttr, 
+                        cellAttr = setCellAttrBG(cellAttr,
                             getCellAttrFG(cellAttr));
                         conPrintChar(0x20);
                         break;
-                        
+
                     case 0x1E:  // hold gfx
                     case 0x1F:  // release gfx **
                         txtHeld = (chr == 0x1E);
                         conPrintChar(0x20);
                         break;
-                        
+
                     default:
                         // print it.
                         chr &= 0x7F;    // only use 7 bits
@@ -5601,18 +5655,18 @@ function conCharOut(chr) {
                     crsrRow--;
                 crsrrender = true;
                 break;
-                
+
             case 0x1D: // cursor down.
                 crsrRow++;
                 crsrrender = true;
                 break;
-                
+
             case 0x1E: // cursor left.
                 if (crsrCol > 0)
                     crsrCol--;
                 crsrrender = true;
                 break;
-                
+
             case 0x1F: // cursor right.
                 crsrCol++;
                 if (crsrCol > crtCols){
@@ -5621,7 +5675,7 @@ function conCharOut(chr) {
                 }
                 crsrrender = true;
                 break;
-                
+
             case 0x7D: // clear screen.
                 // clear entire screen.
                 // remove html rows
@@ -5641,10 +5695,10 @@ function conCharOut(chr) {
                     crsrCol--;
                 crsrrender = true;
                 break;
-                
+
             case 0x7F: // tab
                 // find next tabstop
-                for (i = crsrCol+1; i < crtCols; i++){ 
+                for (i = crsrCol+1; i < crtCols; i++){
                     if (conTabStop[i]) {
                         crsrCol = i;
                         crsrrender = true;
@@ -5652,32 +5706,32 @@ function conCharOut(chr) {
                     }
                 }
                 break;
-            
+
             case 0x9B: // return
                 crsrCol = 0;
                 crsrRow++;
                 crsrrender = true;
                 cellAttr = setCellAttrReverse(cellAttr, false);
                 break;
-            
+
             case 0x9C: // delete row
                 delRow(crsrRow);
                 break;
-                
+
             case 0x9D: // insert row
                 insRow(crsrRow);
                 break;
-                
+
             case 0x9E: // clear tabstop
             case 0x9F: // set tabstop
                 conTabStop[crsrCol] = (chr == 0x9F);
                 break;
-                
+
             case 0xFD: // buzzer
                 soundBell.pause();
                 soundBell.play();
                 break;
-                
+
             case 0xFE: // delete char
                 expandToRow(crsrRow);
                 expandToCol(crsrRow, crsrCol);
@@ -5685,10 +5739,10 @@ function conCharOut(chr) {
                 redrawRow(crsrRow);
                 crsrrender = true;
                 break;
-                    
+
             case 0xFF: // insert char
                 break;
-            
+
             default:
                 // set reverse on off for each character in atari mode
                 cellAttr = setCellAttrReverse(cellAttr, (chr & 0x80));
@@ -5711,7 +5765,7 @@ function conCharOut(chr) {
                     if (modeDOORWAY)
                         modeNextGlyph = true;
                     break;
-    
+
                 case _BEL:     // bell
                     soundBell.pause();
                     soundBell.play();
@@ -5747,7 +5801,7 @@ function conCharOut(chr) {
                     break;
 
                 case _DEL:   // delete (not on font 10 or 11)
-                    if (between(conFontNum, 10, 12)) { 
+                    if (between(conFontNum, 10, 12)) {
                         expandToRow(crsrRow);
                         expandToCol(crsrRow, crsrCol);
                         delChar(crsrRow, crsrCol);
@@ -5758,7 +5812,7 @@ function conCharOut(chr) {
                         crsrrender = true;
                     }
                     break;
-    
+
                 default:
                     switch (ansiState) {
                         case 0:
@@ -5842,56 +5896,56 @@ function conCharOut(chr) {
                                     // ESC # 0 - reset row
                                     conRowAttr[crsrRow] = defRowAttr;
                                     break;
-                                
+
                                 case 0x31:
                                     // ESC # 1 - single wide, double high, top
                                     conRowAttr[crsrRow] &=
                                         ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
                                     conRowAttr[crsrRow] |= (A_ROW_DISPLAY_TOP | A_ROW_WIDTH_100);
                                     break;
-                                    
+
                                 case 0x32:
                                     // ESC # 2 - single wide, double high, bottom
                                     conRowAttr[crsrRow] &=
                                         ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
                                     conRowAttr[crsrRow] |= (A_ROW_DISPLAY_BOTTOM | A_ROW_WIDTH_100);
                                     break;
-                                    
+
                                 case 0x33:
                                     // ESC # 3 - double wide/high, top
                                     conRowAttr[crsrRow] &=
                                         ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
                                     conRowAttr[crsrRow] |= (A_ROW_DISPLAY_TOP | A_ROW_WIDTH_200);
                                     break;
-                                    
+
                                 case 0x34:
                                     // ESC # 4 - double wide/high, bottom
                                     conRowAttr[crsrRow] &=
                                         ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
                                     conRowAttr[crsrRow] |= (A_ROW_DISPLAY_BOTTOM | A_ROW_WIDTH_200);
                                     break;
-                                    
+
                                 case 0x35:
                                     // ESC # 5 - single wide/high
                                     conRowAttr[crsrRow] &=
                                         ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
                                     conRowAttr[crsrRow] |= (A_ROW_WIDTH_100);
                                     break;
-                                    
+
                                 case 0x36:
                                     // ESC # 6 - single high / double wide
                                     conRowAttr[crsrRow] &=
                                         ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
                                     conRowAttr[crsrRow] |= (A_ROW_WIDTH_200);
                                     break;
-                                    
+
                                 case 0x37:
                                     // marquee off
                                     // ESC # 7
                                     conRowAttr[crsrRow] &= ~A_ROW_MARQUEE;
                                     getRowElement(crsrRow).firstChild.classList.remove('marquee')
                                     break;
-                                    
+
                                 case 0x38:
                                     // marquee on
                                     // ESC # 8
@@ -5935,7 +5989,7 @@ function conCharOut(chr) {
                 if (v.toString() == parm[i])
                     parm[i] = v;
             }
-            
+
             switch (chr) {
                 case 0x40:  // @ - ICH - insert characters
                     parm = fixParams(parm, [1]);
@@ -6144,12 +6198,12 @@ function conCharOut(chr) {
                                 conFont[parm[0]] = 'TOPAZ';
                                 conFontCP[parm[0]] = 'RAW';
                                 break;
-                                
+
                             case 100: // TI994 (TI-99/4)
                                 conFont[parm[0]] = 'TI994';
                                 conFontCP[parm[0]] = 'RAWHI';
                                 break;
-                                
+
                             case 101: // Teletext
                                 conFont[parm[0]] = fontName;
                                 conFontCP[parm[0]] = 'TELETEXT';
@@ -6157,7 +6211,7 @@ function conCharOut(chr) {
                         }
                         // load it if it's needed.
                         loadSingleFont(conFont[parm[0]]);
-                        
+
                     } else {
                         // move backwards
                         parm = fixParams(parm, [1]);
@@ -6317,14 +6371,14 @@ function conCharOut(chr) {
                     for (i = 0; i < parm[0]; i++)
                         insRow(crsrRow);
                     break;
- 
+
                 case 0x4D:  // M - DL - delete lines
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
                     for (i = 0; i < parm[0]; i++)
                         delRow(crsrRow);
                     break;
- 
+
                 case 0x50:  // P - DCH - delete character
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
@@ -6332,21 +6386,21 @@ function conCharOut(chr) {
                         delChar(crsrRow, crsrCol);
                     redrawRow(crsrRow);
                     break;
- 
+
                 case 0x53:  // S - Scroll Up (SU). Scroll up.
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
                     for (i = 0; i < parm[0]; i++)
                         scrollUp();
                     break;
- 
+
                 case 0x54:  // T - Scroll Down (SD). Scroll down.
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
                     for (i = 0; i < parm[0]; i++)
                         scrollDown();
                     break;
- 
+
                 case 0x58:  // X - ECH - erase n characters
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
@@ -6354,7 +6408,7 @@ function conCharOut(chr) {
                         conPutChar(crsrRow, crsrCol + i, 0x20, defCellAttr);
                     }
                     break;
- 
+
                 case 0x5A:  // Z - CBT - back tab
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
@@ -6367,7 +6421,7 @@ function conCharOut(chr) {
                     }
                      crsrrender = true;
                      break;
- 
+
                 /* special VTX sequences start */
                 case 0x5B:  // [ - Row Size
                     parm = fixParams(parm, [3,1]);
@@ -6380,7 +6434,7 @@ function conCharOut(chr) {
                     adjustRow(crsrRow);
                     crsrrender = true;
                     break;
- 
+
                 case 0x5C:  // \ - hotspots
                     if (l < 2) {
                         // reset all hotspots
@@ -6408,7 +6462,7 @@ function conCharOut(chr) {
                         }
                     }
                     break;
- 
+
                 case 0x5D:  // ] - Row Modes / background
                     parm = fixParams(parm, [0,0,0]);
                     parm[0] = minMax(parm[0], 0, 255, 0);
@@ -6417,7 +6471,7 @@ function conCharOut(chr) {
                     conRowAttr[crsrRow] = setRowAttrColor1(conRowAttr[crsrRow], parm[0]);
                     conRowAttr[crsrRow] = setRowAttrColor2(conRowAttr[crsrRow], parm[1]);
                     conRowAttr[crsrRow] = setRowAttrPattern(conRowAttr[crsrRow], parm[2] << 16);
- 
+
                     // set row attrs here
                     row = getRowElement(crsrRow);
                     c1 = ansiColors[parm[0]];
@@ -6426,98 +6480,98 @@ function conCharOut(chr) {
                         case A_ROW_PATTERN_SOLID:
                             row.style['background'] = c1;
                             break;
- 
+
                         case A_ROW_PATTERN_HORZ:
                             row.style['background'] = 'linear-gradient(to bottom,' + c1 + ',' + c2 + ')';
                             break;
- 
+
                         case A_ROW_PATTERN_VERT:
                             row.style['background'] = 'linear-gradient(to right,' + c1 + ',' + c2 + ')';
                             break;
                     }
                     break;
- 
+
                 case 0x5E:  // ^ - Cursor / Page Modes
                     if (!parm.length){
                         // no paremeters - reset to default
                     } else {
                         switch (parm[0]) {
                             case 0:// cursor color
-                                if (l == 1) 
+                                if (l == 1)
                                     crsrAttr = setCrsrAttrColor(
-                                        crsrAttr, 
+                                        crsrAttr,
                                         getCrsrAttrColor(defCrsrAttr))
-                                else 
+                                else
                                     crsrAttr = setCrsrAttrColor(
-                                        crsrAttr, 
+                                        crsrAttr,
                                         (parm[1] & 0xFF));
                                 newCrsr();
                                 break;
- 
+
                             case 1:// cursor size
                                 if (l == 1)
                                     crsrAttr = setCrsrAttrSize(
-                                        crsrAttr, 
+                                        crsrAttr,
                                         getCrsrAttrSize(defCrsrAttr))
-                                else 
+                                else
                                     crsrAttr = setCrsrAttrSize(
-                                        crsrAttr, 
+                                        crsrAttr,
                                         (parm[1] & 0x03));
                                 newCrsr();
                                 break;
- 
+
                             case 2:// cursor orientation
-                                if (l == 1) 
+                                if (l == 1)
                                     crsrAttr = setCrsrAttrOrientation(
-                                        crsrAttr, 
+                                        crsrAttr,
                                         (parm[1] ? A_CRSR_ORIENTATION : 0))
                                 else
                                     crsrAttr = setCrsrAttrOrientation(
-                                        crsrAttr, 
+                                        crsrAttr,
                                         getCrsrAttrOrientation(defCrsrAttr));
                                 newCrsr();
                                 break;
- 
+
                             case 3:// page border color
-                                if (l == 1) 
+                                if (l == 1)
                                     pageAttr = setPageAttrBorder(
-                                        pageAttr,  
+                                        pageAttr,
                                         getPageAttrBorder(defPageAttr))
                                 else
                                     pageAttr = setPageAttrBorder(
-                                        pageAttr,  
+                                        pageAttr,
                                         (parm[1] & 0xFF));
                                 if (cbm)
                                     i = cbmColors[(pageAttr >>> 8) & 0xF]
                                 else if (atari)
                                     i = atariColors[(pageAttr >>> 8) & 0x1]
-                                else 
+                                else
                                     i = ansiColors[(pageAttr >>> 8) & 0xFF];
                                 pageDiv.parentNode.style['background-color'] = i;
                                 break;
- 
+
                             case 4:// page background color
                                 if (l == 1)
                                     pageAttr = setPageAttrBackground(
-                                        pageAttr, 
+                                        pageAttr,
                                         getOageAttrBackground(defPageAttr))
                                 else
                                     pageAttr = setPageAttrBackground(
-                                        pageAttr, 
+                                        pageAttr,
                                         (parm[1] & 0xFF));
                                 if (cbm)
                                     i = cbmColors[pageAttr & 0xF]
                                 else if (atari)
                                     i = atariColors[pageAttr & 0x1]
-                                else 
+                                else
                                     i = ansiColors[pageAttr & 0xFF];
                                 pageDiv.style['background-color'] = i;
                                 break;
- 
+
                             case 5: // CSI '5^' : Set hotspot mouseover colors.
                                 hotspotHoverAttr = cellAttr;
                                 break;
- 
+
                             case 6: // CSI '6^' : Set hotspot click colors.
                                 hotspotClickAttr = cellAttr;
                                 break;
@@ -6525,10 +6579,10 @@ function conCharOut(chr) {
                     }
                     crsrrender = true;
                     break;
- 
+
                 case 0x5F:  // _ - VTX Media Codes. Sprites & Audio
                     if (parms.length == 0) {
-                        
+
                         // syncronet got here how?
                         console.log('CSI '+ parms + interm + String.fromCharCode(chr));
                         break;
@@ -6552,12 +6606,12 @@ function conCharOut(chr) {
                                     str = '';
                                     switch (parm[3]){
                                         case 0:
-                                            // url : unicode encoded characters 
-                                            for (i = 4; i < l; i++) 
+                                            // url : unicode encoded characters
+                                            for (i = 4; i < l; i++)
                                                 str += String.fromCharCode(int(parm[i]));
                                             spriteDefs[parm[2]] = stripNL(str);
                                             break;
-                                             
+
                                         case 1:
                                             // UTF8 url : hex3 encoded
                                             for (i = 4; i < l; i++)
@@ -6565,7 +6619,7 @@ function conCharOut(chr) {
                                             str = str.substring(1);
                                             spriteDefs[parm[2]] = stripNL(UFT8ArrayToStr(decodeHex3(str)));
                                             break;
-                                             
+
                                         case 2:
                                             // raw UTF8 svg : hex3 encoded
                                             for (i = 4; i < l; i++)
@@ -6574,7 +6628,7 @@ function conCharOut(chr) {
                                             spriteDefs[parm[2]] = 'data:image/svg+xml;charset=utf-8,'
                                                 + encodeURIComponent(stripNL(UFT8ArrayToStr(decodeHex3(str))));
                                             break;
- 
+
                                         case 3:
                                             // raw UTF8 svg deflated : hex3 encoded
                                             for (i = 4; i < l; i++)
@@ -6583,19 +6637,19 @@ function conCharOut(chr) {
                                             spriteDefs[parm[2]] = 'data:image/svg+xml;charset=utf-8,'
                                                 + encodeURIComponent(stripNL(UFT8ArrayToStr(inflateRaw(decodeHex3(str)))));
                                             break;
-                                             
+
                                         case 4:
                                             // raw UTF8 svg Base64: hex3 encoded
                                             for (i = 4; i < l; i++)
                                                 str += ';'+parm[i];
                                             str = str.substring(1);
-                                            spriteDefs[parm[2]] = 'data:image/svg+xml;base64,' 
+                                            spriteDefs[parm[2]] = 'data:image/svg+xml;base64,'
                                                 + stripNL(UFT8ArrayToStr(decodeHex3(str)));
                                             break;
                                     }
                                 }
                                 break;
- 
+
                             case 1:
                                 // display / remove sprite from display.
                                 if (l == 2) {
@@ -6614,12 +6668,12 @@ function conCharOut(chr) {
                                     div = document.getElementById('sprite' + parm[2]);
                                     if (div != null)
                                         div.parentNode.removeChild(div);
- 
+
                                     rpos = getElementPosition(getRowElement(crsrRow));
                                     csize = getRowFontSize(crsrRow);
                                     spriteTop = rpos.top - pageTop;
                                     spriteLeft = crsrCol * csize.width;
- 
+
                                     // make a new one.
                                     div = domElement(
                                         'div',
@@ -6634,7 +6688,7 @@ function conCharOut(chr) {
                                             width:      (colSize * parm[4]) + 'px',
                                             height:     (rowSize * parm[5]) + 'px',
                                             overflow:   'hidden'});
- 
+
                                     img = domElement(
                                         'img',
                                         {   onload:     fitSVGToDiv,
@@ -6644,22 +6698,22 @@ function conCharOut(chr) {
                                             left:'0px',
                                             top:'0px'
                                         });
-                                        
+
                                     div.appendChild(img);
                                     if (parm[6] == 0)
                                         pageDiv.insertBefore(div, textDiv)
                                     else
                                         textDiv.appendChild(div);
-                                }                                
+                                }
                                 break;
-                            
+
                             case 2:
                                 // move sprite to new r c.
                                 el = document.getElementById('sprite'+parm[2]);
                                 if ((el) && (l == 6))
                                     moveSprite(el, parm[3], parm[4], parm[5]);
                                 break;
-                                
+
                             case 3:
                                 // move sprite to new z.
                                 // TODO
@@ -6670,7 +6724,7 @@ function conCharOut(chr) {
                                 */
                                 break;
                         }
-                        
+
                     } else if (parm[0] == 1) {
                         // audio commands
                         switch (parm[1]) {
@@ -6690,12 +6744,12 @@ function conCharOut(chr) {
                                     str = '';
                                     switch (parm[3]) {
                                         case 0:
-                                            // url : unicode encoded characters 
-                                            for (i = 4; i < l; i++) 
+                                            // url : unicode encoded characters
+                                            for (i = 4; i < l; i++)
                                                 str += String.fromCharCode(int(parm[i]));
                                             audioDefs[parm[2]] = str;
                                             break;
-                                            
+
                                         case 1:
                                             // UTF8 url : hex3 encoded
                                             for (i = 4; i < l; i++)
@@ -6703,23 +6757,23 @@ function conCharOut(chr) {
                                             str = str.substring(1);
                                             audioDefs[parm[2]] = UFT8ArrayToStr(decodeHex3(str))
                                             break;
-                                            
+
                                         case 2:
                                             // raw mp3 : hex3 encoded
                                             // TODO
-                                            audioDefs[parm[2]] = 
-                                                'data:audio/mp3;base64,' + 
+                                            audioDefs[parm[2]] =
+                                                'data:audio/mp3;base64,' +
                                                 btoa(decodeHex3(str));
                                             break;
-                                            
+
                                         case 3:
                                             // raw mp3 deflated : hex3 encoded
                                             // TODO
-                                            audioDefs[parm[2]] = 
-                                                'data:audio/mp3;base64,' + 
+                                            audioDefs[parm[2]] =
+                                                'data:audio/mp3;base64,' +
                                                 btoa(inflateRaw(decodeHex3(str)));
                                             break;
-                                            
+
                                         case 4:
                                             // raw MP3 Base64: hex3 encoded
                                             // TODO
@@ -6729,14 +6783,14 @@ function conCharOut(chr) {
                                     }
                                 }
                                 break;
-                                
+
                             case 1:
                                 // select audio object to player.
                                 if (l > 2) {
                                     audio.src = audioDefs[parm[2]];
                                 }
                                 break;
-                                
+
                             case 2:
                                 // play / pause / stop-rewind
                                 switch (parm[2]) {
@@ -6745,19 +6799,19 @@ function conCharOut(chr) {
                                         audio.pause();
                                         audio.load();
                                         break;
-                                        
+
                                     case 1:
                                         // play
                                         audio.play();
                                         break;
-                                        
+
                                     case 2:
                                         // pause
                                         audio.pause();
                                         break;
                                 }
                                 break;
-                                
+
                             case 3:
                                 // set volume (0-100)
                                 audio.volume = ((parm[2]!=null)?(parm[2]/100):0.25);
@@ -6766,7 +6820,7 @@ function conCharOut(chr) {
                     }
                     break;
                 /* special VTX sequences end */
-                
+
                 case 0x62:  // b - repeat last char
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
@@ -6849,7 +6903,7 @@ function conCharOut(chr) {
                             // VTX / ANSIBBS mode flip
                             modeVTXANSI = (chr == 0x68);
                             break;
-                            
+
                         case '?51':
                             // Teletext burst mode. (ESC to exit mode)
                             crsrCol = 0;
@@ -6869,7 +6923,7 @@ function conCharOut(chr) {
 
                 case 0x6D:  // m - Character Attr
                     // don't use fixparms. variable parameters.
-                    if (l == 0) parm[l++] = 0; 
+                    if (l == 0) parm[l++] = 0;
                     parm[0] = minMax(parm[0], 0, 255);
                     for (i = 0; i < l; i++) {
                         switch (parm[i]) {
@@ -6924,7 +6978,7 @@ function conCharOut(chr) {
 
                             case 8:     // conceal
                             case 28:
-                                cellAttr = setCellAttrDisplay(cellAttr, 
+                                cellAttr = setCellAttrDisplay(cellAttr,
                                     (parm[i] < 20) ? A_CELL_DISPLAY_CONCEAL : A_CELL_DISPLAY_NORMAL);
                                 break;
 
@@ -6954,20 +7008,20 @@ function conCharOut(chr) {
 
                             case 58:    // top half
                             case 78:
-                                cellAttr = setCellAttrDisplay(cellAttr, 
+                                cellAttr = setCellAttrDisplay(cellAttr,
                                     (parm[i] < 70) ? A_CELL_DISPLAY_TOP : A_CELL_DISPLAY_NORMAL);
-                                break;                                
-                                
+                                break;
+
                             case 59:    // bottom half
                             case 79:
                                 // turn this character attribute off.
-                                cellAttr = setCellAttrDisplay(cellAttr, 
+                                cellAttr = setCellAttrDisplay(cellAttr,
                                     (parm[i] < 70) ? A_CELL_DISPLAY_BOTTOM : A_CELL_DISPLAY_NORMAL);
                                 break;
 
                             // special built in fonts
                             case 80: // teletext codepage text only
-                            case 81: // teletext codepage contiguous blocks 
+                            case 81: // teletext codepage contiguous blocks
                             case 82: // teletext codepage separated blocks
                             case 83: // reserved
                             case 84: // reserved
@@ -7100,19 +7154,19 @@ function moveSprite(el, nr, nc, t){
         csize = getRowFontSize(nr),
         cx = int(el.style['left']),
         cy = int(el.style['top']),
-        steps, tmr, 
+        steps, tmr,
         sel,
         nx, ny;
-        
+
     if (t < 0) t = 0;
     steps = Math.round(t / 15);
     nx = nc * csize.width;
     ny = rpos.top - pageTop;
-  
-    // generate new keyframe 
+
+    // generate new keyframe
     sel = domElement('style',{},{},
         '@keyframes ' + el.id + ' { '
-        + 'from { left: ' + cx + 'px; top: ' + cy + 'px; } ' 
+        + 'from { left: ' + cx + 'px; top: ' + cy + 'px; } '
         + 'to { left : ' + nx + 'px; top: ' + ny + 'px;}} ');
     el.appendChild(sel);
     el.style['animation-duration'] = t + 'ms';
@@ -7143,7 +7197,7 @@ function decodeHex3(strin) {
         ret,    // decoded result
         i, l,   // idx / length
         p;      // ptr into strin
-        
+
     strin = strin.replace(/\s/g,'');
     ret = new Uint8Array(strin.length >>> 1);
     for (p = 0, i = 0, l = ret.length; i < l; i++) {
@@ -7214,8 +7268,8 @@ function tnNegotiate(data) {
     var
         v0, v1, v2, v3,
         i, l, b, outdata, outp;
-    
-    outdata = new Uint8Array(data.length);  
+
+    outdata = new Uint8Array(data.length);
     outp = 0;   // pointer into output
     l = data.length;
     for (i = 0; i < l; i++) {
@@ -7228,7 +7282,7 @@ function tnNegotiate(data) {
                 else
                     outdata[outp++] = b;
                 break;
-                
+
             case 1:
                 // recieved a TN_IAC
                 switch (b) {
@@ -7237,7 +7291,7 @@ function tnNegotiate(data) {
                         outdata[outp++] = b;
                         tnState = 0;
                         break;
-                        
+
                     case TN_SE:    // subneg end
                     case TN_NOP:   // no operation
                     case TN_DM:    // data mark
@@ -7251,12 +7305,12 @@ function tnNegotiate(data) {
                         // ignore for now.
                         tnState = 0;
                         break;
-                        
+
                     case TN_SB:
                         // subneg begin
                         tnState = 3;
                         break;
-                        
+
                     case TN_WILL:
                     case TN_WONT:
                     case TN_DO:
@@ -7272,7 +7326,7 @@ function tnNegotiate(data) {
                         break;
                 }
                 break;
-                
+
             case 2:
                 // have IAC + cmd so far
                 switch (tnCmd) {
@@ -7291,7 +7345,7 @@ function tnNegotiate(data) {
                                     tnSendCmd(TN_DO, b);
                                     tnQHim[b] = TNQ_YES;
                                     break;
-                                
+
                                 default:
                                     tnSendCmd(TN_DONT, b);
                                     tnQHim[b] = TNQ_NO;
@@ -7299,7 +7353,7 @@ function tnNegotiate(data) {
                             }
                         }
                         break;
-                   
+
                     case TN_WONT:
                         if ((tnQUs[b] == TNQ_WANTYES) || (tnQUs[b] == TNQ_WANTNO))
                             // response to my request to do or dont
@@ -7309,13 +7363,13 @@ function tnNegotiate(data) {
                             tnSendCmd(TN_DONT, b);
                             tnQHim[b] = TNQ_NO;
                         }
-                        break;                            
-                    
+                        break;
+
                     case TN_DO:
                         if (tnQUs[b] == TNQ_WANTYES) {
                             // response to my request to will
                             tnQUs[b] = TNQ_YES;
-                            
+
                             // send some SB stuff now
                             if (b == TN_NAWS) {
                                 v0 = crtCols & 0xFF;
@@ -7337,7 +7391,7 @@ function tnNegotiate(data) {
                                     tnSendCmd(TN_WILL, b);
                                     tnQUs[b] = TNQ_YES;
                                     break;
-                                    
+
                                 default:
                                     tnSendCmd(TN_WONT, b);
                                     tnQUs[b] = TNQ_NO;
@@ -7345,7 +7399,7 @@ function tnNegotiate(data) {
                             }
                         }
                         break;
-                        
+
                     case TN_DONT:
                         // server wants me to not do something. send WONT
                         if (tnQUs[b] == TNQ_WANTYES)
@@ -7360,35 +7414,35 @@ function tnNegotiate(data) {
                 }
                 tnState = 0;
                 break;
-            
+
             case 3:
                 // have IAC SB
                 tnCmd = b;
                 tnState = 4;
                 break;
-            
+
             case 4:
                 // this should be SEND (1)
-                if (b == TN_SEND) 
+                if (b == TN_SEND)
                     switch (tnCmd) {
                         case TN_TTYPE:
                             // will neg term type;
                             tnSendCmd(TN_SB, tnCmd, TN_IS, vtxdata.term);
                             tnSendCmd(TN_SE);
                             break;
-                            
+
                         case TN_TSPEED:
                             // will neg terminal speed
                             tnSendCmd(TN_SB, tnCmd, TN_IS, '921600,921600');
                             tnSendCmd(TN_SE);
                             break;
-                            
+
                         case TN_NEWE:
                             // new environment
                             tnSendCmd(TN_SB, tnCmd, TN_IS, 0);
                             tnSendCmd(TN_SE);
                             break;
-                            
+
                         default:
                             // ? why are we being asked this? server on drugs?
                             tnSendCmd(TN_DONT, tnCmd);
@@ -7406,23 +7460,23 @@ function tnNegotiate(data) {
 // send telnet commands.. send bytes or strings as parameters
 function tnSendCmd() {
     var
-        i, j, 
+        i, j,
         l1, l2,
         outbuff,
         bytebuff = [];
-    
+
     bytebuff.push(TN_IAC);
     l1 = arguments.length;
-    for (i = 0; i < l1; i++) 
+    for (i = 0; i < l1; i++)
         if (typeof arguments[i] === 'string') {
             // put string into bytebuff
             l2 = arguments[i].length;
             for (j = 0; j < l2; j++)
                 bytebuff.push(arguments[i].charCodeAt(j));
-        } else if (typeof arguments[i] === 'number') 
+        } else if (typeof arguments[i] === 'number')
             // put this byte into bytebuff
             bytebuff.push(arguments[i]);
-    
+
     // send bytebuff
     l1 = bytebuff.length;
     outbuff = new Uint8Array(l1);
@@ -7435,10 +7489,10 @@ function tnSendCmd() {
 function tnInit() {
     var
         i;
-    
+
     tnQHim.fill(TNQ_NO);
     tnQUs.fill(TNQ_NO);
-    
+
     // set initial telnet options
     tnQUs[TN_BIN] =     TNQ_WANTYES;
     tnQHim[TN_BIN] =    TNQ_WANTYES;
@@ -7448,13 +7502,13 @@ function tnInit() {
     tnQUs[TN_NAWS] =    TNQ_WANTYES;
     tnQUs[TN_TTYPE] =   TNQ_WANTYES;
     tnQUs[TN_TSPEED] =  TNQ_WANTYES;
-    
+
     for (i = 0; i < 256; i++) {
-        if (tnQUs[i] == TNQ_WANTYES) 
+        if (tnQUs[i] == TNQ_WANTYES)
             tnSendCmd(TN_WILL, i)
         else if (tnQUs[i] == TNQ_WANTNO)
             tnSendCmd(TN_WONT, i);
-        
+
         if (tnQHim[i] == TNQ_WANTYES)
             tnSendCmd(TN_DO, i)
         else if (tnQHim[i] == TNQ_WANTNO)
