@@ -2134,7 +2134,7 @@ function bootVTX() {
             id:     'vtxfonts' }, {},
             '@font-face { \n'
                 + '  font-family: "AdobeBlank"; '
-                + '  src: url("AdobeBlank.woff") format("woff"); }\n');
+                + '  src: url("'+vtxPath+'AdobeBlank.woff") format("woff"); }\n');
     hd.appendChild(el);
     
     testDiv = domElement('div',{},
@@ -2212,7 +2212,7 @@ function bootVTX1() {
     for (i = 0, l = bootFonts.length; i < l; i++) 
         str += '@font-face {\r\n '
             + '  font-family: "' + bootFonts[i] + '"; '
-            + '  src: url("' + bootFonts[i] + '.woff") format("woff"); }\r\n';
+            + '  src: url("' + vtxPath + bootFonts[i] + '.woff") format("woff"); }\r\n';
     el.innerHTML += str;
 
     // loop through until all fonts needed at boot.
@@ -2290,7 +2290,7 @@ function loadSingleFont(fname){
         // inject new @font-faces
         str = '@font-face {\r\n '
             + '  font-family: "' + fname + '"; '
-            + '  src: url("' + fname + '.woff") format("woff"); }\r\n';
+            + '  src: url("' + vtxPath + fname + '.woff") format("woff"); }\r\n';
             
             
         el = document.getElementById('vtxfonts');
