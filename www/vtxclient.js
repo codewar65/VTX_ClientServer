@@ -2898,7 +2898,7 @@ function doCheckResize() {
         pageWidth = elPage.clientWidth;
         crsrDraw(true);
     }
-    ctrlDiv.style['left'] = (6 + textPos.left + (crtWidth*xScale)) + 'px';
+    //ctrlDiv.style['left'] = (6 + textPos.left + (crtWidth*xScale)) + 'px';
 }
 
 // blink cursor (533ms is cursor blink speed based on DOS VGA).
@@ -4045,6 +4045,8 @@ function initDisplay() {
     termState = TS_OFFLINE; // set for standard terminal mode, not in file xfer mode
 
     // indicators and controls
+    // ctrl for fixed ur
+/*    
     ctrlDiv = domElement(
         'div',
         {   id:             'ctrls' },
@@ -4053,7 +4055,16 @@ function initDisplay() {
             position:       'fixed',
             top:            textPos.top + 'px',
             left:           (6 + textPos.left + (crtWidth * xScale)) + 'px'});
-
+*/
+    ctrlDiv = domElement(
+        'div',
+        {   id:             'ctrls' },
+        {   width:          '24px',
+            height:         '164px',
+            position:       'absolute',
+            top:            textPos.top + 'px',
+            left:           (6 + textPos.left + (crtWidth * xScale)) + 'px'});
+            
     pos = 0;
     ctrlDiv.appendChild(domElement(
         'img',
@@ -4109,7 +4120,7 @@ function initDisplay() {
             title:      'YModem Download' },
         {   cursor:     'pointer'}));
 
-    pageDiv.appendChild(ctrlDiv);
+    pageDiv.parentNode.appendChild(ctrlDiv);
 
     // add audio element for sound.
     audio = domElement(
