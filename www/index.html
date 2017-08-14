@@ -4,9 +4,7 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta charset='utf-8'>
     <script type='text/javascript' src='https://cdn.jsdelivr.net/pako/1.0.3/pako.min.js'></script>
-    <!-- <script type='text/javascript' src='xibalba.js'></script> -->
-    <script type='text/javascript' src='vtxdata.js'></script>
-<!--    
+
 <script type='text/javascript'>
 var vtxdata = {
   sysName:     "VTX Home System",
@@ -27,12 +25,23 @@ var vtxdata = {
   fontName:    'UVGA16'
 };
 </script>
--->
+
     <script type='text/javascript' src='vtxclient.js'></script>
     
 </head>
-    <body>
-    
+    <body style='color:#fff;'>
+
+<h1> TEST TEST TEST</h1>    
+<p>
+and a paragraph of stuff here...
+The client software then connects to the server via a web socket connection. 
+Upon a 'user' connection to the web socket server, the server will wither spawn 
+a 'sysop' defined application ('node' software) or connect to a telnet server. 
+The 'node' software pipes raw binary text to / from the server via StdIn / 
+StdOut. The server then relays this stream to the 'user' through the web socket 
+connection. Alternately, VTX server can be configured to connect to a remote 
+telnet server (bbs or other service).
+</p>
     
         <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
         <!-- terminal divs -->

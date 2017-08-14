@@ -3987,7 +3987,7 @@ function initDisplay() {
     css = '#vtxpage {'
         + ' font-family: ' + fontName + ';'
         + ' font-size: ' + fontSize + 'px;'
-        //+ ' min-height: 94vh;'
+        + ' min-height: ' + (fontSize * vtxdata.crtRows).toString() + 'px;'
         + ' margin: 0px auto;'
         + ' padding: 0px;'
         + ' border: 0px;'
