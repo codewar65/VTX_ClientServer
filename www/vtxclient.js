@@ -1982,7 +1982,7 @@ let
     hotspotClickAttr,           // ''
 
     conBaud = 0,                // baud emulation speed.
-    audio,                      // audio element
+    audioEl,                    // audio element
 
     termState,                  // TS_...
 
@@ -3879,9 +3879,8 @@ function termConnect() {
             else
                 conBufferOut('\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
             document.body.style['cursor'] = 'default';
-            if (audio) {
-                audio.pause();
-                pageDiv.removeChild(audio);
+            if (audioEl) {
+                audioEl.pause();
             }
             termState = TS_OFFLINE;
             setBulbs();
@@ -4169,7 +4168,7 @@ function initDisplay() {
     pageDiv.parentNode.appendChild(ctrlDiv);
 
     // add audio element for sound.
-    audio = domElement(
+    audioEl = domElement(
         'audio',
         {   id:         'vtxaudio',
             preload:    'none',
@@ -4177,7 +4176,7 @@ function initDisplay() {
             src:        '/;' },
         {   width:      '0px',
             height:     '0px' });
-    pageDiv.appendChild(audio);
+    pageDiv.appendChild(audioEl);
 
     conBufferOut(initStr);
 
@@ -6779,7 +6778,7 @@ function conCharOut(chr) {
                             case 1:
                                 // select audio object to player.
                                 if (l > 2) {
-                                    audio.src = audioDefs[parm[2]];
+                                    audioEl.src = audioDefs[parm[2]];
                                 }
                                 break;
 
@@ -6788,25 +6787,25 @@ function conCharOut(chr) {
                                 switch (parm[2]) {
                                     case 0:
                                         // stop/rewind
-                                        audio.pause();
-                                        audio.load();
+                                        audioEl.pause();
+                                        audioEl.load();
                                         break;
 
                                     case 1:
                                         // play
-                                        audio.play();
+                                        audioEl.play();
                                         break;
 
                                     case 2:
                                         // pause
-                                        audio.pause();
+                                        audioEl.pause();
                                         break;
                                 }
                                 break;
 
                             case 3:
                                 // set volume (0-100)
-                                audio.volume = ((parm[2]!=null)?(parm[2]/100):0.25);
+                                audioEl.volume = ((parm[2]!=null)?(parm[2]/100):0.25);
                                 break;
                         }
                     }
