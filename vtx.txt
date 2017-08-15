@@ -1,5 +1,5 @@
 VTX Client / Server
-Draft : 06-AUG-2017
+Draft : 15-AUG-2017
 
 Layout
 ======
@@ -119,7 +119,7 @@ Sequences (# : to be implemented)
             41 - MicroKnight (Amiga)
             42 - Topaz (Amiga)      
             100 - TI-99/4
-#           101 - Teletext
+            101 - Teletext
 
     CSI n 'D' : Cursor Backwards (CUB). Move cursor n columns left. Stops at left of page. {1}
 
@@ -496,6 +496,24 @@ Keyboard Mapping
     Alt 8           Lt Gray
     F1-F8           F1-F8
     Tab             Toggle Text / Graphics mode
+    
+    ATASCII terminal type keys:
+    
+    Key             Atari Equivalent
+    --------------- -------------------------
+    ESC             Escape
+    Arrows          Cursor move
+    Shift HOME      Clear Screen 
+    Backspace       Backspace
+    Tab             Tab
+    SHIFT Tab       Set Tabstop
+    CTRL Tab        Clear Tabstop
+    Return          End Line
+    SHIFT DEL       Delete row
+    SHIFT INS       Insert Row
+    CTRL 2          Bell
+    DEL             Delete
+    INS             Insert
     
     
 Colors
