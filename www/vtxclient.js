@@ -5117,9 +5117,29 @@ function conPutChar(rownum, colnum, chr, attr) {
     // expand if needed
     expandToRow(rownum);
     expandToCol(rownum, colnum);
+    if (chr == 127)
+        nop();
     conText[rownum] = conText[rownum].splice(colnum, 1, String.fromCharCode(chr));
     conCellAttr[rownum][colnum] = attr;
     renderCell(rownum, colnum);
+}
+
+// output character using current attribute at cursor position.
+function conPrintChar(chr) {
+
+    crsrSkipTime = new Date().getTime();
+    conPutChar(crsrRow, crsrCol, chr, cellAttr);
+    crsrCol++;
+    if (!modeAutoWrap) {
+        if (crsrCol >= crtCols)
+            crsrCol--;
+    } else {
+        if (crsrCol == colsOnRow(crsrRow)) {
+            crsrCol = 0;
+            crsrRow++
+        }
+    }
+    lastChar = chr;
 }
 
 // erase hotspots on row from col1 to col2
@@ -5228,24 +5248,6 @@ function scrollDown() {
     // move / clear hotspots
     clearHotSpotsRow(toRow, 0, 999);
     moveHotSpotsRows(fromRow, toRow - 1, +1);
-}
-
-// output character using current attribute at cursor position.
-function conPrintChar(chr) {
-
-    crsrSkipTime = new Date().getTime();
-    conPutChar(crsrRow, crsrCol, chr, cellAttr);
-    crsrCol++;
-    if (!modeAutoWrap) {
-        if (crsrCol >= crtCols)
-            crsrCol--;
-    } else {
-        if (crsrCol == colsOnRow(crsrRow)) {
-            crsrCol = 0;
-            crsrRow++
-        }
-    }
-    lastChar = chr;
 }
 
 function resetTerminal() {
@@ -6991,6 +6993,7 @@ function conCharOut(chr) {
                             // select font
                             case 10: case 11: case 12: case 13: case 14:
                             case 15: case 16: case 17: case 18: case 19:
+                                conFontNum = (parm[i] - 10);
                                 cellAttr = setCellAttrFont(cellAttr, (parm[i] - 10));
                                 break;
 
@@ -7026,6 +7029,7 @@ function conCharOut(chr) {
                             case 83: // reserved
                             case 84: // reserved
                             case 85: // reserved
+                                conFontNum = (parm[i] - 70);
                                 cellAttr = setCellAttrFont(cellAttr, (parm[i] - 70));
                                 break;
 
