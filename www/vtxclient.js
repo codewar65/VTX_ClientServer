@@ -2173,9 +2173,9 @@ function bootVTX1() {
     // set fonts to be loaded based on term
     l = vtxFonts.length;
     vtxFontsLoaded = new Array(l);
-    for (i = 0; i < l; i++) 
+    for (i = 0; i < l; i++)
         vtxFontsLoaded[i] = false;
-    
+
     bootFonts = [];
     switch (vtxdata.term) {
         case 'PETSCII':
@@ -2749,7 +2749,7 @@ function crsrDraw(force) {
         row, rpos,
         csize,
         dt, wh;
-        
+
     force = force || false;
     expandToRow(crsrRow);
     row = getRowElement(crsrRow);
@@ -2995,7 +2995,7 @@ function makeRowAttr(c1, c2, bp, height, width, marquee) {
     height = height || 100;
     width = width || 100;
     marquee = marquee || false;
-    
+
     height = minMax(Math.round(height/ 25) - 1, 0, 7) << 18;
     width = minMax(Math.round(width / 50) - 1, 0, 3) << 21;
     return (c1 & 0xFF)
@@ -3067,8 +3067,8 @@ function makeCellAttr(fg, bg, bold, italics, underline, blinkslow, shadow,
     blinkfast = blinkfast || false;
     faint = faint || false;
     font = font || 0;
-    
-    
+
+
     return (fg & 0xFF)
         | ((bg & 0xFF) << 8)
         | (bold ? A_CELL_BOLD : 0)
@@ -3929,7 +3929,7 @@ function initDisplay() {
     // find where client is to go id='vtxclient'
     el = document.getElementById('vtxclient');
     if (!el) return;
-    
+
     // build required inner divs
     pageDiv = domElement(
             'div',
@@ -3944,7 +3944,7 @@ function initDisplay() {
 
     //textPos = textDiv.getBoundingClientRect();
     textPos = getElementPosition(textDiv);
-    
+
     // determine standard sized font width in pixels
     getDefaultFontSize(); // get fontName, colSize, rowSize
     crtWidth = colSize * crtCols;
@@ -4056,7 +4056,7 @@ function initDisplay() {
         style.appendChild(document.createTextNode(css));
     head = document.head || document.getElementsByTagName('head')[0];
     head.appendChild(style);
-    
+
     defCellAttr = vtxdata.defCellAttr;
     defCrsrAttr = vtxdata.defCrsrAttr;
     defPageAttr = vtxdata.defPageAttr;
@@ -5802,13 +5802,13 @@ function conCharOut(chr) {
 
                 case _DEL:   // delete (not on font 10 or 11)
                     if (between(conFontNum, 10, 12)) {
+                        conPrintChar(chr);
+                        crsrrender = true;
+                    } else {
                         expandToRow(crsrRow);
                         expandToCol(crsrRow, crsrCol);
                         delChar(crsrRow, crsrCol);
                         redrawRow(crsrRow);
-                        crsrrender = true;
-                    } else {
-                        conPrintChar(chr);
                         crsrrender = true;
                     }
                     break;
