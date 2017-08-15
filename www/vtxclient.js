@@ -141,8 +141,8 @@ vtx: {
 
 // globals
 const
-    version = '0.91 beta',
-    
+    version = '0.92 beta',
+
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
         // VGA 0-15 - transparent will switch to #000000 when appropriate
@@ -2097,6 +2097,8 @@ let
     ctrlDiv = null,             // controls panel
     textDiv = null,             // text plane
     soundBell = null,           // bell sound
+    soundKeyUp = [],            // press sound
+    soundKeyDn = [],            // release sound
     textPos = null,             // ul x,y of textdiv
 
     // ansi parsing vars
@@ -2119,6 +2121,11 @@ let
     modeNextGlyph = false,      // if DOORWAY mode, print glyph associated with this byte!
     modeRegionOrigin,           // origin in region?
     modeTeletext = false,       // teletext bust mode?
+
+    keysDn = [],                // keep track of auto repeat keys
+    soundClicks = true,         // keyboard click sounds.
+    soundSaveVol,               // save volume on sound off
+    soundOn = true,             // sound on?
 
     // scroll region info.
     regionTopRow,               // top row of scroll region.
@@ -2624,6 +2631,11 @@ function keyUp(e) {
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
     altState = e.altKey;
+    
+    // play key up sound
+    if (soundClicks) 
+        soundKeyUp[kc % 11].play();
+    keysDn[kc] = false;
 }
 
 // process keydowns (function, arrows, etc)
@@ -2642,6 +2654,11 @@ function keyDown(e) {
 
     if (termState > TS_NORMAL) return;
 
+    // play key down sound
+    if (soundClicks && !keysDn[kc])
+        soundKeyDn[kc % 11].play();
+    keysDn[kc] = true;
+    
     stateIdx = (shiftState ? 1 : 0) + (ctrlState ? 2 : 0) + (altState ? 4 : 0);
 
     // translate for capslock
@@ -3790,10 +3807,10 @@ function setBulbs() {
         el.title = 'Disconnect';
     }
 
-    // set the caps/num/scr lock indicators
+    // set the indicators
     document.getElementById('clbulb').src = vtxPath + (capState ? 'cl1':'cl0') + '.png';
-    document.getElementById('nlbulb').src = vtxPath + (numState ? 'nl1':'nl0') + '.png';
-    document.getElementById('slbulb').src = vtxPath + (scrState ? 'sl1':'sl0') + '.png';
+    document.getElementById('kcbulb').src = vtxPath + (soundClicks ? 'kc1':'kc0') + '.png';
+    document.getElementById('vobulb').src = vtxPath + (soundOn ? 'vo1':'vo0') + '.png';
 
     // set the ul/dl buttons
     if (termState == TS_NORMAL) {
@@ -4025,6 +4042,7 @@ function termConnect() {
         ws.close();
     }
 }
+
 function encodeAscii(str) {
     var i,l,strout = '';
     l=str.length;
@@ -4032,6 +4050,22 @@ function encodeAscii(str) {
         strout+=';'+str.charCodeAt(i).toString();
     return strout.substring(1);
 }
+
+// turn sound on off
+function toggleSound(){
+    if (soundOn) {
+        soundSaveVol = audioEl.volume;
+        audioEl.volume = 0;
+    } else 
+        audioEl.volume = soundSaveVol;
+    soundOn = !soundOn;
+    setBulbs();
+};
+
+function toggleClicks(){ 
+    soundClicks = !soundClicks;
+    setBulbs();
+};
 
 // setup the crt and cursor
 function initDisplay() {
@@ -4198,6 +4232,23 @@ function initDisplay() {
     soundBell.preload = 'auto';
     soundBell.load();
 
+    // load keyboard sounds.
+    soundClicks = true;
+    for (i = 0; i < 11; i++) {
+        soundKeyUp[i] = new Audio();
+        soundKeyUp[i].src = vtxPath + 'ku' + i + '.mp3';
+        soundKeyUp[i].type = 'audio/mp3';
+        soundKeyUp[i].volume = 0.25;
+        soundKeyUp[i].preload = 'auto';
+        soundKeyUp[i].load();
+        soundKeyDn[i] = new Audio();
+        soundKeyDn[i].src = vtxPath + 'kd' + i + '.mp3';
+        soundKeyDn[i].type = 'audio/mp3';
+        soundKeyDn[i].volume = 0.25;
+        soundKeyDn[i].preload = 'auto';
+        soundKeyDn[i].load();
+    }
+    
     // set page attributes
     p = pageDiv.parentNode;
     if (cbm) {
@@ -4238,6 +4289,7 @@ function initDisplay() {
             top:            textPos.top + 'px',
             left:           (6 + textPos.left + (crtWidth * xScale)) + 'px'});
     pos = 0;
+    // connect / disconnect indicator / button.
     ctrlDiv.appendChild(domElement(
         'img',
         {   src:        vtxPath + 'os0.png',
@@ -4248,6 +4300,29 @@ function initDisplay() {
             title:      'Connect/Disconnect' },
         {   cursor:     'pointer'}));
 
+    // sound on / off
+    ctrlDiv.appendChild(domElement(
+        'img',
+        {   src:        vtxPath + 'vo1.png',
+            id:         'vobulb',
+            onclick:    toggleSound,
+            width:      24,
+            height:     24,
+            title:      'Sound' },
+        {   cursor:     'pointer'}));
+
+    // key click on / off
+    ctrlDiv.appendChild(domElement(
+        'img',
+        {   src:        vtxPath + 'kc1.png',
+            id:         'kcbulb',
+            onclick:    toggleClicks,
+            width:      24,
+            height:     24,
+            title:      'Key Click' },
+        {   cursor:     'pointer'}));
+
+    // capslock indicator.
     ctrlDiv.appendChild(domElement(
         'img',
         {   src:        vtxPath + 'cl0.png',
@@ -4255,23 +4330,7 @@ function initDisplay() {
             width:      24,
             height:     24,
             title:      'CapsLk' }));
-
-    ctrlDiv.appendChild(domElement(
-        'img',
-        {   src:        vtxPath + 'nl0.png',
-            id:         'nlbulb',
-            width:      24,
-            height:     24,
-            title:      'NumLk' }));
-
-    ctrlDiv.appendChild(domElement(
-        'img',
-        {   src:        vtxPath + 'sl0.png',
-            id:         'slbulb',
-            width:      24,
-            height:     24,
-            title:      'ScrLk' }));
-
+    // upload
     ctrlDiv.appendChild(domElement(
         'img',
         {   src:        vtxPath + 'ul0.png',
@@ -4281,7 +4340,7 @@ function initDisplay() {
             height:     24,
             title:      'YModem Upload' },
         {   cursor:     'pointer'}));
-
+    // download
     ctrlDiv.appendChild(domElement(
         'img',
         {   src:        vtxPath + 'dl0.png',
@@ -4295,6 +4354,7 @@ function initDisplay() {
     pageDiv.parentNode.appendChild(ctrlDiv);
 
     // add audio element for sound.
+    soundOn = true;
     audioEl = domElement(
         'audio',
         {   id:         'vtxaudio',

@@ -257,7 +257,6 @@ In the <BODY> of your page, place something like (the outer 2 divs are the borde
         <!-- =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=- -->
 ```
 
-
 The vtxpage div element will house the client once the vtxclient.js has booted up.
 
 Place the two javascript files on your webserver so the HTML can get at them.
