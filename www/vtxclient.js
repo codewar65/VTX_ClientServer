@@ -3199,7 +3199,7 @@ function adjustRow(rownum) {
 
     if ((cnv.height != (h + 16)) || (cnv.width != nw)) {
         // adjust for new height.
-        row.style['height'] = size + 'em';
+        row.style['height'] = h + 'px';
         cnv.width = nw * xScale;
         cnv.height = (h + 16);
     }
@@ -4028,8 +4028,8 @@ function initDisplay() {
         + '.vtx {'
         + ' position: relative;'
         + ' left: 0px;'
-        + ' line-height: 1em;'
-        + ' height: 1em;'
+        + ' line-height: ' + fontSize + 'px;'
+        + ' height: ' + fontSize + 'px;'
         + ' vertical-align: top;'
         + ' overflow: hidden;'
         + ' text-overflow: clip;'
