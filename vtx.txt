@@ -83,7 +83,7 @@ Sequences (# : to be implemented)
             5  - Codepage 866 (c) Russian
             6  - ISO-8859-9 Turkish
             7  - haik8 codepage (use only with armscii8 screenmap)
-#           8  - ISO-8859-8 Hebrew
+            8  - ISO-8859-8 Hebrew
             9  - Ukrainian font koi8-u
             10 - ISO-8859-15 West European, (thin)
             11 - ISO-8859-4 Baltic (VGA 9bit mapped)
