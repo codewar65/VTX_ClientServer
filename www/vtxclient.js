@@ -141,6 +141,8 @@ vtx: {
 
 // globals
 const
+    version = '0.91 beta',
+    
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
         // VGA 0-15 - transparent will switch to #000000 when appropriate
@@ -3807,6 +3809,9 @@ function newCrsr() {
         o.style['background-color'] = ansiColors[c];
 }
 
+// onmessage buffer - holds left over bytes from incomplete UTF8/16 chars
+let inBuff = new Uint8Array(0); 
+
 // connect / disconnect. called from connect UI element.
 function termConnect() {
     if (termState == TS_OFFLINE) {
@@ -3816,9 +3821,15 @@ function termConnect() {
         ws.onmessage = function(e) {
             // binary data in.
             var
-                i, j, str, data;
+                i, j, str, data, edata;
 
-            data = new Uint8Array(e.data);
+            if (inBuff.length > 0) 
+                nop();
+            
+            edata = new Uint8Array(e.data);
+            data = new Uint8Array(inBuff.length + edata.length);
+            data.set(inBuff);
+            data.set(edata, inBuff.length);
 
             // do telnet handshaking negotiations - return new data w/o IAC...'s
             if (vtxdata.telnet == 1)
@@ -3830,11 +3841,16 @@ function termConnect() {
                     // convert from codepage into string data
                     switch (codePage){
                         case 'UTF8':
-                            str = UFT8ArrayToStr(data);
+                            var utfdat = UFT8ArrayToStr(data);
+                            str = utfdat.strData;
+                            inBuff = utfdat.leftOver;
+                            
                             break;
 
                         case 'UTF16':
-                            str = data.toString();
+                            var utfdat = UTF16ArrayToStr(data);
+                            str = utfdat.strData;
+                            inBuff = utfdat.leftOver;
                             break;
 
                         default:
@@ -3888,6 +3904,7 @@ function termConnect() {
                 audioEl.pause();
             }
             termState = TS_OFFLINE;
+            resetTerminal();
             setBulbs();
         }
         ws.onerror = function(error) {
@@ -4193,7 +4210,7 @@ function initDisplay() {
         switch (vtxdata.term) {
             case 'PETSCII':
                 conStrOut('\x0Evtx tERMINAL cLIENT\r');
-                conStrOut('vERSION 0.9\r');
+                conStrOut('vERSION ' + version + '\r');
                 conStrOut('2017 dAN mECKLENBURG jR.\r');
                 conStrOut('GITHUB.COM/CODEWAR65/vtx\xA4cLIENTsERVER\r');
                 conStrOut('\rcLICK cONNECT...\r');
@@ -4201,7 +4218,7 @@ function initDisplay() {
 
             case 'ATASCII':
                 conStrOut('VTX Terminal Client\x9B');
-                conStrOut('Version 0.9\x9B');
+                conStrOut('Version ' + version + '\x9B');
                 conStrOut('2017 Dan Mecklenburg Jr.\x9B');
                 conStrOut('github.com/codewar65/VTX_ClientServer\x9B');
                 conStrOut('\x9BClick Connect...\x9B');
@@ -4209,7 +4226,7 @@ function initDisplay() {
 
             default:
                 conStrOut('\n\r\x1b#6\x1b[38;5;46;58mVTX\x1b[32;78m Terminal Client\n\r');
-                conStrOut('\x1b#6\x1b[38;5;46;59mVTX\x1b[32;79m Version 0.9 Beta\n\r');
+                conStrOut('\x1b#6\x1b[38;5;46;59mVTX\x1b[32;79m Version ' + version + '\n\r');
                 conStrOut('\n\r\x1b[m2017 Dan Mecklenburg Jr.\n\r');
                 conStrOut('Visit \x1b[1;45;1;1;'
                     + encodeAscii('https://github.com/codewar65/VTX_ClientServer')
@@ -4238,10 +4255,12 @@ function initDisplay() {
 function UFT8ArrayToStr(array) {
     var
         out, i, len, c,
+        breakPos,
         char2, char3;
 
     out = '';
     len = array.length;
+    breakPos = len;
     i = 0;
     while(i < len) {
         c = array[i++];
@@ -4254,12 +4273,24 @@ function UFT8ArrayToStr(array) {
 
             case 12: case 13:
                 // 110x xxxx   10xx xxxx
+                if (i >= len - 1) {
+                    // need 2 bytes. only have 1
+                    breakPos = i - 1;
+                    i = len;
+                    break;
+                }
                 char2 = array[i++];
                 out += String.fromCharCode(((c & 0x1F) << 6) | (char2 & 0x3F));
                 break;
 
             case 14:
                 // 1110 xxxx  10xx xxxx  10xx xxxx
+                if (i >= len - 2) {
+                    // need 3 bytes. only have 1 or 2
+                    breakPos = i - 1;
+                    i = len;
+                    break;
+                }
                 char2 = array[i++];
                 char3 = array[i++];
                 out += String.fromCharCode(((c & 0x0F) << 12) |
@@ -4268,7 +4299,32 @@ function UFT8ArrayToStr(array) {
                 break;
         }
     }
-    return out;
+    //return out;
+    return { strData: out, leftOver: array.slice(breakPos) };
+}
+
+function UFT16ArrayToStr(array) {
+    var
+        out, i, len, c,
+        breakPos,
+        char2;
+
+    out = '';
+    len = array.length;
+    breakPos = len;
+    i = 0;
+    while(i < len) {
+        if (i >= len - 1) {
+            // need 2 bytes, only have 1.
+            breakPos = i - 1;
+            i = len;
+            break;
+        }
+        c = array[i++];
+        char2 = array[i++];
+        out += string.fromCharCode((c << 8) | char2);
+    }
+    return { strData: out, leftOver: array.slice(breakPos) };
 }
 
 function fadeScreen(fade) {
@@ -6619,7 +6675,7 @@ function conCharOut(chr) {
                                             for (i = 4; i < l; i++)
                                                 str += ';'+parm[i];
                                             str = str.substring(1);
-                                            spriteDefs[parm[2]] = stripNL(UFT8ArrayToStr(decodeHex3(str)));
+                                            spriteDefs[parm[2]] = stripNL(UFT8ArrayToStr(decodeHex3(str)).strData);
                                             break;
 
                                         case 2:
@@ -6628,7 +6684,7 @@ function conCharOut(chr) {
                                                 str += ';'+parm[i];
                                             str = str.substring(1);
                                             spriteDefs[parm[2]] = 'data:image/svg+xml;charset=utf-8,'
-                                                + encodeURIComponent(stripNL(UFT8ArrayToStr(decodeHex3(str))));
+                                                + encodeURIComponent(stripNL(UFT8ArrayToStr(decodeHex3(str)).strData));
                                             break;
 
                                         case 3:
@@ -6637,7 +6693,7 @@ function conCharOut(chr) {
                                                 str += ';'+parm[i];
                                             str = str.substring(1);
                                             spriteDefs[parm[2]] = 'data:image/svg+xml;charset=utf-8,'
-                                                + encodeURIComponent(stripNL(UFT8ArrayToStr(inflateRaw(decodeHex3(str)))));
+                                                + encodeURIComponent(stripNL(UFT8ArrayToStr(inflateRaw(decodeHex3(str))).strData));
                                             break;
 
                                         case 4:
@@ -6646,7 +6702,7 @@ function conCharOut(chr) {
                                                 str += ';'+parm[i];
                                             str = str.substring(1);
                                             spriteDefs[parm[2]] = 'data:image/svg+xml;base64,'
-                                                + stripNL(UFT8ArrayToStr(decodeHex3(str)));
+                                                + stripNL(UFT8ArrayToStr(decodeHex3(str)).strData);
                                             break;
                                     }
                                 }
@@ -6757,7 +6813,7 @@ function conCharOut(chr) {
                                             for (i = 4; i < l; i++)
                                                 str += ';'+parm[i];
                                             str = str.substring(1);
-                                            audioDefs[parm[2]] = UFT8ArrayToStr(decodeHex3(str))
+                                            audioDefs[parm[2]] = UFT8ArrayToStr(decodeHex3(str)).strData;
                                             break;
 
                                         case 2:
@@ -6780,7 +6836,7 @@ function conCharOut(chr) {
                                             // raw MP3 Base64: hex3 encoded
                                             // TODO
                                             audioDefs[parm[2]] = 'data:audio/mp3;base64,' +
-                                                + stripNL(UFT8ArrayToStr(decodeHex3(str)));
+                                                + stripNL(UFT8ArrayToStr(decodeHex3(str)).strData);
                                             break;
                                     }
                                 }
