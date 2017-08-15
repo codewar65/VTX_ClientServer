@@ -5184,11 +5184,13 @@ function scrollUp() {
     for (j = fromRow; j < toRow; j++) {
         conText[j] = conText[j + 1];
         conCellAttr[j] = conCellAttr[j + 1];
+        conRowAttr[j] = conRowAttr[j + 1];
         redrawRow(j);
     }
     // clear bottow row
     conText[toRow] = '';
     conCellAttr[toRow] = [];
+    conRowAttr[toRow] = defRowAttr;
     redrawRow(toRow);
 
     // move / clear hotspots
@@ -5214,11 +5216,13 @@ function scrollDown() {
     for (j = toRow; j > fromRow; j--) {
         conText[j] = conText[j - 1];
         conCellAttr[j] = conCellAttr[j - 1];
+        conRowAttr[j] = conRowAttr[j - 1];
         redrawRow(j);
     }
     // clear top row
     conText[fromRow] = '';
     conCellAttr[fromRow] = [];
+    conRowAttr[fromRow] = defRowAttr;
     redrawRow(fromRow);
 
     // move / clear hotspots
