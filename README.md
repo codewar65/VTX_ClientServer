@@ -1,6 +1,6 @@
 # VTX_ClientServer
 
-updated: 10-AUG-2017
+updated: 15-AUG-2017
 
 
 ![VTX Client Screenshot](https://raw.githubusercontent.com/codewar65/VTX_ClientServer/master/work/vtx_screen1.png "Logo Title Text 1")
@@ -27,7 +27,9 @@ telnet server (bbs or other service).
 
 The server console is written in Free Pascal.
 
-The client is written in javascript.
+The client is written in javascript. The client can be run independant of the 
+server if you have your own web and websocket proxy. (See Client Only Setup 
+below.)
 
 The sample 'node' is written in Free Pascal.
 
@@ -58,7 +60,7 @@ Support up to 64 SVG sprites from 64 SVG sprite definitions.
 See https://github.com/codewar65/VTX_ClientServer/blob/master/vtx.txt for ANSI 
 code sequences supported.
 
-Y-Modem 1K upload and download.
+Y-Modem 1K upload and download. 
 
 Build in audio player for streaming audio with ANSI sequences to set source, 
 volume, play, stop.
@@ -66,7 +68,8 @@ volume, play, stop.
 
 ## PETSCII Mode
 
-VIC 20, Commodore 64 or 128 font support. All PETSCII controls are emulated. Color palette depends on CodePage.
+VIC 20, Commodore 64 or 128 font support. All PETSCII controls are emulated. 
+Color palette depends on CodePage.
 
 Keys mapped to:
 * Backspace   = BACK/DEL
@@ -226,7 +229,6 @@ To run the client without using the VTX server software, all you need is a web p
 
 *   vtxdata.js          (see below for customizing)
 *   vtxclient.js        (or vtxclient.min.js)
-*   vtxclient.css
 *   *.woff              (terminal fonts needed for the client. include ALL of these or the client will not boot.)
 *   *.png               (24x24px images for the UI. customize if you want to replace these.)
 *   bell.mp3            (bing! the bell sound. customize if you want to replace this.)
@@ -300,6 +302,10 @@ is set to 0, no telnet handshaking negotiations will take place once a connectio
 
 **autoConnect** 0 = don't autoconnect on launch, 1 = autoconnect.
 
+** fontName** is the default font to use. UVGA16 should be specified in most cases. 
+
+** fontSize** the default font size to use. 16px unscaled default size. Larger sizes will increase the required size of the client.
+
 ```javascript
 var vtxdata = {
   sysName:     "VTX Home System",
@@ -330,3 +336,5 @@ $ HTTP requests as new thread.
 $ Redo website.
 
 ? thin version of uvga16.
+
+$ Reduce the server to web server / websocket proxy only with not mangling of web files.
