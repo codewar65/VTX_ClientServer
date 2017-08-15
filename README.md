@@ -260,8 +260,6 @@ In the <BODY> of your page, place something like (the outer 2 divs are the borde
 
 The vtxpage div element will house the client once the vtxclient.js has booted up.
 
-The CSS file can be customized a little too to help make the client fit your style. Refer to vtxclient.css for info.
-
 Place the two javascript files on your webserver so the HTML can get at them.
 
 ### vtxdata.js
