@@ -2071,7 +2071,7 @@ function addListener(obj, eventName, listener) {
 }
 
 // create an element
-function domElement(type, options = null, styles = null, txt = null) {
+function domElement(type, options, styles, txt) {
     var
         e = document.createElement(type),
         i;
@@ -2091,7 +2091,7 @@ function domElement(type, options = null, styles = null, txt = null) {
 function int(val) { return parseInt(val,10); }
 
 // clamp value to range. with optional fallback if out of bounds.
-function minMax(v, min, max, fallback = null) {
+function minMax(v, min, max, fallback) {
     if (fallback == null) {
         if (v < min) v = min;
         if (v > max) v = max;
@@ -2159,7 +2159,6 @@ function bootVTX() {
         }, 50);
 }
 
-
 function bootVTX1() {
     var
         i, j, l, str,
@@ -2172,8 +2171,11 @@ function bootVTX1() {
 
     // load fonts
     // set fonts to be loaded based on term
-    vtxFontsLoaded = new Array(vtxFonts.length);
-    vtxFontsLoaded.fill(false);
+    l = vtxFonts.length;
+    vtxFontsLoaded = new Array(l);
+    for (i = 0; i < l; i++) 
+        vtxFontsLoaded[i] = false;
+    
     bootFonts = [];
     switch (vtxdata.term) {
         case 'PETSCII':
@@ -2742,12 +2744,13 @@ function getElementPosition(obj) {
 }
 
 // redraw the cursor. - attempt to scroll
-function crsrDraw(force = false) {
+function crsrDraw(force) {
     var
         row, rpos,
         csize,
         dt, wh;
-
+        
+    force = force || false;
     expandToRow(crsrRow);
     row = getRowElement(crsrRow);
     if (row == null) return;
@@ -2987,14 +2990,12 @@ function htoi(h) {
 }
 
 // create row attribute
-function makeRowAttr(
-    c1,
-    c2,
-    bp = 0,
-    height = 100,
-    width = 100,
-    marquee = false) {
-
+function makeRowAttr(c1, c2, bp, height, width, marquee) {
+    bp = bp || 0;
+    height = height || 100;
+    width = width || 100;
+    marquee = marquee || false;
+    
     height = minMax(Math.round(height/ 25) - 1, 0, 7) << 18;
     width = minMax(Math.round(width / 50) - 1, 0, 3) << 21;
     return (c1 & 0xFF)
@@ -3052,20 +3053,22 @@ function getRowAttrWidth(attr) { return (((attr & A_ROW_WIDTH_MASK) >>> 21) + 1)
 function getRowAttrMarquee(attr) { return (attr & A_ROW_MARQUEE) != 0; }
 
 // create cell attribute
-function makeCellAttr(
-    fg = 7,
-    bg = 0,
-    bold = false,
-    italics = false,
-    underline = false,
-    blinkslow = false,
-    shadow = false,
-    strikethrough = false,
-    outline = false,
-    blinkfast = false,
-    faint = false,
-    font = 0) {
-
+function makeCellAttr(fg, bg, bold, italics, underline, blinkslow, shadow,
+    strikethrough, outline, blinkfast, faint, font) {
+    fg = fg || 7;
+    bg = bg || 0;
+    bold = bold || false;
+    italics = italics || false;
+    underline = underline || false;
+    blinkslow = blinkslow || false;
+    shadow = shadow || false;
+    strikethrough = strikethrough || false;
+    outline = online || false;
+    blinkfast = blinkfast || false;
+    faint = faint || false;
+    font = font || 0;
+    
+    
     return (fg & 0xFF)
         | ((bg & 0xFF) << 8)
         | (bold ? A_CELL_BOLD : 0)
@@ -3252,7 +3255,9 @@ function renderAll() {
 
 // force draw cells below on draw of top on tall cells. set bottom true.
 // bottom = true if this is the bottom half of the row above.
-function renderCell(rownum, colnum, hilight=0, bottom=false) {
+function renderCell(rownum, colnum, hilight, bottom) {
+        hilight = hilight || 0;
+        bottom = bottom || false;
     var
         row,        // row element drawing to
         size,       // size factor (25%-200%)
