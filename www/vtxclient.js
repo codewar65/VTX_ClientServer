@@ -133,7 +133,7 @@ vtx: {
 
 // globals
 const
-    version = '0.92 beta',
+    version = '0.92c beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -2085,6 +2085,8 @@ let
 
     termState,                  // TS_...
 
+    clientDiv = null,           // vtxclient div
+    fxDiv = null,               // div for effects. (fade / scanlines)
     pageDiv = null,             // page contents div
     ctrlDiv = null,             // controls panel
     textDiv = null,             // text plane
@@ -3019,8 +3021,8 @@ function doCheckResize() {
         pageWidth = elPage.clientWidth;
         crsrDraw(true);
     }
-    ctrlDiv.style['top'] = textPos.top + 'px';
-    ctrlDiv.style['left'] = (6 + textPos.left + (crtWidth*xScale)) + 'px';
+//    ctrlDiv.style['top'] = textPos.top + 'px';
+//    ctrlDiv.style['left'] = (6 + textPos.left + (crtWidth*xScale)) + 'px';
 }
 
 // blink cursor (533ms is cursor blink speed based on DOS VGA).
@@ -4054,7 +4056,12 @@ function toggleSound(){
     setBulbs();
 };
 
-function toggleClicks(){ 
+// turn on / off special effects
+function toggleFX(){ 
+    if (soundClicks)
+        fxDiv.classList.remove('raster')
+    else 
+        fxDiv.classList.add('raster');
     soundClicks = !soundClicks;
     setBulbs();
 };
@@ -4075,9 +4082,16 @@ function initDisplay() {
     hotspotClickAttr = 0x000000FF;
 
     // find where client is to go id='vtxclient'
-    el = document.getElementById('vtxclient');
-    if (!el) return;
+    clientDiv = document.getElementById('vtxclient');
+    if (!clientDiv) return;
 
+    // special fx div
+    fxDiv = domElement(
+            'div',
+            {   id:         'vtxfx',
+                className:  'raster' });
+    clientDiv.appendChild(fxDiv);
+    
     // build required inner divs
     pageDiv = domElement(
             'div',
@@ -4088,9 +4102,8 @@ function initDisplay() {
             {   id:         'vtxtext',
                 className:  'noselect' });
     pageDiv.appendChild(textDiv);
-    el.appendChild(pageDiv);
+    clientDiv.appendChild(pageDiv);
 
-    //textPos = textDiv.getBoundingClientRect();
     textPos = getElementPosition(textDiv);
 
     // determine standard sized font width in pixels
@@ -4173,6 +4186,13 @@ function initDisplay() {
         + ' z-index: 10;'
         + ' position: relative;'
         + '}\n'
+        + '#vtxfx {'
+        + ' position: absolute;'
+        + ' top: 0px;'
+        + ' left: 0px;'
+        + ' width: 100%;'
+        + ' height: 100%'
+        + '}\n'
         + '.vtx {'
         + ' position: relative;'
         + ' left: 0px;'
@@ -4194,10 +4214,68 @@ function initDisplay() {
         + ' -ms-user-select: none;'
         + ' user-select: none;'
         + '}\n'
-        + '.marquee { animation: marquee 12s linear infinite; } '
-        + '@keyframes marquee { '
-        + '0% { transform: translate( ' + (xScale * crtCols * colSize) + 'px, 0); } '
-        + '100% { transform: translate(-100%, 0); }}';
+        + '.raster{'
+        + ' position: relative;'
+        + ' overflow: hidden;'
+        + '}\n'
+        + '.raster::after {'
+        + ' content: " ";'
+        + ' position: absolute;'
+        + ' top: 0;'
+        + ' left: 0;'
+        + ' bottom: 0;'
+        + ' right: 0;'
+        + ' background: rgba(9, 8, 8, 0.1);'
+        + ' opacity: 0;'
+        + ' z-index: 2;'
+        + ' pointer-events: none;'
+        + ' animation: flicker 0.15s infinite;'
+        + '}\n'
+        + '.raster::before {'
+        + ' content: " ";'
+        + ' position: absolute;'
+        + ' top: 0;'
+        + ' left: 0;'
+        + ' bottom: 0;'
+        + ' right: 0;'
+        + ' background:'
+        + '  linear-gradient(rgba(9, 8, 8, 0) 50%, rgba(0, 0, 0, 0.25) 50%),'
+        + '  linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));'
+        + ' z-index: 2;'
+        + ' background-size: 100% 2px, 3px 100%;'
+        + ' pointer-events: none;'
+        + '}\n'
+        + '@keyframes flicker {'
+        + ' 0% { opacity: 0.119; }'
+        + ' 5% { opacity: 0.02841; }'
+        + ' 10% { opacity: 0.35748; }'
+        + ' 15% { opacity: 0.88852; }'
+        + ' 20% { opacity: 0.9408; }'
+        + ' 25% { opacity: 0.35088; }'
+        + ' 30% { opacity: 0.22426; }'
+        + ' 35% { opacity: 0.26418; }'
+        + ' 40% { opacity: 0.09249; }'
+        + ' 45% { opacity: 0.35312; }'
+        + ' 50% { opacity: 0.89436; }'
+        + ' 55% { opacity: 0.9574; }'
+        + ' 60% { opacity: 0.19754; }'
+        + ' 65% { opacity: 0.05086; }'
+        + ' 70% { opacity: 0.12137; }'
+        + ' 75% { opacity: 0.75791; }'
+        + ' 80% { opacity: 0.89617; }'
+        + ' 85% { opacity: 0.90183; }'
+        + ' 90% { opacity: 0.20657; }'
+        + ' 95% { opacity: 0.64125; }'
+        + ' 100% { opacity: 0.78042; }'
+        + '}\n'
+        + '.marquee {'
+        + ' animation: marquee 12s linear infinite;'
+        + '}\n'
+        + '@keyframes marquee {'
+        + ' 0% { transform: translate( ' + (xScale * crtCols * colSize) + 'px, 0); } '
+        + ' 100% { transform: translate(-100%, 0); }'
+        + '}\n';
+        
     if (style.styleSheet)
         style.styleSheet.cssText = css
     else
@@ -4276,10 +4354,12 @@ function initDisplay() {
         'div',
         {   id:             'ctrls' },
         {   width:          '24px',
-            height:         '164px',
+            height:         '180px',
             position:       'absolute',
-            top:            textPos.top + 'px',
-            left:           (6 + textPos.left + (crtWidth * xScale)) + 'px'});
+            top:            '4px',
+            right:          '4px'
+            //left:           (6 + textPos.left + (crtWidth * xScale)) + 'px'
+        });
     pos = 0;
     // connect / disconnect indicator / button.
     ctrlDiv.appendChild(domElement(
@@ -4308,7 +4388,7 @@ function initDisplay() {
         'img',
         {   src:        vtxPath + 'kc1.png',
             id:         'kcbulb',
-            onclick:    toggleClicks,
+            onclick:    toggleFX,
             width:      24,
             height:     24,
             title:      'Key Click' },
@@ -4489,7 +4569,7 @@ function fadeScreen(fade) {
         el, fntfm, cs;
 
     if (!fade) {
-        pageDiv.classList.remove('fade');
+        clientDiv.classList.remove('fade');
         if (ovl['dialog'])
             document.body.removeChild(ovl['dialog']);
         ovl = {};
@@ -4500,7 +4580,7 @@ function fadeScreen(fade) {
         setTimers(true);
         document.body.style['cursor'] = 'default';
     } else {
-        pageDiv.classList.add('fade')
+        clientDiv.classList.add('fade')
         fntfm = 'san-serif';
 
         // add control overlay
