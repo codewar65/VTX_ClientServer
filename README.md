@@ -327,6 +327,10 @@ var vtxdata = {
 
 ## To Do($) / To Fix(!) / Investigate(?)
 
+! Full screen vtxclient
+
+! effects as class like fadeScreen()
+
 $ HTTP requests as new thread.
 
 ? WSS / certificate support in server.

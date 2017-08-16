@@ -26,17 +26,9 @@
 
   VTX Server
   2017-07-20
-  vtxserv.pas
+  vtxserv.js
 
     TODO : ( see also TODO in code)
-
-        On Demand Fonts - check.
-
-        Client Ident - fix - currently crashing / not working all time.
-
-        Codes for restore cursor attr, restore page attr
-
-        ATASCII
 
         Server: http requests out to separate threads
 
@@ -2665,7 +2657,7 @@ function keyDown(e) {
     if (between(kc, 65, 90) && (stateIdx < 2) && capState)
         stateIdx ^= 1;
 
-    // reverse for PETSCII
+    // reverse upper/lowers for PETSCII
     if (cbm) {
         if (between(kc, 65, 90))
             stateIdx ^= 1;
@@ -4238,17 +4230,17 @@ function initDisplay() {
         soundKeyUp[i] = new Audio();
         soundKeyUp[i].src = vtxPath + 'ku' + i + '.mp3';
         soundKeyUp[i].type = 'audio/mp3';
-        soundKeyUp[i].volume = 0.25;
+        soundKeyUp[i].volume = 0.5;
         soundKeyUp[i].preload = 'auto';
         soundKeyUp[i].load();
         soundKeyDn[i] = new Audio();
         soundKeyDn[i].src = vtxPath + 'kd' + i + '.mp3';
         soundKeyDn[i].type = 'audio/mp3';
-        soundKeyDn[i].volume = 0.25;
+        soundKeyDn[i].volume = 0.5;
         soundKeyDn[i].preload = 'auto';
         soundKeyDn[i].load();
     }
-    
+
     // set page attributes
     p = pageDiv.parentNode;
     if (cbm) {
@@ -4509,10 +4501,7 @@ function fadeScreen(fade) {
         document.body.style['cursor'] = 'default';
     } else {
         pageDiv.classList.add('fade')
-
-
-        //cs = window.getComputedStyle(el) || el.currentStyle;
-        fntfm = 'san-serif'; //cs['font-family'];
+        fntfm = 'san-serif';
 
         // add control overlay
         ovl['dialog'] = domElement(
