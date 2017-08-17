@@ -446,7 +446,7 @@ begin
   end;
   PrintLn;
 
-  PrintLn(SGR(ANSI_LTCYAN) + 'Colors 16 - 231 are based on a 6 x 6 x 6 color cube. They are as follows.');
+  PrintLn(SGR(ANSI_LTCYAN) + 'Colors 232 - 255 are shades of gray. They are as follows.');
   PrintLn;
   for j := 0 to 23 do
   begin

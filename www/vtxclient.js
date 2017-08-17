@@ -133,7 +133,7 @@ vtx: {
 
 // globals
 const
-    version = '0.92c beta',
+    version = '0.92d beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -2375,7 +2375,7 @@ function bootVTX2() {
 
     // format the TITLE tag - only if empty or missing.
     if (!t)
-        hd.appendChild(domElement('title',{},{},vtxdata.sysName));
+        hd.appendChild(domElement('title',{},{},vtxdata.sysName))
     else {
         if (!t.innerText || (t.innerText == ''))
             t.innerText = vtxdata.sysName
@@ -2479,8 +2479,11 @@ function getMouseCell(e) {
         size, width, c, rh,
         ty, dt, i;
 
-    ty = document.documentElement.scrollTop || document.body.scrollTop;
-    //ty = 0;
+    if (modeFullScreen)
+        ty = clientDiv.scrollTop || clientDiv.scrollTop
+    else
+        ty = document.documentElement.scrollTop || document.body.scrollTop
+    
     x = e.clientX;
     y = e.clientY + ty;
     dt = textPos.top;
@@ -2877,28 +2880,41 @@ function crsrDraw(force) {
     rpos = getElementPosition(row);
 
     // position of doc
-    dt = document.documentElement.scrollTop || document.body.scrollTop;
-
-    wh = "innerHeight" in window
-        ? window.innerHeight
-        : document.documentElement.offsetHeight;
+    if (modeFullScreen) {
+        dt = clientDiv.scrollTop;
+        wh = clientDiv.clientHeight;
+    } else {
+        dt = document.documentElement.scrollTop || document.body.scrollTop;
+        wh = window.innerHeight;
+    }
 
     // character size for this row.
     csize = getRowFontSize(crsrRow);
 
     // set cursor siz / pos
     crsr.style['top'] =     (rpos.top - textPos.top) + 'px';
-    //crsr.style['top'] =     (rpos.top - pageTop) + 'px';
     crsr.style['left'] =    (xScale * crsrCol * csize.width) + 'px';
     crsr.style['width'] =   (xScale * csize.width) + 'px';
-    crsr.style['height'] =  csize.height + 'px';
+    crsr.style['height'] =  (csize.height) + 'px';
 
-    if (rpos.top < dt) {
-        // cursor is above page - scroll up
-        window.scrollTo(0, rpos.top - 8);
-    } else if ((rpos.top + csize.height) > (dt + wh)) {
-        // cursor is below page - scroll down
-        window.scrollTo(0, rpos.top + csize.height + 8);
+    if (modeFullScreen) {
+        if (rpos.top < dt) {
+            // cursor is above page - scroll up
+            clientDiv.scrollTo = rpos.top - 8;
+            //clientDiv.scrollTo(0, rpos.top - 8);
+        } else if ((rpos.top + csize.height) > (dt + wh))  {
+            // cursor is below page - scroll down
+            clientDiv.scrollTop = rpos.top + csize.height + 8;
+            //clientDiv.scrollTo(0, rpos.top + csize.height + 8);
+        }
+    } else {
+        if (rpos.top < dt) {
+            // cursor is above page - scroll up
+            window.scrollTo(0, rpos.top - 8);
+        } else if ((rpos.top + csize.height) > (dt + wh)) {
+            // cursor is below page - scroll down
+            window.scrollTo(0, rpos.top + csize.height + 8);
+        }
     }
 }
 
@@ -3802,9 +3818,10 @@ function setBulbs() {
     }
 
     // set the indicators
-    document.getElementById('clbulb').src = vtxPath + (capState ? 'cl1':'cl0') + '.png';
-    document.getElementById('kcbulb').src = vtxPath + (soundClicks ? 'kc1':'kc0') + '.png';
+    document.getElementById('fsbulb').src = vtxPath + (modeFullScreen ? 'fs1':'fs0') + '.png';
     document.getElementById('vobulb').src = vtxPath + (soundOn ? 'vo1':'vo0') + '.png';
+    document.getElementById('kcbulb').src = vtxPath + (soundClicks ? 'kc1':'kc0') + '.png';
+    document.getElementById('clbulb').src = vtxPath + (capState ? 'cl1':'cl0') + '.png';
 
     // set the ul/dl buttons
     if (termState == TS_NORMAL) {
@@ -4066,6 +4083,143 @@ function toggleFX(){
     setBulbs();
 };
 
+function setAllCSS() {
+    var
+        style, 
+        css, 
+        head = document.head || document.getElementsByTagName('head')[0];
+        
+    // kill old one
+    style = document.getElementById('vtxstyle');
+    if (style)
+        head.removeChild(style);
+    
+    // build new one
+    style = document.createElement('style');
+    style.id = 'vtxstyle';
+    style.type = 'text/css';
+
+    css = '#vtxpage {'
+        + ' font-family: ' + fontName + ';'
+        + ' font-size: ' + fontSize + 'px;'
+        + ' min-height: ' + (fontSize * vtxdata.crtRows).toString() + 'px;'
+        + ' margin: 0px auto;'
+        + ' padding: 0px;'
+        + ' border: 0px;'
+        + ' overflow: hidden;'
+        + ' text-overflow: clip;'
+        + ' z-index: 0;'
+        + ' position: relative;'
+        + '}\n'
+        + '#vtxtext {'
+        + ' width: 100%;'
+        + ' margin: 0px;'
+        + ' padding: 0px;'
+        + ' border: 0px;'
+        + ' overflow: hidden;'
+        + ' text-overflow: clip;'
+        + ' z-index: 10;'
+        + ' position: relative;'
+        + '}\n'
+        + '#vtxfx {'
+        + ' position: absolute;'
+        + ' top: 0px;'
+        + ' left: 0px;'
+        + ' width: 100%;'
+        + ' height: 100%'
+        + '}\n'
+        + '.vtx {'
+        + ' position: relative;'
+        + ' left: 0px;'
+        + ' line-height: ' + fontSize + 'px;'
+        + ' height: ' + fontSize + 'px;'
+        + ' vertical-align: top;'
+        + ' overflow: hidden;'
+        + ' text-overflow: clip;'
+        + '}\n'
+        + '.fade {'
+        + ' opacity: .5;'
+        + ' background: #000055;'
+        + '}\n'
+        + '.noselect {'
+        + ' -webkit-touch-callout: none;'
+        + ' -webkit-user-select: none;'
+        + ' -khtml-user-select: none;'
+        + ' -moz-user-select: none;'
+        + ' -ms-user-select: none;'
+        + ' user-select: none;'
+        + '}\n'
+        + '.raster{'
+        + ' height: 100%;'
+        + ' position: relative;'
+        + ' overflow: hidden;'
+        + ' pointer-events: none;'
+        + '}\n'
+        + '.raster::after {'
+        + ' content: " ";'
+        + ' position: absolute;'
+        + ' top: 0;'
+        + ' left: 0;'
+        + ' bottom: 0;'
+        + ' right: 0;'
+        + ' background: rgba(9, 8, 8, 0.1);'
+        + ' opacity: 0;'
+        + ' z-index: 2;'
+        + ' pointer-events: none;'
+        + ' animation: flicker 0.15s infinite;'
+        + '}\n'
+        + '.raster::before {'
+        + ' content: " ";'
+        + ' position: absolute;'
+        + ' top: 0;'
+        + ' left: 0;'
+        + ' bottom: 0;'
+        + ' right: 0;'
+        + ' background:'
+        + '  linear-gradient(rgba(9, 8, 8, 0) 50%, rgba(0, 0, 0, 0.25) 50%),'
+        + '  linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));'
+        + ' z-index: 2;'
+        + ' background-size: 100% 2px, 3px 100%;'
+        + ' pointer-events: none;'
+        + '}\n'
+        + '@keyframes flicker {'
+        + ' 0% { opacity: 0.119; }'
+        + ' 5% { opacity: 0.02841; }'
+        + ' 10% { opacity: 0.35748; }'
+        + ' 15% { opacity: 0.88852; }'
+        + ' 20% { opacity: 0.9408; }'
+        + ' 25% { opacity: 0.35088; }'
+        + ' 30% { opacity: 0.22426; }'
+        + ' 35% { opacity: 0.26418; }'
+        + ' 40% { opacity: 0.09249; }'
+        + ' 45% { opacity: 0.35312; }'
+        + ' 50% { opacity: 0.89436; }'
+        + ' 55% { opacity: 0.9574; }'
+        + ' 60% { opacity: 0.19754; }'
+        + ' 65% { opacity: 0.05086; }'
+        + ' 70% { opacity: 0.12137; }'
+        + ' 75% { opacity: 0.75791; }'
+        + ' 80% { opacity: 0.89617; }'
+        + ' 85% { opacity: 0.90183; }'
+        + ' 90% { opacity: 0.20657; }'
+        + ' 95% { opacity: 0.64125; }'
+        + ' 100% { opacity: 0.78042; }'
+        + '}\n'
+        + '.marquee {'
+        + ' animation: marquee 12s linear infinite;'
+        + '}\n'
+        + '@keyframes marquee {'
+        + ' 0% { transform: translate( ' + (xScale * crtCols * colSize) + 'px, 0); } '
+        + ' 100% { transform: translate(-100%, 0); }'
+        + '}\n';
+        
+    if (style.styleSheet)
+        style.styleSheet.cssText = css
+    else
+        style.appendChild(document.createTextNode(css));
+    head.appendChild(style);
+}
+
 // setup the crt and cursor
 function initDisplay() {
     var
@@ -4156,132 +4310,13 @@ function initDisplay() {
         }
     }
 
-    pageDiv.style['width'] = (crtWidth*xScale) + 'px';
+    pageDiv.style['width'] = (crtWidth * xScale) + 'px';
     pagePos = getElementPosition(pageDiv);
     pageLeft = pagePos.left;
     pageTop = pagePos.top;
 
     // build CSS for VTX client
-    style = document.createElement('style');
-    style.type = 'text/css';
-    css = '#vtxpage {'
-        + ' font-family: ' + fontName + ';'
-        + ' font-size: ' + fontSize + 'px;'
-        + ' min-height: ' + (fontSize * vtxdata.crtRows).toString() + 'px;'
-        + ' margin: 0px auto;'
-        + ' padding: 0px;'
-        + ' border: 0px;'
-        + ' overflow: hidden;'
-        + ' text-overflow: clip;'
-        + ' z-index: 0;'
-        + ' position: relative;'
-        + '}\n'
-        + '#vtxtext {'
-        + ' width: 100%;'
-        + ' margin: 0px;'
-        + ' padding: 0px;'
-        + ' border: 0px;'
-        + ' overflow: hidden;'
-        + ' text-overflow: clip;'
-        + ' z-index: 10;'
-        + ' position: relative;'
-        + '}\n'
-        + '#vtxfx {'
-        + ' position: absolute;'
-        + ' top: 0px;'
-        + ' left: 0px;'
-        + ' width: 100%;'
-        + ' height: 100%'
-        + '}\n'
-        + '.vtx {'
-        + ' position: relative;'
-        + ' left: 0px;'
-        + ' line-height: ' + fontSize + 'px;'
-        + ' height: ' + fontSize + 'px;'
-        + ' vertical-align: top;'
-        + ' overflow: hidden;'
-        + ' text-overflow: clip;'
-        + '}\n'
-        + '.fade {'
-        + ' opacity: .5;'
-        + ' background: #000055;'
-        + '}\n'
-        + '.noselect {'
-        + ' -webkit-touch-callout: none;'
-        + ' -webkit-user-select: none;'
-        + ' -khtml-user-select: none;'
-        + ' -moz-user-select: none;'
-        + ' -ms-user-select: none;'
-        + ' user-select: none;'
-        + '}\n'
-        + '.raster{'
-        + ' position: relative;'
-        + ' overflow: hidden;'
-        + '}\n'
-        + '.raster::after {'
-        + ' content: " ";'
-        + ' position: absolute;'
-        + ' top: 0;'
-        + ' left: 0;'
-        + ' bottom: 0;'
-        + ' right: 0;'
-        + ' background: rgba(9, 8, 8, 0.1);'
-        + ' opacity: 0;'
-        + ' z-index: 2;'
-        + ' pointer-events: none;'
-        + ' animation: flicker 0.15s infinite;'
-        + '}\n'
-        + '.raster::before {'
-        + ' content: " ";'
-        + ' position: absolute;'
-        + ' top: 0;'
-        + ' left: 0;'
-        + ' bottom: 0;'
-        + ' right: 0;'
-        + ' background:'
-        + '  linear-gradient(rgba(9, 8, 8, 0) 50%, rgba(0, 0, 0, 0.25) 50%),'
-        + '  linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));'
-        + ' z-index: 2;'
-        + ' background-size: 100% 2px, 3px 100%;'
-        + ' pointer-events: none;'
-        + '}\n'
-        + '@keyframes flicker {'
-        + ' 0% { opacity: 0.119; }'
-        + ' 5% { opacity: 0.02841; }'
-        + ' 10% { opacity: 0.35748; }'
-        + ' 15% { opacity: 0.88852; }'
-        + ' 20% { opacity: 0.9408; }'
-        + ' 25% { opacity: 0.35088; }'
-        + ' 30% { opacity: 0.22426; }'
-        + ' 35% { opacity: 0.26418; }'
-        + ' 40% { opacity: 0.09249; }'
-        + ' 45% { opacity: 0.35312; }'
-        + ' 50% { opacity: 0.89436; }'
-        + ' 55% { opacity: 0.9574; }'
-        + ' 60% { opacity: 0.19754; }'
-        + ' 65% { opacity: 0.05086; }'
-        + ' 70% { opacity: 0.12137; }'
-        + ' 75% { opacity: 0.75791; }'
-        + ' 80% { opacity: 0.89617; }'
-        + ' 85% { opacity: 0.90183; }'
-        + ' 90% { opacity: 0.20657; }'
-        + ' 95% { opacity: 0.64125; }'
-        + ' 100% { opacity: 0.78042; }'
-        + '}\n'
-        + '.marquee {'
-        + ' animation: marquee 12s linear infinite;'
-        + '}\n'
-        + '@keyframes marquee {'
-        + ' 0% { transform: translate( ' + (xScale * crtCols * colSize) + 'px, 0); } '
-        + ' 100% { transform: translate(-100%, 0); }'
-        + '}\n';
-        
-    if (style.styleSheet)
-        style.styleSheet.cssText = css
-    else
-        style.appendChild(document.createTextNode(css));
-    head = document.head || document.getElementsByTagName('head')[0];
-    head.appendChild(style);
+    setAllCSS();
 
     defCellAttr = vtxdata.defCellAttr;
     defCrsrAttr = vtxdata.defCrsrAttr;
@@ -4357,8 +4392,8 @@ function initDisplay() {
             height:         '180px',
             position:       'absolute',
             top:            '4px',
-            right:          '4px'
-            //left:           (6 + textPos.left + (crtWidth * xScale)) + 'px'
+            right:          '4px',
+            zIndex:         '10'
         });
     pos = 0;
     // connect / disconnect indicator / button.
@@ -4372,6 +4407,17 @@ function initDisplay() {
             title:      'Connect/Disconnect' },
         {   cursor:     'pointer'}));
 
+    // fullscreen on / off
+    ctrlDiv.appendChild(domElement(
+        'img',
+        {   src:        vtxPath + 'fs0.png',
+            id:         'fsbulb',
+            onclick:    toggleFullScreen,
+            width:      24,
+            height:     24,
+            title:      'Fullscreen' },
+            { cursor:'pointer'}));
+        
     // sound on / off
     ctrlDiv.appendChild(domElement(
         'img',
@@ -4402,6 +4448,7 @@ function initDisplay() {
             width:      24,
             height:     24,
             title:      'CapsLk' }));
+            
     // upload
     ctrlDiv.appendChild(domElement(
         'img',
@@ -4489,18 +4536,18 @@ function initDisplay() {
     addListener(document, 'paste', paste);
 }
 
-function UFT8ArrayToStr(array) {
+function UFT8ArrayToStr(ray) {
     var
         out, i, len, c,
         breakPos,
         char2, char3;
 
     out = '';
-    len = array.length;
+    len = ray.length;
     breakPos = len;
     i = 0;
     while(i < len) {
-        c = array[i++];
+        c = ray[i++];
         switch(c >>> 4) {
             case 0: case 1: case 2:
             case 3: case 4: case 5: case 6: case 7:
@@ -4516,7 +4563,7 @@ function UFT8ArrayToStr(array) {
                     i = len;
                     break;
                 }
-                char2 = array[i++];
+                char2 = ray[i++];
                 out += String.fromCharCode(((c & 0x1F) << 6) | (char2 & 0x3F));
                 break;
 
@@ -4528,8 +4575,8 @@ function UFT8ArrayToStr(array) {
                     i = len;
                     break;
                 }
-                char2 = array[i++];
-                char3 = array[i++];
+                char2 = ray[i++];
+                char3 = ray[i++];
                 out += String.fromCharCode(((c & 0x0F) << 12) |
                        ((char2 & 0x3F) << 6) |
                        ((char3 & 0x3F) << 0));
@@ -4537,17 +4584,19 @@ function UFT8ArrayToStr(array) {
         }
     }
     //return out;
-    return { strData: out, leftOver: array.slice(breakPos) };
+    //var lo = ray.slice(breakPos);
+    var lo = ray.subarray(breakPos);
+    return { strData: out, leftOver: lo };
 }
 
-function UFT16ArrayToStr(array) {
+function UFT16ArrayToStr(ray) {
     var
         out, i, len, c,
         breakPos,
         char2;
 
     out = '';
-    len = array.length;
+    len = ray.length;
     breakPos = len;
     i = 0;
     while(i < len) {
@@ -4557,11 +4606,14 @@ function UFT16ArrayToStr(array) {
             i = len;
             break;
         }
-        c = array[i++];
-        char2 = array[i++];
+        c = ray[i++];
+        char2 = ray[i++];
         out += string.fromCharCode((c << 8) | char2);
     }
-    return { strData: out, leftOver: array.slice(breakPos) };
+    //return out;
+    var lo = ray.subarray(breakPos);
+//    var lo = ray.slice(breakPos);
+    return { strData: out, leftOver: lo };
 }
 
 function fadeScreen(fade) {
@@ -7815,4 +7867,117 @@ function tnInit() {
 
 addListener(window, 'load', bootVTX);
 
+
+var 
+    fsClientParent, 
+    fsClientStyle,
+    fsClientPlaceHolder,
+    fsFontSize,
+    modeFullScreen = false;
+
+// find required font size given a destop width / height
+// crtRows and crtCols must fill best area.
+function toggleFullScreen() {
+    var 
+        i, l,
+        ch, 
+        cw, 
+        st, 
+        fs,
+        el = document.body;
+    
+    if (modeFullScreen) {
+        // turn if off. restore to original state.
+        // restore style
+        clientDiv.style.cssText = fsClientStyle;
+        fxDiv.style['position'] = 'absolute';
+
+        if (document.cancelFullscreen) 
+            document.cancelFullscreen()
+        if (document.exitFullscreen) 
+            document.exitFullscreen()
+        else if (document.mozCancelFullScreen) 
+            document.mozCancelFullScreen()
+        else if (document.webkitExitFullscreen) 
+            document.webkitExitFullscreen()
+        else if (document.msExitFullscreen) 
+            document.msExitFullscreen();
+
+        // move it back
+        fsClientParent.insertBefore(clientDiv, fsClientPlaceHolder);
+        fsClientParent.removeChild(fsClientPlaceHolder);
+
+        modeFullScreen = false;
+        
+        vtxdata.fontSize = fsFontSize;
+        fontSize = fsFontSize;
+    } else {
+        
+        // turn it on.
+        if (el.requestFullscreen) 
+            el.requestFullscreen()
+        else if(el.mozRequestFullScreen) 
+            el.mozRequestFullScreen()
+        else if(el.webkitRequestFullscreen) 
+            el.webkitRequestFullscreen()
+        else if(el.msRequestFullscreen) 
+            el.msRequestFullscreen();
+       
+        // mark our place.
+        fsClientParent = clientDiv.parentNode;
+        fsClientPlaceHolder = domElement('div', {}, { width: '0', height: '0' });
+        fsClientParent.insertBefore(fsClientPlaceHolder, clientDiv);
+        
+        // save styles
+        fsClientStyle = clientDiv.style.cssText;
+        fsFontSize = vtxdata.fontSize;
+        
+        // set full screen styles
+        clientDiv.style['position'] = 'absolute';
+        clientDiv.style['top'] = '0';
+        clientDiv.style['left'] = '0';
+        clientDiv.style['right'] = '0';
+        clientDiv.style['bottom'] = '0';
+        clientDiv.style['overflow-y'] = 'auto';
+        clientDiv.style['padding'] = '0';
+        fxDiv.style['position'] = 'fixed';
+        fxDiv.style['z-index'] = '9';
+
+        // move client
+        document.body.appendChild(clientDiv);
+        
+        modeFullScreen = true;
+
+        // compute new font size to fit screen
+        ch = clientDiv.clientHeight;
+        cw = clientDiv.clientWidth;
+        fs = Math.floor(ch / crtRows / 2) * 2;
+
+        // shrink to width if needed
+        while (((fs / (fontSize / colSize)) * crtCols) > cw)
+            fs -= 2;
+        
+        // some figuring ..
+        vtxdata.fontSize = fs;
+        fontSize = fs;
+    }
+    setBulbs();
+    
+    // determine standard sized font width in pixels
+    getDefaultFontSize(); // get fontName, colSize, rowSize
+    crtWidth = colSize * crtCols;
+    
+    // redraw everything!
+    pageDiv.style['width'] = (crtWidth * xScale) + 'px';
+    pagePos = getElementPosition(pageDiv);
+    pageLeft = pagePos.left;
+    pageTop = pagePos.top;
+
+    // alter the css.
+    setAllCSS();
+    l = conRowAttr.length;
+    for (i = 0; i < l; i++) {
+        adjustRow(i);
+    }
+}
 };
