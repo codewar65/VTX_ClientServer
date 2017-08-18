@@ -2926,10 +2926,10 @@ function getDefaultFontSize() {
         bmpw = 2000,
         bmph = 64;
 
-    testString += '\u2588\u2584\u2580\u2590\u258c\u2591\u2592\u2593';
+    testString += '\u2588\u2588';
     for (i = 32; i < 128; i++)
         testString += String.fromCharCode(i);
-    testString += '\u2588\u2584\u2580\u2590\u258c\u2591\u2592\u2593';
+    testString += '\u2588\u2588';
 
     cs = document.defaultView.getComputedStyle(pageDiv, null);
     fontName = vtxdata.fontName || cs['font-family'];
@@ -2946,7 +2946,7 @@ function getDefaultFontSize() {
     ctx.textBaseline = 'top';
     ctx.textAlign = 'left';
     ctx.fillStyle = '#FFF';
-    ctx.fillText(testString, 0, 0);
+    ctx.fillText(testString, 15, 15);
 
     data = ctx.getImageData(0, 0, bmpw, bmph).data;
     txtTop = txtLeft = bmpw;
@@ -2965,10 +2965,8 @@ function getDefaultFontSize() {
                     txtRight = x;
             }
         }
-    // middle ground between Mozilla and Chromium
-    //colSize = Math.round(((txtRight - txtLeft) / testString.length) - 0.25);
     rowSize = Math.floor(txtBottom - txtTop) + 1; // this is normally same as fontSize
-    colSize = Math.floor((txtRight - txtLeft) / testString.length * (1 + 1/8));
+    colSize = Math.floor((txtRight - txtLeft) / testString.length);
 }
 
 // get maximum row on document.
@@ -7989,7 +7987,7 @@ function toggleFullScreen() {
         //cw = clientDiv.clientWidth * xScale;
         ch = screen.height - 64;
         cw = screen.width - 64;
-        fs = Math.floor(ch / crtRows / 4) * 4;
+        fs = Math.floor(ch / crtRows / 8) * 8;
 
         // shrink to width if needed
         while (((fs / (fontSize / colSize)) * crtCols * xScale) > cw)
