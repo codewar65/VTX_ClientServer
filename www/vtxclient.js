@@ -2965,7 +2965,8 @@ function getDefaultFontSize() {
                     txtRight = x;
             }
         }
-    rowSize = Math.floor(txtBottom - txtTop) + 1; // this is normally same as fontSize
+    //rowSize = Math.floor(txtBottom - txtTop) + 1; // this is normally same as fontSize
+    rowSize = fontSize;
     colSize = Math.floor((txtRight - txtLeft) / testString.length);
 }
 
