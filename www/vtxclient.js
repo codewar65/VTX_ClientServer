@@ -130,7 +130,7 @@ vtx: {
 
 // globals
 const
-    version = '0.92e beta',
+    version = '0.92f beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -2862,13 +2862,12 @@ function getElementPosition(obj) {
 }
 
 // redraw the cursor. - attempt to scroll
-function crsrDraw(force) {
+function crsrDraw() {
     var
         row, rpos,
         csize,
         dt, wh;
 
-    force = force || false;
     expandToRow(crsrRow);
     row = getRowElement(crsrRow);
     if (row == null) return;
@@ -2932,7 +2931,6 @@ function getDefaultFontSize() {
         testString += String.fromCharCode(i);
     testString += '\u2588\u2584\u2580\u2590\u258c\u2591\u2592\u2593';
 
-    //cs = document.defaultView.getComputedStyle(document.body, null);
     cs = document.defaultView.getComputedStyle(pageDiv, null);
     fontName = vtxdata.fontName || cs['font-family'];
     fontSize = int(vtxdata.fontSize) || int(cs['font-size']);
@@ -2968,8 +2966,9 @@ function getDefaultFontSize() {
             }
         }
     // middle ground between Mozilla and Chromium
-    colSize = Math.round(((txtRight - txtLeft) / testString.length) - 0.25);
-    rowSize = Math.floor(txtBottom - txtTop) + 1;
+    //colSize = Math.round(((txtRight - txtLeft) / testString.length) - 0.25);
+    rowSize = Math.floor(txtBottom - txtTop) + 1; // this is normally same as fontSize
+    colSize = Math.floor((txtRight - txtLeft) / testString.length * (1 + 1/8));
 }
 
 // get maximum row on document.
@@ -3702,13 +3701,19 @@ function drawMosaicBlock(ctx, ch, w, h, separated) {
         b,
         x, y,
         bit = 0x01,
-        bw = Math.floor(w / 2),
-        bh = Math.floor(h / 3),
+        bw, bh, 
         bx, by = 0,
-        sep = (separated ? -(Math.floor(w/9)+1) : 0),
-        xadj = w - (bw * 2),
-        yadj = h - (bh * 3);
+        sep,
+        xadj, yadj;
 
+    w /= xScale;
+        
+    bw = Math.floor(w / 2);
+    bh = Math.floor(h / 3);
+    sep = (separated ? -(Math.floor(w/9)+1) : 0);
+    xadj = w - (bw * 2);
+    yadj = h - (bh * 3);
+        
     b = ch - 0x20;
     if (b > 0x1f)
         b -= 0x20;
@@ -4239,6 +4244,7 @@ function initDisplay() {
     clientDiv = document.getElementById('vtxclient');
     if (!clientDiv) return;
     clientDiv.style['position'] = 'relative';
+    clientDiv.style['padding'] = '32px';
     
     // special fx div
     fxDiv = domElement(
@@ -4387,21 +4393,33 @@ function initDisplay() {
     // indicators and controls
     // ctrl for fixed ur
     ctrlDiv = domElement(
-        'div',
-        {   id:             'ctrls' },
-        {   width:          '24px',
-            height:         '180px',
+        'div', {},
+        {   width:          (crtWidth * xScale / 2) + 'px',
+            height:         '30px',
+            padding:        '3px',
             position:       'absolute',
-            top:            '4px',
-            right:          '4px',
-            zIndex:         '10'
-        });
-    pos = 0;
+            top:            '0px',
+            left:           '50%',
+            textAlign:      'right',
+            zIndex:         '10'});
+            
+//    ctrlDiv = domElement(
+//        'div',
+//        {   id:             'ctrls' },
+//        {   width:          '24px',
+//            height:         '180px',
+//            position:       'absolute',
+//            top:            '4px',
+//            right:          '4px',
+//            zIndex:         '10'
+//        });
+
     // connect / disconnect indicator / button.
     ctrlDiv.appendChild(domElement(
         'img',
         {   src:        vtxPath + 'os0.png',
             id:         'osbulb',
+            display:    'inline-block',
             onclick:    termConnect,
             width:      24,
             height:     24,
@@ -4413,6 +4431,7 @@ function initDisplay() {
         'img',
         {   src:        vtxPath + 'fs0.png',
             id:         'fsbulb',
+            display:    'inline-block',
             onclick:    toggleFullScreen,
             width:      24,
             height:     24,
@@ -4424,6 +4443,7 @@ function initDisplay() {
         'img',
         {   src:        vtxPath + 'vo1.png',
             id:         'vobulb',
+            display:    'inline-block',
             onclick:    toggleSound,
             width:      24,
             height:     24,
@@ -4435,10 +4455,11 @@ function initDisplay() {
         'img',
         {   src:        vtxPath + 'kc1.png',
             id:         'kcbulb',
+            display:    'inline-block',
             onclick:    toggleFX,
             width:      24,
             height:     24,
-            title:      'Key Click' },
+            title:      'Effects' },
         {   cursor:     'pointer'}));
 
     // capslock indicator.
@@ -4446,15 +4467,17 @@ function initDisplay() {
         'img',
         {   src:        vtxPath + 'cl0.png',
             id:         'clbulb',
+            display:    'inline-block',
             width:      24,
             height:     24,
             title:      'CapsLk' }));
-            
+
     // upload
     ctrlDiv.appendChild(domElement(
         'img',
         {   src:        vtxPath + 'ul0.png',
             id:         'ulbtn',
+            display:    'inline-block',
             onclick:    ymSendStart,
             width:      24,
             height:     24,
@@ -4465,14 +4488,16 @@ function initDisplay() {
         'img',
         {   src:        vtxPath + 'dl0.png',
             id:         'dlbtn',
+            display:    'inline-block',
             onclick:    ymRecvStart,
             width:      24,
             height:     24,
             title:      'YModem Download' },
         {   cursor:     'pointer'}));
+            
 
     pageDiv.parentNode.appendChild(ctrlDiv);
-
+    
     // add audio element for sound.
     soundOn = true;
     audioEl = domElement(
@@ -7951,7 +7976,6 @@ function toggleFullScreen() {
         clientDiv.style['right'] = '0';
         clientDiv.style['bottom'] = '0';
         clientDiv.style['overflow-y'] = 'auto';
-        clientDiv.style['padding'] = '0';
         fxDiv.style['position'] = 'fixed';
         fxDiv.style['z-index'] = '9';
 
@@ -7961,12 +7985,14 @@ function toggleFullScreen() {
         modeFullScreen = true;
 
         // compute new font size to fit screen
-        ch = clientDiv.clientHeight;
-        cw = clientDiv.clientWidth;
-        fs = Math.floor(ch / crtRows / 2) * 2;
+        //ch = clientDiv.clientHeight;
+        //cw = clientDiv.clientWidth * xScale;
+        ch = screen.height - 64;
+        cw = screen.width - 64;
+        fs = Math.floor(ch / crtRows / 4) * 4;
 
         // shrink to width if needed
-        while (((fs / (fontSize / colSize)) * crtCols) > cw)
+        while (((fs / (fontSize / colSize)) * crtCols * xScale) > cw)
             fs -= 2;
         
         // some figuring ..
@@ -7981,6 +8007,8 @@ function toggleFullScreen() {
     
     // redraw everything!
     pageDiv.style['width'] = (crtWidth * xScale) + 'px';
+    ctrlDiv.style['width'] = (crtWidth * xScale / 2) + 'px',
+    
     pagePos = getElementPosition(pageDiv);
     pageLeft = pagePos.left;
     pageTop = pagePos.top;
@@ -7991,5 +8019,6 @@ function toggleFullScreen() {
     for (i = 0; i < l; i++) {
         adjustRow(i);
     }
+    crsrDraw();
 }
 };
