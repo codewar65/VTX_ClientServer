@@ -30,10 +30,7 @@
 
     TODO : ( see also TODO in code)
 
-        Server: http requests out to separate threads
-
         YModem download : remove CPMEOF's on files w/o filenames/sizes
-
 
     HOTSPOTATTR  (HOTSPOTHOVERATTR / HOTSPOTCLICKATTR)
 
@@ -133,7 +130,7 @@ vtx: {
 
 // globals
 const
-    version = '0.92d beta',
+    version = '0.92e beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -3708,7 +3705,7 @@ function drawMosaicBlock(ctx, ch, w, h, separated) {
         bw = Math.floor(w / 2),
         bh = Math.floor(h / 3),
         bx, by = 0,
-        sep = (separated ? -1 : 0),
+        sep = (separated ? -(Math.floor(w/9)+1) : 0),
         xadj = w - (bw * 2),
         yadj = h - (bh * 3);
 
@@ -4075,10 +4072,11 @@ function toggleSound(){
 
 // turn on / off special effects
 function toggleFX(){ 
-    if (soundClicks)
+    if (soundClicks) {
         fxDiv.classList.remove('raster')
-    else 
+    } else {
         fxDiv.classList.add('raster');
+    }
     soundClicks = !soundClicks;
     setBulbs();
 };
@@ -4122,6 +4120,7 @@ function setAllCSS() {
         + ' position: relative;'
         + '}\n'
         + '#vtxfx {'
+        + ' display: none;'
         + ' position: absolute;'
         + ' top: 0px;'
         + ' left: 0px;'
@@ -4150,6 +4149,7 @@ function setAllCSS() {
         + ' user-select: none;'
         + '}\n'
         + '.raster{'
+        + ' display: inline !important;'
         + ' height: 100%;'
         + ' position: relative;'
         + ' overflow: hidden;'
@@ -4238,7 +4238,8 @@ function initDisplay() {
     // find where client is to go id='vtxclient'
     clientDiv = document.getElementById('vtxclient');
     if (!clientDiv) return;
-
+    clientDiv.style['position'] = 'relative';
+    
     // special fx div
     fxDiv = domElement(
             'div',
@@ -7204,6 +7205,7 @@ function conCharOut(chr) {
 
                 case 0x68:  // h - set mode
                 case 0x6C:  // l - reset mode
+                    if (parm.length == 0) break;
                     parm[0] = parm[0].toString();
                     switch (parm[0]) {
                         case '?6':
@@ -7442,11 +7444,21 @@ function conCharOut(chr) {
                 case 0x6E:  // n DSR - device status report
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
-                    if (parm[0] == 6) {
-                        // request cursor position
-                        sendData(CSI + (crsrRow+1) + ';' + (crsrCol+1) + 'R');
+                    switch (parm[0]) {
+                        case 5:
+                            sendData(CSI + '0n');
+                            break;
+                            
+                        case 6:
+                            sendData(CSI + (crsrRow+1) + ';' + (crsrCol+1) + 'R');
+                            break;
+                            
+                        case 255:
+                            sendData(CSI + (crtRows) + ';' + (crtCols) + 'R');
+                            break;
                     }
                     break;
+                    
                 case 0x72:  // r
                     if (interm == '*') {
                         // *r - emulate baud

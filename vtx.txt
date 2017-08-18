@@ -159,7 +159,8 @@ Sequences (# : to be implemented)
 
     CSI n 'b' : Repeat last printed character n times. {1}
 
-    CSI n 'c' : Device Attributes. If n = 0, VTX client will respond CSI '?50;86;84;88c'. {0}
+    CSI n 'c' : Device Attributes. 
+        If n = 0, VTX client will respond CSI '?50;86;84;88c'. {0}
 
     CSI r ; c 'f' : Horizontal and Vertical Position. Same as CUP. {1,1}
 
@@ -262,7 +263,9 @@ Sequences (# : to be implemented)
         107 : High intensity white background color.
 
     CSI n 'n' : Device Status Report. {0}
-        n = 6 : Request cursor position. Reply is CSI r ';' c 'R'.
+        n = 5 : Replies with CSI 0 n.
+            6 : Request cursor position. Reply is CSI r ';' c 'R'.
+          255 : Replay with CSI r ';' c 'R' with console size.
 
     CSI p1 ; p2 '*r' : Baud rate emulation.
         p1 : nil,0,1 = host transmit, 2=host recieve, 3=printer, 4=modem hi, 5=modem lo

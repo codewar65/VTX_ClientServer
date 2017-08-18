@@ -119,14 +119,15 @@ function SGR(vals : array of integer) : string;
 function SGR(fgcolor : integer; vals : array of integer) : string;
 function SGR(fgcolor, bgcolor : integer; vals : array of integer) : string;
 
-implementation
-
 var
   pin :   TInputPipeStream;
   pout,
   perr:   TOutputPipeStream;
   lastaction : TDateTime;
   PrevBreakHandler : TCtrlBreakHandler;
+
+
+implementation
 
 //------------------ SUPPORT FUNCTIONS
 
@@ -568,12 +569,12 @@ end;
 procedure Init;
 begin
   // setup
-  {$ifndef LOCAL}
+  { $ifndef LOCAL}
   pin := TInputPipeStream.Create(StdInputHandle);
   pout := TOutputPipeStream.Create(StdOutputHandle);
   perr := TOutputPipeStream.Create(StdErrorHandle);
 
-  {$endif}
+  { $endif}
   PrevBreakHandler := SysSetCtrlBreakHandler(@VTXCtrlBreak);
 
   lastaction := now;
@@ -582,14 +583,14 @@ end;
 procedure Finish;
 begin
   // setdown
-  {$ifndef LOCAL}
+  { $ifndef LOCAL}
   // don't leave until streams are sent.
   sleep(2000);
 
   pin.Free;
   pout.Free;
   perr.Free;
-  {$endif}
+  { $endif}
   SysSetCtrlBreakHandler(PrevBreakHandler);
 
 end;
