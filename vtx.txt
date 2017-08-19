@@ -193,10 +193,11 @@ Sequences (# : to be implemented)
     CSI n [ ; ... ] 'm' : Set Graphics Rendition (SGR). zero or more of: {0}
         0 : Reset all to default.
         1 : Bold on in 'real' ANSI mode, high intensity foreground color in BBS/ANSI.SYS mode.
+        2 : Faint on
         3 : Italics on.
         4 : Underline on.
-        5 : Blink on.
-        6 : Blink on.
+        5 : Blink slow on.
+        6 : Blink fast on.
         7 : Reverse foreground and background colors.
         8 : Concealed on.
         9 : Strikethrough on.
@@ -206,6 +207,7 @@ Sequences (# : to be implemented)
         13 : Select high/blink font.
         14-19: Select alternate font.
         21 : Bold off in 'real' ANSI mode, regular intensity foreground color in BBS/ANSI.SYS mode.
+        22 : Faint off
         23 : Italics off.
         24 : Underline off.
         25 : Blink off.

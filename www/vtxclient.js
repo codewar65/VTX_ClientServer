@@ -6695,9 +6695,9 @@ function conCharOut(chr) {
                             if (!modeVTXANSI) {
                                 crsrRow = crsrCol = 0   // BBS / ANSI.SYS
                                 crsrrender = true;
-                            } else {
-                                expandToRow(crsrRow);   // ECMA-048 complient
-                                expandToCol(crsrRow, crsrCol);
+    //                        } else {
+    //                            expandToRow(crsrRow);   // ECMA-048 complient
+    //                            expandToCol(crsrRow, crsrCol);
                             }
                             if (modeVTXANSI)
                                 cellAttr = defCellAttr;
@@ -7727,6 +7727,7 @@ function tnNegotiate(data) {
                                 case TN_NAWS:   // negotiate about window size
                                 case TN_TTYPE:  // terminal type
                                 case TN_TSPEED: // terminal speed
+case TN_NEWE:                                
                                     tnSendCmd(TN_DO, b);
                                     tnQHim[b] = TNQ_YES;
                                     break;
@@ -7773,6 +7774,7 @@ function tnNegotiate(data) {
                                 case TN_NAWS:
                                 case TN_TTYPE:
                                 case TN_TSPEED:
+case TN_NEWE:
                                     tnSendCmd(TN_WILL, b);
                                     tnQUs[b] = TNQ_YES;
                                     break;

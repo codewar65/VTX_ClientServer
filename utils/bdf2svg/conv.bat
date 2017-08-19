@@ -25,7 +25,7 @@ bdf2svg -i ti994.bdf               -o TI994.svg
 
 REM - convert to WOFF
 echo Open($1) > conv.pe
-rem echo Generate($1:r+'.ttf') >> conv.pe
+echo Generate($1:r+'.ttf') >> conv.pe
 echo Generate($1:r+'.woff') >> conv.pe
 
 "c:\program files (x86)\FontForgeBuilds\bin\fontforge.exe" -script conv.pe MICROKNIGHTPLUS.svg
