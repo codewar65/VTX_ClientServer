@@ -130,7 +130,7 @@ vtx: {
 
 // globals
 const
-    version = '0.92f beta',
+    version = '0.92g beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -6692,13 +6692,12 @@ function conCharOut(chr) {
                             conHotSpots = [];
                             lastHotSpot = null;
                             document.body.style['cursor'] = 'default';
-                            if (!modeVTXANSI) {
+//                            if (!modeVTXANSI) {
                                 crsrRow = crsrCol = 0   // BBS / ANSI.SYS
                                 crsrrender = true;
-    //                        } else {
-    //                            expandToRow(crsrRow);   // ECMA-048 complient
-    //                            expandToCol(crsrRow, crsrCol);
-                            }
+//                            }
+                            expandToRow(crsrRow);   // ECMA-048 complient
+                            expandToCol(crsrRow, crsrCol);
                             if (modeVTXANSI)
                                 cellAttr = defCellAttr;
                             break;
