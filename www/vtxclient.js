@@ -85,7 +85,7 @@
     CELLATTRS - numbers stored in conCellAttr[row][col]
 
         00000000 00000000 00000000 00000000 - bits
-        ZZZZosDD fKktuibr BBBBBBBB FFFFFFFF
+        ZZZZdsDD fKktuibr BBBBBBBB FFFFFFFF
 
         00000000 00001000 00000010 11111111
 
@@ -101,8 +101,8 @@
         f : faint (0-1)
         D : display (0=normal,1=concealed,2=tophalf,3=bottomhalf)
         s : shadow (0-1)
-        o : outlined (0-1)
-        Z : font number 0-15 (10=mosaic block, 11=separated block).
+        d : doublestrike (0-1)
+        Z : font number 0-15 (10=teletext, 11=w/block, 12=w/separated block).
 
     CRSRATTRS
 
@@ -228,7 +228,7 @@ const
     A_CELL_DISPLAY_TOP      = 0x02000000,
     A_CELL_DISPLAY_BOTTOM   = 0x03000000,
     A_CELL_SHADOW           = 0x04000000,
-    A_CELL_OUTLINE          = 0x08000000,
+    A_CELL_DOUBLESTRIKE          = 0x08000000,
     A_CELL_FONT_MASK        = 0xF0000000,
 
     A_ROW_COLOR1_MASK       = 0x000000FF, // 0-255
@@ -3183,7 +3183,7 @@ function getRowAttrMarquee(attr) { return (attr & A_ROW_MARQUEE) != 0; }
 
 // create cell attribute
 function makeCellAttr(fg, bg, bold, italics, underline, blinkslow, shadow,
-    strikethrough, outline, blinkfast, faint, font) {
+    strikethrough, doublestrike, blinkfast, faint, font) {
     fg = fg || 7;
     bg = bg || 0;
     bold = bold || false;
@@ -3192,7 +3192,7 @@ function makeCellAttr(fg, bg, bold, italics, underline, blinkslow, shadow,
     blinkslow = blinkslow || false;
     shadow = shadow || false;
     strikethrough = strikethrough || false;
-    outline = online || false;
+    doublestrike = online || false;
     blinkfast = blinkfast || false;
     faint = faint || false;
     font = font || 0;
@@ -3206,7 +3206,7 @@ function makeCellAttr(fg, bg, bold, italics, underline, blinkslow, shadow,
         | (blinkslow ? A_CELL_BLINKSLOW : 0)
         | (shadow ? A_CELL_SHADOW : 0)
         | (strikethrough ? A_CELL_STRIKETHROUGH : 0)
-        | (outline ? A_CELL_OUTLINE : 0)
+        | (doublestrike ? A_CELL_DOUBLESTRIKE : 0)
         | (blinkfast ? A_CELL_BLINKFAST : 0)
         | (faint ? A_CELL_FAINT : 0)
         | ((font & 0xF) << 28);
@@ -3240,8 +3240,8 @@ function setCellAttrShadow(attr, shadow) {
 function setCellAttrStrikethrough(attr, strikethrough) {
     return (attr & ~A_CELL_STRIKETHROUGH) | (strikethrough ? A_CELL_STRIKETHROUGH : 0);
 }
-function setCellAttrOutline(attr, outline) {
-    return (attr & ~A_CELL_OUTLINE) | (outline ? A_CELL_OUTLINE: 0);
+function setCellAttrDoublestrike(attr, doublestrike) {
+    return (attr & ~A_CELL_DOUBLESTRIKE) | (doublestrike ? A_CELL_DOUBLESTRIKE: 0);
 }
 function setCellAttrReverse(attr, reverse) {
     return (attr & ~A_CELL_REVERSE) | (reverse ? A_CELL_REVERSE : 0);
@@ -3266,7 +3266,7 @@ function getCellAttrBlinkSlow(attr) { return (attr & A_CELL_BLINKSLOW) != 0; }
 function getCellAttrBlinkFast(attr) { return (attr & A_CELL_BLINKFAST) != 0; }
 function getCellAttrShadow(attr) { return (attr & A_CELL_SHADOW) != 0; }
 function getCellAttrStrikethrough(attr) { return (attr & A_CELL_STRIKETHROUGH) != 0; }
-function getCellAttrOutline(attr) { return (attr & A_CELL_OUTLINE) != 0;}
+function getCellAttrDoublestrike(attr) { return (attr & A_CELL_DOUBLESTRIKE) != 0;}
 function getCellAttrReverse(attr) { return (attr & A_CELL_REVERSE) != 0; }
 function getCellAttrDisplay(attr) { return (attr & A_CELL_DISPLAY_MASK); }
 function getCellAttrFaint(attr) { return (attr & A_CELL_FAINT) != 0; }
@@ -3670,24 +3670,22 @@ function renderCell(rownum, colnum, hilight, bottom) {
             yScale * size,              // y scale
             x + (xScale * xadj),        // x adj
             yadj);                      // y adj
-
-        if (attr & A_CELL_OUTLINE) {
-            ctx.strokeStyle = ansiColors[tfg];
-            ctx.lineWidth = 1;
-            ctx.strokeText(ch, 0, 0);
-        } else {
-            if (teletext >= 0)
-                drawMosaicBlock(ctx, ch.charCodeAt(0), w / width, h, teletext)
-            else
-                ctx.fillText(ch, 0, 0);
-        }
+        
+        if (teletext >= 0)
+            drawMosaicBlock(ctx, ch.charCodeAt(0), w / width, h, teletext)
+        else
+            ctx.fillText(ch, 0, 0);
 
         // draw underline / strikethough manually
         if (attr & A_CELL_UNDERLINE) {
             ctx.fillRect(0, h - stroke, w, stroke);
         }
         if (attr & A_CELL_STRIKETHROUGH) {
-            ctx.fillRect(0, (h + stroke) / 2, w, stroke);
+            ctx.fillRect(0, (h >> 1) - stroke, w, stroke);
+        }
+        if (attr & A_CELL_DOUBLESTRIKE) {
+            ctx.fillRect(0, (h >> 2) - stroke, w, stroke);
+            ctx.fillRect(0, ((h >> 1)+(h >> 2)) - stroke, w, stroke);
         }
     }
     ctx.restore();
@@ -7367,10 +7365,10 @@ function conCharOut(chr) {
                                 cellAttr = setCellAttrFont(cellAttr, (parm[i] - 10));
                                 break;
 
-                            case 56:    // outline
+                            case 56:    // doublestrike
                             case 76:
                                 cellAttr =
-                                    setCellAttrOutline(cellAttr, (parm[i] < 70));
+                                    setCellAttrDoublestrike(cellAttr, (parm[i] < 70));
                                 break;
 
                             case 57:    // shadow
@@ -7567,6 +7565,13 @@ function moveSprite(el, nr, nc, t){
         el.removeChild(sel);
     }, t + 5);
 }
+
+function getAnsiLength(str) {
+    var str2 =  str.replace(/\e\[.*[@-_]/g, '');
+    return str.length;
+}
+
+
 
 // remove all NL from string. (https://www.chromestatus.com/features/5735596811091968)
 function stripNL(strin) {
@@ -8021,4 +8026,5 @@ function toggleFullScreen() {
     }
     crsrDraw();
 }
+
 };

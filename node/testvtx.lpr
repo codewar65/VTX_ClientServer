@@ -382,7 +382,7 @@ begin
   println;
   PrintLn(#27'[0;91m  2 / 22 '#27'[94m: '#27'[2mFaint'#27'[22m on/off              '#27'[91m 9 / 29 '#27'[94m: '#27'[9mStrikethrough'#27'[29m on/off.');
   PrintLn(#27'[0;91m  3 / 23 '#27'[94m: '#27'[3mItalics'#27'[23m on/off ');
-  PrintLn(#27'[0;91m  4 / 24 '#27'[94m: '#27'[4mUnderline'#27'[24m on/off          '#27'[91m56 / 76 '#27'[94m: '#27'[56mOutline'#27'[76m on/off.');
+  PrintLn(#27'[0;91m  4 / 24 '#27'[94m: '#27'[4mUnderline'#27'[24m on/off          '#27'[91m56 / 76 '#27'[94m: '#27'[56mDoublestrike'#27'[76m on/off.');
   PrintLn(#27'[0;91m  5 / 25 '#27'[94m: '#27'[5mBlink Slow'#27'[25m on/off         '#27'[91m57 / 77 '#27'[94m: '#27'[57mShadow'#27'[77m on/off.');
   PrintLn(#27'[0;91m  6 / 26 '#27'[94m: '#27'[6mBlink Fast'#27'[26m on/off');
   PrintLn(#27'[0;91m  7 / 27 '#27'[94m: '#27'[7mReverse'#27'[27m on/off            '#27'[91m58 / 78 '#27'[94m: '#27'[58mTop Half'#27'[78m (top half) on/off.');
