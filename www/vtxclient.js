@@ -130,7 +130,7 @@ vtx: {
 
 // globals
 const
-    version = '0.92g beta',
+    version = '0.92h beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -3848,9 +3848,9 @@ function setBulbs() {
 function setTimers(onoff) {
     if (onoff) {
         if (irqWriteBuffer == null)
-            irqWriteBuffer = setInterval(doWriteBuffer, 33);
+            irqWriteBuffer = setInterval(doWriteBuffer, 10);
         if (irqCheckResize == null)
-            irqCheckResize = setInterval(doCheckResize, 10);
+            irqCheckResize = setInterval(doCheckResize, 50);
         if (irqCursor == null)
             irqCursor = setInterval(doCursor, 533);
         if (irqBlink == null)
@@ -4516,29 +4516,29 @@ function initDisplay() {
         // let user know how to connect. heh-
         switch (vtxdata.term) {
             case 'PETSCII':
-                conStrOut('\x0Evtx tERMINAL cLIENT\r');
-                conStrOut('vERSION ' + version + '\r');
-                conStrOut('2017 dAN mECKLENBURG jR.\r');
-                conStrOut('GITHUB.COM/CODEWAR65/vtx\xA4cLIENTsERVER\r');
-                conStrOut('\rcLICK cONNECT...\r');
+                conBufferOut('\x0Evtx tERMINAL cLIENT\r');
+                conBufferOut('vERSION ' + version + '\r');
+                conBufferOut('2017 dAN mECKLENBURG jR.\r');
+                conBufferOut('GITHUB.COM/CODEWAR65/vtx\xA4cLIENTsERVER\r');
+                conBufferOut('\rcLICK cONNECT...\r');
                 break;
 
             case 'ATASCII':
-                conStrOut('VTX Terminal Client\x9B');
-                conStrOut('Version ' + version + '\x9B');
-                conStrOut('2017 Dan Mecklenburg Jr.\x9B');
-                conStrOut('github.com/codewar65/VTX_ClientServer\x9B');
-                conStrOut('\x9BClick Connect...\x9B');
+                conBufferOut('VTX Terminal Client\x9B');
+                conBufferOut('Version ' + version + '\x9B');
+                conBufferOut('2017 Dan Mecklenburg Jr.\x9B');
+                conBufferOut('github.com/codewar65/VTX_ClientServer\x9B');
+                conBufferOut('\x9BClick Connect...\x9B');
                 break;
 
             default:
-                conStrOut('\n\r\x1b#6\x1b[38;5;46;58mVTX\x1b[32;78m Terminal Client\n\r');
-                conStrOut('\x1b#6\x1b[38;5;46;59mVTX\x1b[32;79m Version ' + version + '\n\r');
-                conStrOut('\n\r\x1b[m2017 Dan Mecklenburg Jr.\n\r');
-                conStrOut('Visit \x1b[1;45;1;1;'
+                conBufferOut('\n\r\x1b#6\x1b[38;5;46;58mVTX\x1b[32;78m Terminal Client\n\r');
+                conBufferOut('\x1b#6\x1b[38;5;46;59mVTX\x1b[32;79m Version ' + version + '\n\r');
+                conBufferOut('\n\r\x1b[m2017 Dan Mecklenburg Jr.\n\r');
+                conBufferOut('Visit \x1b[1;45;1;1;'
                     + encodeAscii('https://github.com/codewar65/VTX_ClientServer')
                     + '\\https://github.com/codewar65/VTX_ClientServer for more info.\n\r');
-                conStrOut('\n\r\x1b[38;5;46mCLICK CONNECT...\x1b[m\n\r');
+                conBufferOut('\n\r\x1b[38;5;46mCLICK CONNECT...\x1b[m\n\r');
                 break;
         }
     }
@@ -7490,7 +7490,12 @@ function conCharOut(chr) {
                         //      6=9600,7=19200,8=38400,9=57600,10=76800,11=115200
                         parm = fixParams(parm, [ 0, 0 ]);
                         if (parm[0] < 2) {
+                            setTimers(0);
                             conBaud = bauds[parm[1]] * 100;
+                            setTimeout(
+                                function(){
+                                    setTimers(1);
+                                }, 25);
                         }
                     } else if (interm == '') {
                         // CSI t ; b 'r' : Set scroll window (DECSTBM).
@@ -7597,7 +7602,7 @@ function decodeHex3(strin) {
     return ret;
 }
 
-// call once every 33 ms
+// call once every 10 ms
 function doWriteBuffer() {
     var
         strOut,
@@ -7609,7 +7614,7 @@ function doWriteBuffer() {
             strOut = conBuffer;
             conBuffer = '';
         } else {
-            bytes = conBaud / 300;
+            bytes = conBaud / 990;
             if (conBuffer.length < bytes){
                 strOut = conBuffer;
                 conBuffer = '';
@@ -8028,3 +8033,4 @@ function toggleFullScreen() {
 }
 
 };
+

@@ -624,9 +624,8 @@ begin
 
   repeat
 
-    Print(CLS + #27'[c');	// clear & reset
-    Print(BBSMODE);
-    Print(#27'[1;10*r');
+    Println(#27'[c' + BBSMODE);	// clear & reset
+    Print(#27'[1;9*r'#27'[0m'#27'[2J'#27'[H');
 
 		PrintANSI(filenames[i]);
     inc(i); if i >= length(filenames) then i := 0;
