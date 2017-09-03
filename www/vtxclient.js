@@ -3944,6 +3944,14 @@ function newCrsr() {
 // onmessage buffer - holds left over bytes from incomplete UTF8/16 chars
 let inBuff = new Uint8Array(0); 
 
+function str2ab(str) {
+  var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+  var bufView = new Uint16Array(buf);
+  for (var i=0, strLen=str.length; i<strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return buf;
+}
 // connect / disconnect. called from connect UI element.
 function termConnect() {
     if (termState == TS_OFFLINE) {
@@ -3957,8 +3965,12 @@ function termConnect() {
 
             if (inBuff.length > 0) 
                 nop();
-            
-            edata = new Uint8Array(e.data);
+
+            if (typeof e.data == 'string') {
+                edata = new Uint8Array(str2ab(e.data));
+            } else {
+                edata = new Uint8Array(e.data);
+            }
             data = new Uint8Array(inBuff.length + edata.length);
             data.set(inBuff);
             data.set(edata, inBuff.length);
@@ -4041,11 +4053,11 @@ function termConnect() {
         }
         ws.onerror = function(error) {
             if (cbm)
-                conBufferOut('\r\rERROR : ' + error.reason.toUpper() + '\r')
+                conBufferOut('\r\rERROR : ' + error + '\r')
             else if (atari)
-                conBufferOut('\x9B\x9BError : ' + error.reason() + '\x09B')
+                conBufferOut('\x9B\x9BError : ' + error + '\x09B')
             else
-                conBufferOut('\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error.reason + '\r\n');
+                conBufferOut('\r\n\r\n\x1b[#9\x1b[0;91mError : ' + error + '\r\n');
             setBulbs();
         }
     } else {
@@ -6951,12 +6963,11 @@ function conCharOut(chr) {
 
                 case 0x5F:  // _ - VTX Media Codes. Sprites & Audio
                     if (parms.length == 0) {
-
                         // syncronet got here how?
-                        console.log('CSI '+ parms + interm + String.fromCharCode(chr));
+                        //console.log('CSI '+ parms + interm + String.fromCharCode(chr));
                         break;
-                    }
-                    if (parm[0] == 0) {
+                    } 
+                    else if (parm[0] == 0) {
                         // sprite commands
                         switch (parm[1]) {
                             case 0:
