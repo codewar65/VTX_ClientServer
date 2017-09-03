@@ -26,7 +26,7 @@
 
 
   VTX Server
-  2017-08-04
+  2017-09-04
   vtxserv.pas
 
 }
@@ -66,7 +66,12 @@ uses
 {$define BUFFSIZE:=16768}
 
 { *************************************************************************** }
+
+Const
+  Version = '0.95 beta';
+
 { TYPES }
+
 {$region TYPES }
 type
 
@@ -81,30 +86,17 @@ type
   { TvtxSystemInfo : Board Inofo record }
   TvtxSystemInfo = record
     // [server] info
-    SystemName :      string;   // name of bbs - webpage title.
     SystemIP :        string;   // ip address of this host - needed to bind to socket.
-    InternetIP :      string;   // ip address as seen from internet.
-    HTTPPort :        string;   // port number for http front end.
     WSPort :          string;   // port number for ws/wss back end.
     WSSecure :        boolean;  // use wss instead of ws?
     MaxConnections :  integer;
-    AutoConnect :     boolean;
 
     // [client] info
     NodeType :        TvtxNodeType;
     ExtProc :         string;   // string to launch node process
     TelnetIP :        string;   // connection info for internal telnet client
     TelnetPort :      string;
-    Terminal :        string;   // ANSI, PETSCII
     CodePage :        string;   // CP437, PETSCII64, etc
-    Columns :         integer;  // columns for term console.
-    Rows :            integer;  // -1 = history
-    History :         integer;  // max rows before scrolled to dev/nul
-    XScale :          real;     // scale everything by this on the X axis.
-    Initialize :      string;   // terminal init string
-    PageAttr :        longint;
-    CrsrAttr :        longint;
-    CellAttr :        longint;
   end;
 
   // available net services
@@ -262,26 +254,18 @@ begin
 procedure LoadSettings;
 var
   iin :         TIniFile;
-  v1, v2, v3 :  integer;
 
 const
   server = 'Server';
   client = 'Client';
 
-  crsrSizes : array [0..3] of string = ( 'None', 'Thin', 'Thick', 'Full' );
-  crsrOrientations : array [0..1] of string = ( 'Horz', 'Vert' );
-
 begin
   iin := TIniFile.Create('vtxserv.ini');
 
   // [server] info
-  SystemInfo.SystemName :=  iin.ReadString(server, 'SystemName',  'A VTX Board');
   SystemInfo.SystemIP :=    iin.ReadString(server, 'SystemIP',    'localhost');
-  SystemInfo.InternetIP :=  iin.ReadString(server, 'InternetIP',  'localhost');
-  SystemInfo.HTTPPort :=    iin.ReadString(server, 'HTTPPort',    '7001');
   SystemInfo.WSPort :=      iin.ReadString(server, 'WSPort',      '7003');
   SystemInfo.WSSecure :=    iin.ReadBool(server,   'WSSecure',    false);
-  SystemInfo.AutoConnect := iin.ReadBool(server,   'AutoConnect', false);
   SystemInfo.MaxConnections := iin.ReadInteger(server, 'MaxConnections',  32);
   SystemInfo.NodeType :=    TvtxNodeType(InList(
                               iin.ReadString(server, 'NodeType',  'ExtProc'),
@@ -291,42 +275,10 @@ begin
   SystemInfo.TelnetIP :=    iin.ReadString(client, 'TelnetIP',    'localhost');
   SystemInfo.TelnetPort :=  iin.ReadString(client, 'TelnetPort',  '7002');
 
-  SystemInfo.Terminal :=    iin.ReadString(client, 'Terminal',    'ANSI');
   SystemInfo.CodePage :=    iin.ReadString(client, 'CodePage',    'UTF8');
-
-  SystemInfo.Columns :=     iin.ReadInteger(client, 'Columns',    80);
-  SystemInfo.Rows :=        iin.ReadInteger(client, 'Rows',       -1);
-  SystemInfo.History :=     iin.ReadInteger(client, 'History',    500);
-  SystemInfo.XScale :=      iin.ReadFloat(client,   'XScale', 1.0);
-
-  SystemInfo.Initialize :=  iin.ReadString(client, 'Initialize',  '\x1B[0m');
-
-  // pageattr
-  v1 := iin.ReadInteger(client, 'PageColor',    0);
-  v2 := iin.ReadInteger(client, 'BorderColor',  0);
-  SystemInfo.PageAttr :=
-    (v1 and $FF) or
-    ((v2 and $FF) shl 8);
-
-  // cursorattr
-  v1 := InList(iin.ReadString(client, 'CursorSize', 'Thick'), crsrSizes);
-  v2 := InList(iin.ReadString(client, 'CursorOrientation', 'Horz'), crsrOrientations);
-  v3 := iin.ReadInteger(client, 'CursorColor',  7);
-  SystemInfo.CrsrAttr :=
-    (v3 and $FF) or
-    ((v1 and $3) shl 8) or
-    ((v2 and $1) shl 10);
-
-  // cellattr
-  v1 := iin.ReadInteger(client, 'CharColor', 7);
-  v2 := iin.ReadInteger(client, 'CharBackground', 0);
-  SystemInfo.CellAttr :=
-    (v1 and $FF) or
-    ((v2 and $FF) shl 8);
 
   // resolve possible named IPs to IP addresses.
   SystemInfo.SystemIP := GetIP(SystemInfo.SystemIP);
-  SystemInfo.InternetIP := GetIP(SystemInfo.InternetIP);
   SystemInfo.TelnetIP := GetIP(SystemInfo.TelnetIP);
 
   iin.Free;
@@ -409,18 +361,11 @@ end;
 { replace @codes@ with system values }
 function ReplaceAtCodes(str : string) : string;
 begin
-  str := str.Replace('@SystemName@', SystemInfo.SystemName);
   str := str.Replace('@SystemIP@', SystemInfo.SystemIP);
-  str := str.Replace('@InternetIP@', SystemInfo.InternetIP);
-  str := str.Replace('@HTTPPort@', SystemInfo.HTTPPort);
   str := str.Replace('@TelnetIP@', SystemInfo.TelnetIP);
   str := str.Replace('@TelnetPort@', SystemInfo.TelnetPort);
   str := str.Replace('@WSPort@', SystemInfo.WSPort);
   str := str.Replace('@CodePage@', SystemInfo.CodePage);
-  str := str.Replace('@Columns@', IntToStr(SystemInfo.Columns));
-  str := str.Replace('@XScale@', FloatToStr(SystemInfo.XScale));
-  str := str.Replace('@Terminal@', SystemInfo.Terminal);
-  str := str.Replace('@Initialize@', SystemInfo.Initialize);
   result := str;
 end;
 
@@ -1067,7 +1012,7 @@ begin
 
   TextColor(LightGreen);
   write('VTX WS Server Console.' + CRLF
-      + 'Version 0.94 beta' + CRLF
+      + 'Version ' + Version + CRLF
       + '2017 Dan Mecklenburg Jr.' + CRLF
       + CRLF
       + 'Type HELP for commands, QUIT to exit.' + CRLF + CRLF);
