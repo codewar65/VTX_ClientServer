@@ -3957,12 +3957,12 @@ function termConnect() {
     if (termState == TS_OFFLINE) {
         tnState = 0;
 
-        if (vtxdata.telnet) {
-            ws = new WebSocket(wsConnect, [ 'telnet' ]);
-            ws.binaryType = "arraybuffer";
-        } else {
+        if (vtxdata.hixie) {
             ws = new WebSocket(wsConnect, [ 'plain' ]);
+        } else {
+            ws = new WebSocket(wsConnect, [ 'telnet' ]);
         }
+        ws.binaryType = "arraybuffer";
         ws.onmessage = function(e) {
             // binary data in.
             var
