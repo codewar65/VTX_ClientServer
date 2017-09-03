@@ -3848,7 +3848,7 @@ function setBulbs() {
 function setTimers(onoff) {
     if (onoff) {
         if (irqWriteBuffer == null)
-            irqWriteBuffer = setInterval(doWriteBuffer, 10);
+            irqWriteBuffer = setInterval(doWriteBuffer, 20);
         if (irqCheckResize == null)
             irqCheckResize = setInterval(doCheckResize, 50);
         if (irqCursor == null)
@@ -3888,6 +3888,9 @@ function paste(e) {
     e.preventDefault();
 
     clipboardData = e.clipboardData || window.clipboardData;
+    
+    // need to update to send if connected 
+    // for now, local echo it.
     conBufferOut(clipboardData.getData('Text'));
 }
 
@@ -3945,37 +3948,56 @@ function newCrsr() {
 let inBuff = new Uint8Array(0); 
 
 function str2ab(str) {
-  var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
-  var bufView = new Uint16Array(buf);
-  for (var i=0, strLen=str.length; i<strLen; i++) {
-    bufView[i] = str.charCodeAt(i);
-  }
-  return buf;
+    var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
+    var bufView = new Uint16Array(buf);
+    for (var i=0, strLen=str.length; i<strLen; i++) {
+        bufView[i] = str.charCodeAt(i);
+    }
+    return buf;
 }
+
 // connect / disconnect. called from connect UI element.
 function termConnect() {
+    
     if (termState == TS_OFFLINE) {
-        tnState = 0;
+        
+        tnState = 0;    // reset telnet options state
 
         if (vtxdata.hixie) {
             ws = new WebSocket(wsConnect, [ 'plain' ]);
         } else {
             ws = new WebSocket(wsConnect, [ 'telnet' ]);
+            ws.binaryType = "arraybuffer";
         }
-        ws.binaryType = "arraybuffer";
+        
         ws.onmessage = function(e) {
             // binary data in.
             var
                 i, j, str, data, edata;
 
-            if (inBuff.length > 0) 
-                nop();
-
+            // incoming data to Uint8Array
             if (typeof e.data == 'string') {
-                edata = new Uint8Array(str2ab(e.data));
+
+                var l = e.data.length;
+                edata = new Uint8Array(l);
+                for  (i = 0; i < l; i++)
+                    edata[i] = e.data.charCodeAt(i);
+                
+            } else if (typeof e.data == 'blob') {
+
+                // umm . no
+                ws.close();
+                termState == TS_OFFLINE;
+                setbulbs();
+                conBufferOut('\r\rReceived blob binary. No.\r')
+                return;
+
             } else {
+                
                 edata = new Uint8Array(e.data);
             }
+            
+            // append left over data from last message (incomplete UTF8/16)
             data = new Uint8Array(inBuff.length + edata.length);
             data.set(inBuff);
             data.set(edata, inBuff.length);
@@ -3984,16 +4006,16 @@ function termConnect() {
             if (vtxdata.telnet == 1)
                 data = tnNegotiate(data);
 
-            // convert data to string
+//dump(data, 0, data.length);
+            
             switch (termState) {
                 case TS_NORMAL:
                     // convert from codepage into string data
                     switch (codePage){
                         case 'UTF8':
-                            var utfdat = UFT8ArrayToStr(data);
+                            var utfdat = UTF8ArrayToStr(data);
                             str = utfdat.strData;
                             inBuff = utfdat.leftOver;
-                            
                             break;
 
                         case 'UTF16':
@@ -4005,8 +4027,9 @@ function termConnect() {
                         default:
                             // straight string
                             str = '';
-                            for (i = 0; i < data.length; i++)
+                            for (i = 0; i < data.length; i++) {
                                 str += String.fromCharCode(data[i]);
+                            }
                             break;
                     }
                     conBufferOut(str);
@@ -4014,6 +4037,7 @@ function termConnect() {
 
                 case TS_YMR_START:
                 case TS_YMR_GETPACKET:
+                    // handles binary data for ymodem
                     data = ymRStateMachine(data);
                     if (data.length > 0) {
                         // transfer ended midway. output the rest.
@@ -4025,6 +4049,7 @@ function termConnect() {
                 case TS_YMS_START:
                 case TS_YMS_PUTPACKET:
                 case TS_YMS_PUTWAIT:
+                    // handles binary data for ymodem
                     data = ymSStateMachine(data);
                     if (data.length > 0) {
                         // transfer ended midway. output the rest.
@@ -4034,6 +4059,7 @@ function termConnect() {
                     break;
             }
         }
+        
         ws.onopen = function() {
             if (vtxdata.telnet)
                 tnInit();
@@ -4041,6 +4067,7 @@ function termConnect() {
             setBulbs();
         }
         ws.onclose = function(e) {
+/*
             var reason;
             switch (e.code) {
                 case 1000:
@@ -4083,8 +4110,8 @@ function termConnect() {
                     reason = "An endpoint is terminating the connection because it has received a message that is too big for it to process.";
                     break;
                     
-                case 1010: // Note that this status code is not used by the server, because it can fail the WebSocket handshake instead.
-                    reason = "An endpoint (client) is terminating the connection because it has expected the server to negotiate one or more extension, but the server didn't return them in the response message of the WebSocket handshake. <br /> Specifically, the extensions that are needed are: " + event.reason;
+                case 1010:
+                    reason = "An endpoint (client) is terminating the connection because it has expected the server to negotiate one or more extension, but the server didn't return them in the response message of the WebSocket handshake. <br /> Specifically, the extensions that are needed are: " + e.reason;
                     break;
                     
                 case 1011:
@@ -4100,7 +4127,7 @@ function termConnect() {
                     break;
             }
             conBufferOut('\r\r'+reason+'\r')
-            
+*/
             conBaud = 0;
             if (cbm)
                 conBufferOut('\r\rDISCONNECTED.\r')
@@ -4108,7 +4135,6 @@ function termConnect() {
                 conBufferOut('\x9B\x9BDisconnected.\x9B')
             else
                 conBufferOut('\r\n\r\n\x1b[#9\x1b[0;91mDisconnected.\r\n');
-
 
             document.body.style['cursor'] = 'default';
             if (audioEl) {
@@ -4132,6 +4158,7 @@ function termConnect() {
     }
 }
 
+// convert str to ascii;ascii;ascii;ascii format.
 function encodeAscii(str) {
     var i,l,strout = '';
     l=str.length;
@@ -4638,7 +4665,7 @@ function initDisplay() {
     addListener(document, 'paste', paste);
 }
 
-function UFT8ArrayToStr(ray) {
+function UTF8ArrayToStr(ray) {
     var
         out, i, len, c,
         breakPos,
@@ -4691,7 +4718,7 @@ function UFT8ArrayToStr(ray) {
     return { strData: out, leftOver: lo };
 }
 
-function UFT16ArrayToStr(ray) {
+function UTF16ArrayToStr(ray) {
     var
         out, i, len, c,
         breakPos,
@@ -4710,7 +4737,7 @@ function UFT16ArrayToStr(ray) {
         }
         c = ray[i++];
         char2 = ray[i++];
-        out += string.fromCharCode((c << 8) | char2);
+        out += String.fromCharCode((c << 8) | char2);
     }
     //return out;
     var lo = ray.subarray(breakPos);
@@ -5211,8 +5238,8 @@ function ymSStateMachine(data) {
                     ymPacketBuff[3 + packetSize] = highByte(crc16);
                     ymPacketBuff[4 + packetSize] = lowByte(crc16);
 
-                    console.log('Header Packet');
-                    dump(ymPacketBuff, 0, ymPacketBuff.length);
+                    //console.log('Header Packet');
+                    //dump(ymPacketBuff, 0, ymPacketBuff.length);
                     sendData(ymPacketBuff);
 
                     termState = TS_YMS_PUTPACKET;
@@ -5465,7 +5492,7 @@ function nop(){};
 // convert character ch (0-255) to unicode
 function getUnicode(cp, ch) {
 
-    if (cp == 'UTF8') return ch;
+    if ((cp == 'UTF8') || (cp == 'UTF16')) return ch;
 
     var
         d = 0,
@@ -7064,7 +7091,7 @@ function conCharOut(chr) {
                                             for (i = 4; i < l; i++)
                                                 str += ';'+parm[i];
                                             str = str.substring(1);
-                                            spriteDefs[parm[2]] = stripNL(UFT8ArrayToStr(decodeHex3(str)).strData);
+                                            spriteDefs[parm[2]] = stripNL(UTF8ArrayToStr(decodeHex3(str)).strData);
                                             break;
 
                                         case 2:
@@ -7073,7 +7100,7 @@ function conCharOut(chr) {
                                                 str += ';'+parm[i];
                                             str = str.substring(1);
                                             spriteDefs[parm[2]] = 'data:image/svg+xml;charset=utf-8,'
-                                                + encodeURIComponent(stripNL(UFT8ArrayToStr(decodeHex3(str)).strData));
+                                                + encodeURIComponent(stripNL(UTF8ArrayToStr(decodeHex3(str)).strData));
                                             break;
 
                                         case 3:
@@ -7082,7 +7109,7 @@ function conCharOut(chr) {
                                                 str += ';'+parm[i];
                                             str = str.substring(1);
                                             spriteDefs[parm[2]] = 'data:image/svg+xml;charset=utf-8,'
-                                                + encodeURIComponent(stripNL(UFT8ArrayToStr(inflateRaw(decodeHex3(str))).strData));
+                                                + encodeURIComponent(stripNL(UTF8ArrayToStr(inflateRaw(decodeHex3(str))).strData));
                                             break;
 
                                         case 4:
@@ -7091,7 +7118,7 @@ function conCharOut(chr) {
                                                 str += ';'+parm[i];
                                             str = str.substring(1);
                                             spriteDefs[parm[2]] = 'data:image/svg+xml;base64,'
-                                                + stripNL(UFT8ArrayToStr(decodeHex3(str)).strData);
+                                                + stripNL(UTF8ArrayToStr(decodeHex3(str)).strData);
                                             break;
                                     }
                                 }
@@ -7202,7 +7229,7 @@ function conCharOut(chr) {
                                             for (i = 4; i < l; i++)
                                                 str += ';'+parm[i];
                                             str = str.substring(1);
-                                            audioDefs[parm[2]] = UFT8ArrayToStr(decodeHex3(str)).strData;
+                                            audioDefs[parm[2]] = UTF8ArrayToStr(decodeHex3(str)).strData;
                                             break;
 
                                         case 2:
@@ -7225,7 +7252,7 @@ function conCharOut(chr) {
                                             // raw MP3 Base64: hex3 encoded
                                             // TODO
                                             audioDefs[parm[2]] = 'data:audio/mp3;base64,' +
-                                                + stripNL(UFT8ArrayToStr(decodeHex3(str)).strData);
+                                                + stripNL(UTF8ArrayToStr(decodeHex3(str)).strData);
                                             break;
                                     }
                                 }
@@ -7680,7 +7707,7 @@ function decodeHex3(strin) {
     return ret;
 }
 
-// call once every 10 ms
+// call once every 20 ms
 function doWriteBuffer() {
     var
         strOut,
@@ -7692,7 +7719,7 @@ function doWriteBuffer() {
             strOut = conBuffer;
             conBuffer = '';
         } else {
-            bytes = conBaud / 990;
+            bytes = conBaud / 500;
             if (conBuffer.length < bytes){
                 strOut = conBuffer;
                 conBuffer = '';
