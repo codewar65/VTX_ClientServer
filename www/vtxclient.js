@@ -3956,7 +3956,8 @@ function str2ab(str) {
 function termConnect() {
     if (termState == TS_OFFLINE) {
         tnState = 0;
-        ws = new WebSocket(wsConnect, ['telnet']);
+        
+        ws = new WebSocket(wsConnect, [ vtxdata.telnet?'telnet':'plain' ]);
         ws.binaryType = "arraybuffer";
         ws.onmessage = function(e) {
             // binary data in.
