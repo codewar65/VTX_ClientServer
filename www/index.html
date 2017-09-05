@@ -5,24 +5,37 @@
     <meta charset='utf-8'>
     <script type='text/javascript' src='https://cdn.jsdelivr.net/pako/1.0.3/pako.min.js'></script>
     <script type='text/javascript'>
+
+/*
+        var vtxdata = {
+            sysName: "ACiD Underworld",
+            wsConnect: "ws://blackflag.acid.org:1124",
+            term: "ansi-bbs",
+            codePage: "CP437",
+            fontName: "UVGA16",
+            fontSize: "24px",
+            crtCols: 80,
+            crtRows: 25,
+            crtHistory: 500,
+            xScale: 1,
+            initStr: "",
+            defPageAttr: 0x1010,
+            defCrsrAttr: 0x0207,
+            defCellAttr: 0x0007,
+            telnet: 1,
+            hixie: 0,
+            autoConnect: 0
+        };
+*/
         var vtxdata = {
             sysName:     "VTX Home System",
             wsConnect:   "ws://142.105.247.156:7003",
             term:        "ANSI-BBS",
-            codePage:    "CP437",
-
-//            wsConnect:   "ws://142.105.247.156:7005",
-//            term:        "ansi-bbs",
-//            codePage:    "CP437",
-            
-//sysName:     "Ahoy!",
-//wsConnect:   "ws://blackflag.acid.org:1123",
-//term:        "ansi-bbs",
-//codePage:    "CP437",
-            
+            codePage:    "UTF8",
+            //codePage:    "CP437",
             autoConnect: 0,
             telnet:      1,
-//            hixie:       1,
+            hixie:       0,
             fontSize:    '24px',
             fontName:    'UVGA16',
             crtCols:     80,
@@ -35,6 +48,8 @@
             defCrsrAttr: 0x0207,
             defCellAttr: 0x0007
         };
+
+        
     </script>
     <script type='text/javascript' src='vtxclient.js'></script>
 </head>
