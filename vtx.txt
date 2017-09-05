@@ -391,9 +391,7 @@ Sequences (# : to be implemented)
     ROW SIZE COMMAND CSI [
     =============================
     
-    CSI s ; w '[' : Set Row Size. Alter the geometry of the current row. Overall scale is
-            applied first then width scale. See also ESC # commands for sizing.
-        s : overall scale. 0=25%, 1=50%, 2=75%, 3=100%, 4=125%, 5=150%, 6=175%, 7=200%. {3}
+    CSI w '[' : Set Row Size. Alter the geometry of the current row. See also ESC # commands for sizing.
         w : width scale. 0=50%, 1=100%, 2=150%, 3=200%. {1}
 
     ROW ATTRIBUTE SETTINGS CSI ]

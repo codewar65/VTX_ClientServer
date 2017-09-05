@@ -49,7 +49,7 @@
         00000000 00101100 00000000 00000000 - default
 
         00000000 00000000 00000000 00000000  - bits
-        ------DD mwwzzzbb ssssssss ffffffff
+        ------DD mww---bb ssssssss ffffffff
         00000000 00101100 00000000 00000000
            00       2C       00       00
 
@@ -58,17 +58,8 @@
         b : Background Pattern
             00 - none
             01 - solid (first color)
-            10 - horiz grad (first -> second color)
+            10 - horz grad (first -> second color)
             11 - vert grad (first -> second color)
-        z : height scale
-            000 - 25%
-            001 - 50%
-            010 - 75%
-            011 - 100%
-            100 - 125%
-            101 - 150%
-            110 - 175%
-            111 - 200%
         w : width scale
             00  - 50%
             01  - 100%
@@ -238,15 +229,6 @@ const
     A_ROW_PATTERN_SOLID     = 0x00010000, // solid color1
     A_ROW_PATTERN_HORZ      = 0x00020000, // horizontal gradient color1 to color2
     A_ROW_PATTERN_VERT      = 0x00030000, // vertical gradient color1 to color2
-    A_ROW_HEIGHT_MASK       = 0x001C0000, // 25,50,75,100,125,150,175,200
-    A_ROW_HEIGHT_25         = 0x00000000, // 0 00
-    A_ROW_HEIGHT_50         = 0x00040000, // 0 01
-    A_ROW_HEIGHT_75         = 0x00080000, // 0 10
-    A_ROW_HEIGHT_100        = 0x000C0000, // 0 11
-    A_ROW_HEIGHT_125        = 0x00100000, // 1 00
-    A_ROW_HEIGHT_150        = 0x00140000, // 1 01
-    A_ROW_HEIGHT_175        = 0x00180000, // 1 10
-    A_ROW_HEIGHT_200        = 0x001C0000, // 1 11
     A_ROW_WIDTH_MASK        = 0x00600000, // 50,100,150,200
     A_ROW_WIDTH_50          = 0x00000000,
     A_ROW_WIDTH_100         = 0x00200000,
@@ -2472,9 +2454,7 @@ if (!String.prototype.splice) {
 // which row is the mouse on?
 function getMouseCell(e) {
     var
-        x, y,
-        size, width, c, rh,
-        ty, dt, i;
+        x, y, width, c, rh, ty, dt, i;
 
     if (modeFullScreen)
         ty = clientDiv.scrollTop || clientDiv.scrollTop
@@ -2487,9 +2467,8 @@ function getMouseCell(e) {
     if ((y >= dt) && between(x, textPos.left, textPos.left + crtWidth - 1)) {
         // on the page. find row
         for (i = 0; i < conRowAttr.length; i++) {
-            size = getRowAttrHeight(conRowAttr[i]) / 100;
             width = getRowAttrWidth(conRowAttr[i]) / 100;
-            rh = Math.round(fontSize * size);
+            rh = fontSize;
             if (between(y, dt, dt + rh - 1)) {
                 // on this row. get col
                 c = (x - textPos.left) / (xScale * colSize * width);
@@ -2897,11 +2876,9 @@ function crsrDraw() {
         if (rpos.top < dt) {
             // cursor is above page - scroll up
             clientDiv.scrollTo = rpos.top - 8;
-            //clientDiv.scrollTo(0, rpos.top - 8);
         } else if ((rpos.top + csize.height) > (dt + wh))  {
             // cursor is below page - scroll down
             clientDiv.scrollTop = rpos.top + csize.height + 8;
-            //clientDiv.scrollTo(0, rpos.top + csize.height + 8);
         }
     } else {
         if (rpos.top < dt) {
@@ -3058,15 +3035,14 @@ function doCursor() {
 // animate blink (533ms)
 function doBlink(){
     var
-        r, c, y, rh;
+        r, c, y;
 
     if (!modeNoBlink && !modeBlinkBright) {
         // y of first row.
         y = textDiv.getBoundingClientRect().top;
         for (r = 0; r < conRowAttr.length; r++) {
             // check if row is visible
-            rh = rowSize * getRowAttrHeight(conRowAttr[r]) / 100;
-            if ((y + rh > 0) && (y < window.innerHeight)) {
+            if ((y + rowSize > 0) && (y < window.innerHeight)) {
                 // look for blink
                 // refresh blinkable text.
                 for (c = 0; c < conCellAttr[r].length; c++) {
@@ -3074,7 +3050,7 @@ function doBlink(){
                         renderCell(r, c);
                 }
             }
-            y += rh;
+            y += rowSize;
         }
     }
     cellBlinkFast = !cellBlinkFast;
@@ -3085,12 +3061,11 @@ function doBlink(){
 // compute font size (width) for row - figure in scale (row is dom element)
 function getRowFontSize(rownum) {
     var
-        w, h, rattr;
+        w, rattr;
 
     rattr = conRowAttr[rownum];
     w = colSize * (getRowAttrWidth(rattr) / 100);
-    h = rowSize * (getRowAttrHeight(rattr) / 100);
-    return { width: w, height:h };
+    return { width: w, height: rowSize };
 }
 
 // concert integer to hex string.
@@ -3119,13 +3094,11 @@ function htoi(h) {
 }
 
 // create row attribute
-function makeRowAttr(c1, c2, bp, height, width, marquee) {
+function makeRowAttr(c1, c2, bp, width, marquee) {
     bp = bp || 0;
-    height = height || 100;
     width = width || 100;
     marquee = marquee || false;
 
-    height = minMax(Math.round(height/ 25) - 1, 0, 7) << 18;
     width = minMax(Math.round(width / 50) - 1, 0, 3) << 21;
     return (c1 & 0xFF)
         | ((c2 & 0xFF) << 8)
@@ -3152,14 +3125,6 @@ function setRowAttrColor2(attr, color2) {
 function setRowAttrPattern(attr, pattern) {
     return (attr & ~A_ROW_PATTERN_MASK) | pattern;
 }
-function setRowAttrHeight(attr, height) {
-    // round size to nearest valid 25%
-    height = Math.round(height / 25) - 1;
-    if (height < 0) height = 0;
-    if (height > 7) height = 7;
-    height <<= 18;
-    return (attr & ~A_ROW_HEIGHT_MASK) | height;
-}
 function setRowAttrWidth(attr, width) {
     // round width to nearest valid 50%
     width = Math.round(width / 50) - 1;
@@ -3177,7 +3142,6 @@ function setRowAttrMarquee(attr, marquee) {
 function getRowAttrColor1(attr) { return attr & 0xFF; }
 function getRowAttrColor2(attr) { return (attr >>> 8) & 0xFF; }
 function getRowAttrPattern(attr) { return attr & A_ROW_PATTERN_MASK; }
-function getRowAttrHeight(attr) { return (((attr & A_ROW_HEIGHT_MASK) >>> 18) + 1) * 25.0; }
 function getRowAttrWidth(attr) { return (((attr & A_ROW_WIDTH_MASK) >>> 21) + 1) * 50.0; }
 function getRowAttrMarquee(attr) { return (attr & A_ROW_MARQUEE) != 0; }
 
@@ -3303,12 +3267,10 @@ function getCrsrAttrOrientation(attr) { return (attr & A_CRSR_ORIENTATION) >>> 1
 // if row size has changed, resize canvas, redraw row.
 function adjustRow(rownum) {
     var
-        row, size, width, h, w, x, cnv, i, nw;
+        row, width, w, x, cnv, i, nw;
 
     row = getRowElement(rownum);
-    size = getRowAttrHeight(conRowAttr[rownum]) / 100;  // .25 - 2
     width = getRowAttrWidth(conRowAttr[rownum]) / 100;  // .5 - 2
-    h = rowSize * size;     // height of char
     w = colSize * width;    // width of char
 
     // get current size
@@ -3326,11 +3288,11 @@ function adjustRow(rownum) {
         nw= crtCols * colSize;
     }
 
-    if ((cnv.height != (h + 16)) || (cnv.width != nw)) {
+    if ((cnv.height != (rowSize + 16)) || (cnv.width != nw)) {
         // adjust for new height.
-        row.style['height'] = h + 'px';
+        row.style['height'] = rowSize + 'px';
         cnv.width = nw * xScale;
-        cnv.height = (h + 16);
+        cnv.height = (rowSize + 16);
     }
     // redraw this entire row
     redrawRow(rownum);
@@ -3349,10 +3311,8 @@ function redrawRow(rownum){
 
     // clear end of row
     row = getRowElement(rownum);
-    size = getRowAttrHeight(conRowAttr[rownum]) / 100;  // .25 - 2
     width = getRowAttrWidth(conRowAttr[rownum]) / 100;  // .5 - 2
     w = xScale * colSize * width;   // width of char
-    h = fontSize * size;            // height of char
     x = w * l;                      // left pos of char on canv
 
     cnv = row.firstChild;
@@ -3360,7 +3320,7 @@ function redrawRow(rownum){
         cnv = domElement(
             'canvas',
             {   width:  crtCols * w,
-                height: (h + 16) },
+                height: (fontSize + 16) },
             {   zIndex: '50' });
         row.appendChild(cnv);
     }
@@ -3426,7 +3386,6 @@ function renderCell(rownum, colnum, hilight, bottom) {
     if (colnum >= conText[rownum + rowadj].length)   return;
 
     // get size of this row
-    size = getRowAttrHeight(conRowAttr[rownum + rowadj]) / 100; // .25 - 2
     width = getRowAttrWidth(conRowAttr[rownum + rowadj]) / 100; // .5 - 2
 
     w = xScale * colSize * width;   // width of char
@@ -3438,7 +3397,7 @@ function renderCell(rownum, colnum, hilight, bottom) {
 
     // compute height
     row = getRowElement(rownum);
-    h = fontSize * size;            // height of char
+    h = fontSize;                   // height of char
     stroke = h * 0.1;               // underline/strikethrough size
     cnv = row.firstChild;           // get canvas
     if (!cnv) {
@@ -3446,7 +3405,7 @@ function renderCell(rownum, colnum, hilight, bottom) {
         cnv = domElement(
             'canvas',
             {   width:  crtCols * w,
-                height: (h+16) },
+                height: (h + 16) },
             {   zIndex: '50' });
         row.appendChild(cnv);
     }
@@ -3667,7 +3626,7 @@ function renderCell(rownum, colnum, hilight, bottom) {
             xScale * width,             // x scale
             0,                          // y skew
             xScale * xskew,             // x skew
-            yScale * size,              // y scale
+            yScale,                     // y scale
             x + (xScale * xadj),        // x adj
             yadj);                      // y adj
         
@@ -4506,17 +4465,6 @@ function initDisplay() {
             textAlign:      'right',
             zIndex:         '10'});
             
-//    ctrlDiv = domElement(
-//        'div',
-//        {   id:             'ctrls' },
-//        {   width:          '24px',
-//            height:         '180px',
-//            position:       'absolute',
-//            top:            '4px',
-//            right:          '4px',
-//            zIndex:         '10'
-//        });
-
     // connect / disconnect indicator / button.
     ctrlDiv.appendChild(domElement(
         'img',
@@ -5667,10 +5615,9 @@ function copyRow(fromrow, torow) {
     rowf = getRowElement(fromrow);
     rowt = getRowElement(torow);
         
-    size = getRowAttrHeight(conRowAttr[fromrow]) / 100;
     width = getRowAttrWidth(conRowAttr[fromrow]) / 100;
     w = xScale * colSize * width;
-    h = fontSize * size;
+    h = fontSize;
         
     // copy canvas's
     // TODO : check row size changes and adjust canvas
@@ -6944,13 +6891,9 @@ function conCharOut(chr) {
 
                 /* special VTX sequences start */
                 case 0x5B:  // [ - Row Size
-                    parm = fixParams(parm, [3,1]);
-                    parm[0] = minMax(parm[0], 0, 7, 3);
-                    parm[1] = minMax(parm[1], 0, 3, 1);
-                    conRowAttr[crsrRow] = setRowAttrHeight(conRowAttr[crsrRow],
-                        (parm[0] + 1) * 25);
-                    conRowAttr[crsrRow] = setRowAttrWidth(conRowAttr[crsrRow],
-                        (parm[1] + 1) * 50);
+                    parm = fixParams(parm, [1]);
+                    parm[0] = minMax(parm[0], 0, 3, 1);
+                    conRowAttr[crsrRow] = setRowAttrWidth(conRowAttr[crsrRow], (parm[0] + 1) * 50);
                     adjustRow(crsrRow);
                     crsrrender = true;
                     break;
@@ -8064,7 +8007,6 @@ function tnInit() {
 
 addListener(window, 'load', bootVTX);
 
-
 var 
     fsClientParent, 
     fsClientStyle,
@@ -8145,8 +8087,6 @@ function toggleFullScreen() {
         modeFullScreen = true;
 
         // compute new font size to fit screen
-        //ch = clientDiv.clientHeight;
-        //cw = clientDiv.clientWidth * xScale;
         ch = screen.height - 64;
         cw = screen.width - 64;
         fs = Math.floor(ch / crtRows / 8) * 8;
