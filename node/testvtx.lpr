@@ -14,7 +14,7 @@ begin
 
   Print(#27'c'#27'[0m'#27'[1;0*r');
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' VTX Server / Client / Node Demo');
   PrintLn;
   PrintLn(SGR(ANSI_LTRED) + ' Demo Menu');
@@ -129,7 +129,7 @@ var
   key : string;
 begin
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' Console Layout');
   PrintLn;
 
@@ -188,7 +188,7 @@ var
 
 begin
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' Cursor / Page Attributes');
   PrintLn;
 
@@ -283,15 +283,14 @@ var
 
 begin
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' Line Attributes');
   PrintLn;
 
   PrintLn(SGR(ANSI_LTCYAN) + 'Each row of text can have individual attributes that effect its appearence.');
   PrintLn('The row containing the cursor will be altered when these ANSI code sequences');
   PrintLn('are sent.');
-  PrintSyntaxLn('CSI', 's ; w', '[', 'Set Row Size.', 's = overall size (0:25%,..3:100%,..7=200%) Def=3.');
-  PrintLn(Right(15) + 'w = width (0:50%,1:100%,2:150%,3:200%) Def=1.');
+  PrintSyntaxLn('CSI', 'w', '[', 'Set Row Size.', 'w = width (0:50%,1:100%,2:150%,3:200%) Def=1.');
   PrintSyntaxLn('CSI', 'c ; d ; s', ']', 'Set Row Background.', 'c = color1, d = color2, s = style');
   PrintLn(Right(15) + '(0:none, 1:solid color1,2:horz grad, 3:vert grad).');
   PrintSyntaxLn('ESC # 0', #8, #8, #8, 'Reset Row to default (marquee, sizing, colors).');
@@ -311,7 +310,6 @@ begin
     + SGR(ANSI_YELLOW) + HOTSPOT(1,1,0,'M')+'M' + SGR(ANSI_GREEN) + ' toggle maquee, '
     + HOTSPOT(3,1,0,'Q')+'[' + SGR(ANSI_YELLOW) + 'Q' + SGR(ANSI_GREEN) + ']uit when done: ');
 
-  sz := 3;
   w := 1;
   m := 0;
   repeat
@@ -319,28 +317,18 @@ begin
     case key of
       '+':
         begin
-          inc(sz);
-          if sz > 7 then
-          begin
-            sz := 0;
-            inc(w);
-            if w > 3 then
-              w := 0;
-          end;
-          Print(Down(2) + CSI + inttostr(sz) + ';' + inttostr(w) + '[' + Up(2));
+          inc(w);
+          if w > 3 then
+            w := 0;
+          Print(Down(2) + CSI + inttostr(w) + '[' + Up(2));
         end;
 
       '-':
         begin
-          dec(sz);
-          if sz < 0 then
-          begin
-            sz := 7;
-            dec(w);
-            if w < 0 then
-              w := 3;
-          end;
-          Print(Down(2) + CSI + inttostr(sz) + ';' + inttostr(w) + '[' + Up(2));
+          dec(w);
+          if w < 0 then
+            w := 3;
+          Print(Down(2) + CSI + inttostr(w) + '[' + Up(2));
         end;
 
       'B':
@@ -368,7 +356,7 @@ var
 
 begin
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' Character Attributes');
   PrintLn;
 
@@ -409,7 +397,7 @@ var
   key : string;
 begin
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' ANSI Colors');
   PrintLn;
 
@@ -460,7 +448,7 @@ var
   key : string;
 begin
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' Cursor / Editing Controls');
   PrintLn;
 
@@ -521,7 +509,7 @@ const
 
 begin
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' Sprites');
   PrintLn;
 
@@ -651,7 +639,7 @@ var
   key : string;
 begin
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' Hotspots');
   PrintLn;
 
@@ -688,7 +676,7 @@ var
   key : string;
 begin
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' Teletext Mosiac Block Mode');
   PrintLn;
 
@@ -724,7 +712,7 @@ var
   key : string;
 begin
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' Font Support');
   PrintLn;
 
@@ -762,7 +750,7 @@ var
   key : string;
 begin
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' Audio Support');
   PrintLn;
 
@@ -822,7 +810,7 @@ var
 
 begin
   Print(VTXMODE + HOME + CLS + SGR(ANSI_LTCYAN, [SGR_RESET]));
-  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(200, 100)
+  PrintLn(RowColor(ANSI_BLUE, ANSI_BLACK, HorzGrad) + RowSize(150)
     + ' Teletext Burst Mode');
   PrintLn;
 
