@@ -130,7 +130,7 @@ vtx: {
 
 // globals
 const
-    version = '0.92h beta',
+    version = '0.92i beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -3969,7 +3969,7 @@ function termConnect() {
             ws = new WebSocket(wsConnect, [ 'telnet' ]);
             ws.binaryType = "arraybuffer";
         }
-        
+
         ws.onmessage = function(e) {
             // binary data in.
             var
@@ -5657,9 +5657,52 @@ function moveHotSpotsRows(row1, row2, rowadj) {
     }
 }
 
+function copyRow(fromrow, torow) {
+    var
+        rowf, rowt,         // row elements
+        size, width, w, h,  // dimensions
+        cnvf, cnvt,         // canvases to move from / to
+        ctxt;               // canvas context
+    
+    rowf = getRowElement(fromrow);
+    rowt = getRowElement(torow);
+        
+    size = getRowAttrHeight(conRowAttr[fromrow]) / 100;
+    width = getRowAttrWidth(conRowAttr[fromrow]) / 100;
+    w = xScale * colSize * width;
+    h = fontSize * size;
+        
+    // copy canvas's
+    // TODO : check row size changes and adjust canvas
+    cnvf = rowf.firstChild;
+    if (!cnvf) {
+        cnvf = domElement(
+            'canvas',
+            {   width:  crtCols * w,
+                height: (h + 16) },
+            {   zIndex: '50' });
+        rowf.appendChild(cnvf);
+    }
+    cnvt = rowt.firstChild;
+    if (!cnvt) {
+        cnvt = domElement(
+            'canvas',
+            {   width:  crtCols * w,
+                height: (h + 16) },
+            {   zIndex: '50' });
+        rowt.appendChild(cnvt);
+    }
+    ctxt = cnvt.getContext('2d');
+    ctxt.clearRect(0,0,crtCols*w,h+16);
+    ctxt.drawImage(cnvf, 0, 0);
+}
+
 // scroll screen up 1 row
 function scrollUp() {
     var
+        rownumf, rownumt,
+        rowf, rowt,
+        size, width, w, h, cnvf, cnvt, ctxt,
         fromRow, toRow,
         j, hs;
 
@@ -5676,7 +5719,8 @@ function scrollUp() {
         conText[j] = conText[j + 1];
         conCellAttr[j] = conCellAttr[j + 1];
         conRowAttr[j] = conRowAttr[j + 1];
-        redrawRow(j);
+        
+        copyRow(j+1, j);
     }
     // clear bottow row
     conText[toRow] = '';
@@ -5708,7 +5752,8 @@ function scrollDown() {
         conText[j] = conText[j - 1];
         conCellAttr[j] = conCellAttr[j - 1];
         conRowAttr[j] = conRowAttr[j - 1];
-        redrawRow(j);
+        
+        copyRow(j-1,j);
     }
     // clear top row
     conText[fromRow] = '';
