@@ -8,10 +8,13 @@ interface
 uses
   {$ifdef WINDOWS}
   Windows,
+  jwatlhelp32,
   {$endif}
-  Classes, Pipes, SysUtils, Crt, DateUtils, LazUTF8, strutils;
+  Process, Classes, Pipes, SysUtils, Crt, DateUtils, LazUTF8, strutils, signals;
+
 
 type
+
   TRowStyles = (None, Solid, HorzGrad, VertGrad);
 
 const
@@ -74,8 +77,9 @@ const
   ANSI_WHITE =            15;
   ANSI_BLACK =            16;
 
-procedure Init;
-procedure Finish;
+procedure DoorInit;
+procedure DoorSync;
+procedure DoorDone;
 
 procedure Print(str : string); inline;
 procedure PrintLn;
@@ -120,12 +124,12 @@ function SGR(fgcolor : integer; vals : array of integer) : string;
 function SGR(fgcolor, bgcolor : integer; vals : array of integer) : string;
 
 var
-  pin :   TInputPipeStream;
+  pin :         TInputPipeStream;
   pout,
-  perr:   TOutputPipeStream;
-  lastaction : TDateTime;
-  PrevBreakHandler : TCtrlBreakHandler;
-
+  perr:         TOutputPipeStream;
+  lastaction :  TDateTime;
+  Door :        TProcess;
+  initparent : dword;
 
 implementation
 
@@ -370,8 +374,12 @@ begin
     else
     begin
       // hybernate after 1 minute
-      if SecondsBetween(now, lastaction) > 60 then
+      if SecondsBetween(now, lastaction) > 30 then
+      begin
+        DoorSync;
         sleep(100);
+        lastaction := now;
+      end;
     end;
   {$endif}
 end;
@@ -554,30 +562,75 @@ begin
   result := CSI + '1;3;' + inttostr(v) + '_';
 end;
 
-function VTXCtrlBreak(CtrlBreak : boolean) : boolean;
+function ParentID: dword;
+{$ifdef WINDOWS}
+var
+  HandleSnapShot  : THandle;
+  EntryParentProc : TProcessEntry32;
+  CurrentProcessId: DWORD;
+  HandleParentProc: THandle;
+  ParentProcessId : DWORD;
 begin
-  if CtrlBreak then
+  result := 0;
+  HandleSnapShot := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);   //enumerate the process
+  if HandleSnapShot <> INVALID_HANDLE_VALUE then
   begin
-    // stuff in here to do before exit?
+    EntryParentProc.dwSize := SizeOf(EntryParentProc);
+    if Process32First(HandleSnapShot, EntryParentProc) then    //find the first process
+    begin
+      CurrentProcessId := GetCurrentProcessId(); //get the id of the current process
+      repeat
+        if EntryParentProc.th32ProcessID = CurrentProcessId then
+        begin
+          ParentProcessId := EntryParentProc.th32ParentProcessID; //get the id of the parent process
+          HandleParentProc := OpenProcess(PROCESS_QUERY_INFORMATION or PROCESS_VM_READ, False, ParentProcessId);
+          result := HandleParentProc;
+          break;
+        end;
+      until not Process32Next(HandleSnapShot, EntryParentProc);
+    end;
+    CloseHandle(HandleSnapShot);
   end;
-  result := true;
+{$else}
+var
+  id : longint;
+begin
+  // do linux stuff here - return true if this process is not orphaned.
+  result := false;
+{$endif}
 end;
 
-procedure Init;
+procedure DoorInit;
 begin
   // setup
+  Door := nil;
+  initparent := ParentID;
+
   { $ifndef LOCAL}
   pin := TInputPipeStream.Create(StdInputHandle);
   pout := TOutputPipeStream.Create(StdOutputHandle);
   perr := TOutputPipeStream.Create(StdErrorHandle);
-
   { $endif}
-  PrevBreakHandler := SysSetCtrlBreakHandler(@VTXCtrlBreak);
 
   lastaction := now;
+
 end;
 
-procedure Finish;
+procedure DoorSync;
+begin
+  // look for parent process disconnects
+
+  if ParentID <> initparent then
+  begin
+    // clean up here.
+
+    // and exit.
+    ExitProcess(0);
+  end;
+
+end;
+
+procedure DoorDone;
 begin
   // setdown
   { $ifndef LOCAL}
@@ -588,9 +641,15 @@ begin
   pout.Free;
   perr.Free;
   { $endif}
-  SysSetCtrlBreakHandler(PrevBreakHandler);
 
 end;
+
+
+
+
+
+
+
 
 begin
 end.

@@ -121,7 +121,7 @@ vtx: {
 
 // globals
 const
-    version = '0.93 beta',
+    version = '0.93a beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -2092,7 +2092,8 @@ let
     modeAutoWrap = true,        // Autowrap Mode
     modeSaveAutoWrap,
     modeNextGlyph = false,      // if DOORWAY mode, print glyph associated with this byte!
-    modeRegionOrigin,           // origin in region?
+    modeRegion = false,         // scrollable region?
+    modeRegionOrigin = false,   // origin in region?
     modeTeletext = false,       // teletext bust mode?
 
     keysDn = [],                // keep track of auto repeat keys
@@ -5653,7 +5654,7 @@ function scrollUp() {
         fromRow, toRow,
         j, hs;
 
-    if (modeRegionOrigin) {
+    if (modeRegion) {
         fromRow = regionTopRow;
         toRow = regionBottomRow;
     } else {
@@ -5686,7 +5687,7 @@ function scrollDown() {
         fromRow, toRow,
         j, hs;
 
-    if (modeRegionOrigin) {
+    if (modeRegion) {
         fromRow = regionTopRow;
         toRow = regionBottomRow;
     } else {
@@ -6254,8 +6255,8 @@ function conCharOut(chr) {
                     break;
 
                 case _LF:    // linefeed
-                    if (!modeVTXANSI)  // LF dont CR!  lol
-                        crsrCol = 0;    // for BBS/ANSI.SYS mode
+//                    if (!modeVTXANSI)  // LF dont CR!  lol
+//                        crsrCol = 0;    // for BBS/ANSI.SYS mode
                     crsrRow++;
                     crsrrender = true;
                     break;
@@ -6468,7 +6469,7 @@ function conCharOut(chr) {
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
                     crsrRow -= parm[0];
-                    if (modeRegionOrigin) {
+                    if (modeRegion) {
                         if (crsrRow < regionTopRow)
                             crsrRow = regionTopRow;
                     } else {
@@ -6482,7 +6483,7 @@ function conCharOut(chr) {
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
                     crsrRow += parm[0];
-                    if (modeRegionOrigin) {
+                    if (modeRegion) {
                         if (crsrRow > regionBottomRow)
                             crsrRow = regionBottomRow;
                     }
@@ -7325,6 +7326,7 @@ function conCharOut(chr) {
                         case '?6':
                             // origin in region?
                             modeRegionOrigin = (chr == 0x68);
+                            modeRegion = true;
                             break;
 
                         case '?7':
@@ -7593,9 +7595,11 @@ function conCharOut(chr) {
                     } else if (interm == '') {
                         // CSI t ; b 'r' : Set scroll window (DECSTBM).
                         if (parm.length == 0) {
+                            modeRegion = false;
                             regionTopRow = 0;
                             regionBottomRow = crtRows - 1;
                         } else {
+                            modeRegion = true;
                             parm = fixParams(parm, [ 1, 1 ]);
                             parm[0] = minMax(parm[0], 1, crtRows);
                             parm[1] = minMax(parm[1], parm[0], crtRows);

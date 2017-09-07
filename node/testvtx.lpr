@@ -278,7 +278,7 @@ end;
 procedure Page3;
 var
   key : string;
-  sz, w : integer;
+  w : integer;
   c1, c2, s, m : integer;
 
 begin
@@ -835,22 +835,21 @@ begin
   until key = 'Q';
 end;
 
-procedure DoorTest();
+
+
+procedure DoorTest;
 type
 	t437 = type AnsiString(437);
+
 var
-  Door : TProcess;
   ReadSize : integer;
   buff : pbyte;
   ReadCount : integer;
-  stin : t437;
   stout : string;
   raw : rawbytestring;
-  enc : boolean;
   i : integer;
+
 begin
-
-
   PrintLn(#27'[0mTesting Door Process...'#13#10);
 
   Door := TProcess.Create(nil);
@@ -858,16 +857,16 @@ begin
   Door.FreeOnRelease;
   Door.Executable := 'DoorTest\VTXDoor001.exe';
   Door.Parameters.Clear;
+  Door.Parameters.Add('-D');
 	Door.InheritHandles := true;
   Door.Options := [
 		  poUsePipes,
       poNoConsole,
       poDefaultErrorMode,
-      poNewProcessGroup,
+//      poNewProcessGroup,
       poStderrToOutPut
     ];
 
-  // go run. wait on exit.
   PrintLn(#27'[0mLaunching...'#13#10);
   Door.Execute;
 
@@ -901,6 +900,8 @@ begin
     end;
   end;
   PrintLn(#27'[0mTerminated...'#13#10);
+  Door.Free;
+  Door := nil;
 
 end;
 
@@ -909,10 +910,9 @@ var
   loop : boolean;
 
 begin
-  Init;
+  DoorInit;
 
   randomize;
-
   Print(
   		SOUNDVOL(25)
   	+ SOUNDDEFURL(1, 'http://dirtydelilah.ds.sparrowindustries.net:7838/;')
@@ -948,6 +948,6 @@ begin
     end;
   end;
 
-  Finish;
+  DoorDone;
 end.
 
