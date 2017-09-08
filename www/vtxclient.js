@@ -2111,6 +2111,7 @@ let
     conBuffer = '',             // console output buffer.
 
     // Attrs are integer arrays, base 0 (i.e.: row 1 = index 0)
+    conCanvas = [],             // row canvas array
     conRowAttr  = [],           // row attributes array of number
     conCellAttr = [],           // character attributes array of array or number
     conText = [],               // raw text - array of string
@@ -2884,6 +2885,7 @@ function delRow(rownum) {
     conRowAttr.splice(rownum, 1);
     conText.splice(rownum, 1);
     conCellAttr.splice(rownum, 1);
+conCanvas.splice(rownum, 1);
 
     // move all hotspots below up one. remove hotspots on this row.
     clearHotSpotsRow(rownum, 0, 999);
@@ -2902,6 +2904,7 @@ function insRow(rownum) {
     conRowAttr.splice(rownum, 0, defRowAttr);
     conText.splice(rownum, 0, '');
     conCellAttr.splice(rownum, 0, []);
+conCanvas.splice(rownum, 0, null);
 
     // move all hotspots on this row and below down one.
     moveHotSpotsRows(rownum, conRowAttr.length, +1);
@@ -2924,6 +2927,7 @@ function trimHistory(){
         conRowAttr.splice(0, 1);
         conText.splice(0, 1);
         conCellAttr.splice(0, 1);
+conCanvas.splice(0, 1);        
         crsrRow--;
     }
 }
@@ -2951,9 +2955,8 @@ function insChar(rownum, colnum, chr) {
 // create blank row
 function createNewRow() {
     var
-        el = domElement('div', { className: 'vtx' }),
-        cnv = domElement('canvas');
-
+        cmv, el = domElement('div', { className: 'vtx' });
+    //cnv = domElement('canvas');
     //el.appendChild(cnv);
     return el;
 }
@@ -3431,6 +3434,7 @@ function adjustRow(rownum) {
         // create it.
         cnv = document.createElement('canvas');
         row.appendChild(cnv);
+conCanvas[rownum] = cnv;
     }
 
     if (conRowAttr[rownum] & A_ROW_MARQUEE) {
@@ -3462,19 +3466,23 @@ function redrawRow(rownum){
         renderCell(rownum, i);
 
     // clear end of row
-    row = getRowElement(rownum);
+    //row = getRowElement(rownum);
     width = getRowAttrWidth(conRowAttr[rownum]) / 100;  // .5 - 2
     w = xScale * colSize * width;   // width of char
     x = w * l;                      // left pos of char on canv
 
-    cnv = row.firstChild;
+cnv = conCanvas[rownum];    
+    //row = getRowElement(rownum);
+    //cnv = row.firstChild;
     if (!cnv) {
+row = getRowElement(rownum);
         cnv = domElement(
             'canvas',
             {   width:  crtCols * w,
                 height: (fontSize + 16) },
             {   zIndex: '50' });
         row.appendChild(cnv);
+conCanvas[rownum] = cnv;
     }
     ctx = cnv.getContext('2d');
     ctx.clearRect(x, 0, cnv.width - x, cnv.height);
@@ -3549,18 +3557,21 @@ function renderCell(rownum, colnum, hilight, bottom) {
         return;
 
     // compute height
-    row = getRowElement(rownum);
+//    row = getRowElement(rownum);    // <- speed this up.
     h = fontSize;                   // height of char
     stroke = h * 0.1;               // underline/strikethrough size
-    cnv = row.firstChild;           // get canvas
+    
+cnv = conCanvas[rownum];    
     if (!cnv) {
         // create new canvas if nonexistant
+row = getRowElement(rownum);    // <- speed this up.
         cnv = domElement(
             'canvas',
             {   width:  crtCols * w,
                 height: (h + 16) },
             {   zIndex: '50' });
         row.appendChild(cnv);
+conCanvas[rownum] = cnv;        
     }
     ctx = cnv.getContext('2d');
 
@@ -5832,32 +5843,39 @@ function copyRow(fromrow, torow) {
         cnvf, cnvt,         // canvases to move from / to
         ctxt;               // canvas context
     
-    rowf = getRowElement(fromrow);
-    rowt = getRowElement(torow);
-        
+//    rowf = getRowElement(fromrow);
+//    rowt = getRowElement(torow);
+
     width = getRowAttrWidth(conRowAttr[fromrow]) / 100;
     w = xScale * colSize * width;
     h = fontSize;
         
     // copy canvas's
     // TODO : check row size changes and adjust canvas
-    cnvf = rowf.firstChild;
+cnvf = conCanvas[fromrow]    ;
+//    cnvf = rowf.firstChild;
     if (!cnvf) {
+rowf = getRowElement(fromrow);
         cnvf = domElement(
             'canvas',
             {   width:  crtCols * w,
                 height: (h + 16) },
             {   zIndex: '50' });
         rowf.appendChild(cnvf);
+conCanvas[fromrow] = cnvf;        
     }
-    cnvt = rowt.firstChild;
+
+cnvt = conCanvas[torow];    
+//    cnvt = rowt.firstChild;
     if (!cnvt) {
+rowt = getRowElement(torow);
         cnvt = domElement(
             'canvas',
             {   width:  crtCols * w,
                 height: (h + 16) },
             {   zIndex: '50' });
         rowt.appendChild(cnvt);
+conCanvas[torow] = cnvt;        
     }
     ctxt = cnvt.getContext('2d');
     ctxt.clearRect(0,0,crtCols*w,h+16);
@@ -6970,6 +6988,7 @@ function conCharOut(chr) {
                                 conRowAttr.length = crsrRow + 1;
                                 conCellAttr.length = crsrRow + 1;
                                 conText.length = crsrRow + 1;
+conCanvas.length = crsrRow + 1;
                             }
                             break;
 
@@ -7006,6 +7025,7 @@ function conCharOut(chr) {
                             conCellAttr = [];
                             conText = [];
                             conHotSpots = [];
+conCanvas = [];                            
                             lastHotSpot = null;
                             document.body.style['cursor'] = 'default';
 //                            if (!modeVTXANSI) {
