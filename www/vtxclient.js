@@ -121,7 +121,7 @@ vtx: {
 
 // globals
 const
-    version = '0.93a beta',
+    version = '0.93b beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -250,9 +250,10 @@ const
     A_CRSR_ORIENTATION      = 0x00000400,   // 0 = horz, 1 = vert
 
     // special key commands
-    DO_CAPLK =          -2,
-    DO_NUMLK =          -3,
-    DO_SCRLK =          -4,
+    DO_CAPLK =          -1,
+    DO_NUMLK =          -2,
+    DO_SCRLK =          -3,
+    DO_SELECTALL =      -5,     // select all text on screen.
 
     // terminal states
     TS_OFFLINE =        -1, // not connected
@@ -1513,7 +1514,7 @@ const
                 else                    return _CR;
             },
         16: 0,                  // shift
-        17: 0,                  // ctrl
+        17: null,               // ctrl
         18: 0,                  // alt
         19: 0,                  // pause/break
         20: DO_CAPLK,           // caps lock
@@ -1832,7 +1833,7 @@ const
         57: function(){         // 9
                 // rev on
                 return cbm?0x12:0; },
-        65: 0x01,               // a
+        65: DO_SELECTALL,       // a
         66: 0x02,               // b
         67: null,               // c - browser copy
         68: 0x04,               // d
@@ -2061,6 +2062,7 @@ let
 
     conBaud = 0,                // baud emulation speed.
     audioEl,                    // audio element
+    copyEl,                     // clipboard copy element
 
     termState,                  // TS_...
 
@@ -2191,7 +2193,8 @@ function minMax(v, min, max, fallback) {
 }
 
 function between(mid, low, hi) {
-   return (low <= mid) && (mid <= hi);
+    return (((mid >= low) && (mid <= hi)) ||
+            ((mid >= hi) && (mid <= low)));
 }
 
 // load fonts and boot
@@ -2500,25 +2503,117 @@ function getHotSpot(e) {
     return null;
 }
 
+var
+    selectStart =   {},
+    selectEnd =     {},
+    dragStart =     {},
+    dragEnd =       {},
+    dragPrev =      {},
+    isSelect = false,
+    isDrag = false;             // in drag mode?
+
+function loc2Linear(loc) {
+    if (loc)
+        return (loc.row << 11) + loc.col; 
+    return null;
+}    
+
+function linear2Loc(lin) {
+    return {row: (lin >>> 11), col: (lin & 0x7FF) };
+}
+
+function betweenRCs(loc, loc1, loc2) {
+    // is loc.row,loc.col between loc1 and loc2 inclusively?
+    return between(loc2Linear(loc), loc2Linear(loc1), loc2Linear(loc2));
+}    
+
+function refreshBetweenRCs(loc1, loc2) {
+    var
+        r1, r2, c1, c2;
+        
+    if (loc2Linear(loc2) < loc2Linear(loc1)) {
+        r1 = loc2.row;
+        c1 = loc2.col;
+        r2 = loc1.row;
+        c2 = loc1.col;
+    } else {
+        r1 = loc1.row;
+        c1 = loc1.col;
+        r2 = loc2.row;
+        c2 = loc2.col;
+    }
+    while (true) {
+        renderCell(r1, c1);
+        if ((r1 == r2) && (c1 == c2))
+            break;
+        c1++;
+        if (c1 >= crtCols) {
+            c1 = 0;
+            r1++;
+        }
+    }
+}
+
 function mouseUp(e) {
     // for now, just fix meta key states
     e = e || window.event;
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
     altState = e.altKey;
+    
+    if (e.button == 0) {
+        // end drag
+        isSelect = false;
+        if (isDrag) {
+            if (loc2Linear(dragEnd) > loc2Linear(dragStart)) {
+                selectStart = dragStart;
+                selectEnd = dragEnd;
+            } else {
+                selectStart = dragEnd;
+                selectEnd = dragStart;
+            }
+            isSelect = true;
+            isDrag = false;
+        }
+    }
 }
 
 function mouseDown(e) {
+    var    
+        fromr, tor,
+        p, dir,
+        mloc;
+        
     // for now, just fix meta key states
     e = e || window.event;
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
     altState = e.altKey;
+    
+    // get mouse pos
+    if (e.button == 0) {
+        // start drag
+        isDrag = false;
+        if (isSelect) {
+            // erase old selection.
+            isSelect = false;
+            refreshBetweenRCs(selectStart, selectEnd);
+        }
+        mloc = getMouseCell(e);
+        if (mloc && (mloc != {})) {
+            dragStart = mloc;
+            dragEnd = mloc;
+            dragPrev = mloc;
+            isDrag = true;
+        }
+    }
 }
 
 function mouseMove(e) {
     var
         x, y,
+        mloc,
+        dir, p,
         hs;
 
     // for now, just fix meta key states
@@ -2529,32 +2624,44 @@ function mouseMove(e) {
 
     if (termState > TS_NORMAL) return;
 
-    // check if over a hotspot
-    hs = getHotSpot(e);
-    if (hs) {
-        if (lastHotSpot != hs) {
+    if (isDrag) {
+        // dragging
+        mloc = getMouseCell(e);
+        if (mloc != null) {
+            // new location
+            dragEnd = mloc;
+            refreshBetweenRCs(dragEnd, dragPrev);
+            dragPrev = dragEnd;
+        }
+    } else {
+        // moving around
+        // check if over a hotspot
+        hs = getHotSpot(e);
+        if (hs) {
+            if (lastHotSpot != hs) {
+                if (lastHotSpot) {
+                    // erase old
+                    for (y = 0; y < lastHotSpot.height; y++)
+                        for (x = 0; x < lastHotSpot.width; x++)
+                            renderCell(lastHotSpot.row+y, lastHotSpot.col+x);
+                }
+                // draw this one
+                for (y = 0; y < hs.height; y++)
+                    for (x = 0; x < hs.width; x++)
+                        renderCell(hs.row+y, hs.col+x, hs.hilite?1:0);
+            }
+            document.body.style['cursor'] = 'pointer'
+        } else {
             if (lastHotSpot) {
                 // erase old
                 for (y = 0; y < lastHotSpot.height; y++)
                     for (x = 0; x < lastHotSpot.width; x++)
                         renderCell(lastHotSpot.row+y, lastHotSpot.col+x);
             }
-            // draw this one
-            for (y = 0; y < hs.height; y++)
-                for (x = 0; x < hs.width; x++)
-                    renderCell(hs.row+y, hs.col+x, hs.hilite?1:0);
+            document.body.style['cursor'] = 'default';
         }
-        document.body.style['cursor'] = 'pointer'
-    } else {
-        if (lastHotSpot) {
-            // erase old
-            for (y = 0; y < lastHotSpot.height; y++)
-                for (x = 0; x < lastHotSpot.width; x++)
-                    renderCell(lastHotSpot.row+y, lastHotSpot.col+x);
-        }
-        document.body.style['cursor'] = 'default';
+        lastHotSpot = hs;
     }
-    lastHotSpot = hs;
 }
 
 function click(e) {
@@ -2600,11 +2707,18 @@ function keyUp(e) {
 
     e = e || window.event;
     kc = e.keyCode || e.which;
-    crsr.style['display'] = 'block';
 
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
     altState = e.altKey;
+
+    if (kc == 17) {
+        if (isSelect) {
+            isSelect = false;
+            refreshBetweenRCs(selectStart, selectEnd);
+        }
+        copyEl.style['visibility'] = 'hidden';
+    }
     
     // play key up sound
     if (soundClicks) 
@@ -2616,11 +2730,12 @@ function keyUp(e) {
 function keyDown(e) {
     var
         stateIdx,
-        kc, ka;
+        kc, ka,
+        r, c, 
+        p, endl, str;
 
     e = e || window.event;
     kc = e.keyCode || e.which;
-    crsr.style['display'] = 'block';
 
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
@@ -2628,6 +2743,31 @@ function keyDown(e) {
 
     if (termState > TS_NORMAL) return;
 
+    if ((kc == 17) && !keysDn[kc] && isSelect) {
+        // copy selected text to clipboard.
+        str = '';
+        endl = loc2Linear(selectEnd);
+        r = selectStart.row;
+        c = selectStart.col;
+        while (true) {
+            if (c < conText[r].length) {
+                str += conText[r].charAt(c);
+            }
+            if (loc2Linear({row:r,col:c}) >= endl)
+                break;
+            c++;
+            if (c >= conText[r].length) {
+                str += '\r\n';
+                c = 0;
+                r++;
+            }
+        }
+        copyEl.style['visibility'] = 'visible';
+        copyEl.value = str;
+        copyEl.focus();
+        copyEl.select();
+    }
+    
     // play key down sound
     if (soundClicks && !keysDn[kc])
         soundKeyDn[kc % 11].play();
@@ -2685,6 +2825,17 @@ function keyDown(e) {
                 case DO_SCRLK:
                     scrState = !scrState;
                     setBulbs();
+                    break;
+                    
+                case DO_COPY:
+                    // create string of selected text.
+                    if (isSelect) {
+                        isSelect = false;
+                        refreshBetweenRCs(selectStart, selectEnd);
+                    }
+                    break;
+                    
+                case DO_SELECTALL:
                     break;
 
                 default:
@@ -3363,13 +3514,14 @@ function renderCell(rownum, colnum, hilight, bottom) {
         tbg,        // this cell background color
         tbold,      // this cell bold?
         stroke,     // thickness of underline / strikethrough
-        tmp,
+        tmp,        // swapper
         tblinks,    // this cell blinks?
         tfnt,       // font number for this cell
         i, j, l,    // index / length
         rowadj,     // row index adjustment used for double height bottoms
         tall,
         teletext,
+        dir,
         xskew,      // skew amount for italics
         xadj,       // x adjustment to render character
         yadj,       // y adjustment to render character
@@ -3416,13 +3568,18 @@ function renderCell(rownum, colnum, hilight, bottom) {
     ch = conText[rownum + rowadj].charAt(colnum);
     attr = conCellAttr[rownum + rowadj][colnum];
 
-
     // force highlight (for mouse selections)
     if (hilight == 1)
         attr = hotspotHoverAttr
     else if (hilight == 2)
         attr = hotspotClickAttr;
 
+    // force highlight (for clipboard selection)
+    if ((isSelect && betweenRCs({row:rownum, col:colnum}, selectStart, selectEnd)) ||
+        (isDrag && betweenRCs({row:rownum, col:colnum}, dragStart, dragEnd))) {
+        attr = 0x0F04;
+    }
+    
     // extract colors and font to use
     tfg = (attr & 0xFF);
     tbg = (attr >>> 8) & 0xff;
@@ -3482,7 +3639,7 @@ function renderCell(rownum, colnum, hilight, bottom) {
         ch = ' ';
         tbg = tfg;
     }
-
+    
     // set clipping region for this cell.
     ctx.save();
     ctx.beginPath();
@@ -3839,7 +3996,7 @@ function beforePaste(e) {
 // event functions for ctrl+v text to console
 function paste(e) {
     var
-        clipboardData;
+        str, clipboardData;
 
     e = e || window.event;
 
@@ -3851,7 +4008,9 @@ function paste(e) {
     
     // need to update to send if connected 
     // for now, local echo it.
-    conBufferOut(clipboardData.getData('Text'));
+    str = clipboardData.getData('Text');
+    str = str.replace(/(?:\r\n|\r|\n)/g, '\x0D\x0A');    
+    sendData(str);
 }
 
 // update cursor from crsrAttr values
@@ -4288,6 +4447,36 @@ function setAllCSS() {
     head.appendChild(style);
 }
 
+function copyTextToClipboard(text) {
+    var 
+        textArea, range, successful;
+        
+    textArea = domElement(  
+        'textarea',
+        {   value:      text,
+            id:         'vtxcopy' },
+        {   position:   'fixed',
+            top:        0,
+            left:       0,
+            width:      '2em',
+            height:     '2em',
+            padding:    0,
+            border:     0,
+            outline:    0,
+            boxShadow:  'none',
+            background: 'transparent',
+            color:      'transparent' });
+    document.body.appendChild(textArea);
+
+    range = document.createRange();
+    range.selectNode(textArea);
+    textArea.select();
+    window.getSelection().addRange(range);
+    successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return successful;
+}
+
 // setup the crt and cursor
 function initDisplay() {
     var
@@ -4328,6 +4517,24 @@ function initDisplay() {
     pageDiv.appendChild(textDiv);
     clientDiv.appendChild(pageDiv);
 
+    // create clipboard copy element
+    copyEl = domElement('textarea',
+        {   id:         'vtxcopy' },
+        {   position:   'fixed',
+            visibility: 'hidden',
+            left:       '0',
+            top:        '0',
+            width:      '1px',
+            height:     '1px',
+            color:      'transparent',
+            background: 'transparent',
+            whiteSpace: 'pre',
+            border:     'none',
+            padding:    0,
+            margin:     0
+        });
+    clientDiv.appendChild(copyEl);
+    
     textPos = getElementPosition(textDiv);
 
     // determine standard sized font width in pixels
@@ -4610,7 +4817,7 @@ function initDisplay() {
     addListener(document, 'click', click);
     addListener(document, 'mousemove', mouseMove);
     // copy paste events
-    addListener(document, 'beforepaste', beforePaste);
+    //addListener(document, 'beforepaste', beforePaste);
     addListener(document, 'paste', paste);
 }
 
@@ -5470,6 +5677,16 @@ function getUnicode(cp, ch) {
     return d;
 }
 
+// because IE and Safari are still in the stone age.
+function Uint8indexOf(ba, val) {
+    var i;
+    for (i = 0; i < ba.length; i++) {
+        if (ba[i] == val)
+            return i;
+    }
+    return -1;
+}
+
 // send data to remote (or echo local if not connected)
 // only send arraybuffer data
 // add convert from native to node's codepage.
@@ -5500,11 +5717,13 @@ function sendData(data) {
 
     if (vtxdata.telnet) {
         // escape 0xFF's
-        if (data.indexOf(0xFF) >= 0) {
+
+        if (Uint8indexOf(data, 0xFF) >= 0) {
+//        if (data.indexOf(0xFF) >= 0) {
             // spilt up / recombine
             tmp = [];
             len = 0;
-            while ((pos = data.indexOf(0xFF)) >= 0) {
+            while ((pos = Uint8indexOf(data, 0xFF)) >= 0) {
                 tmp.push(data.slice(0, pos));
                 len += pos;
                 tmp.push(new Uint8Array([0xFF,0xFF]));
@@ -8127,4 +8346,3 @@ function toggleFullScreen() {
 }
 
 };
-

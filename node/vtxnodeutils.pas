@@ -568,8 +568,6 @@ var
   HandleSnapShot  : THandle;
   EntryParentProc : TProcessEntry32;
   CurrentProcessId: DWORD;
-  HandleParentProc: THandle;
-  ParentProcessId : DWORD;
 begin
   result := 0;
   HandleSnapShot := CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);   //enumerate the process
@@ -582,9 +580,7 @@ begin
       repeat
         if EntryParentProc.th32ProcessID = CurrentProcessId then
         begin
-          ParentProcessId := EntryParentProc.th32ParentProcessID; //get the id of the parent process
-          HandleParentProc := OpenProcess(PROCESS_QUERY_INFORMATION or PROCESS_VM_READ, False, ParentProcessId);
-          result := HandleParentProc;
+          result := EntryParentProc.th32ParentProcessID; //get the id of the parent process
           break;
         end;
       until not Process32Next(HandleSnapShot, EntryParentProc);
@@ -617,12 +613,22 @@ begin
 end;
 
 procedure DoorSync;
+var
+  b : byte;
+  read, avail, left : dword;
+  chk1, chk2 : boolean;
 begin
   // look for parent process disconnects
 
-  if ParentID <> initparent then
+  chk1 := (ParentID <> initparent);
+  chk2 := false;
+  if pin <> nil then
+    chk2 := not PeekNamedPipe(pin.Handle, @b, 1, @read, @avail, @left);
+
+  if chk1 or chk2 then
   begin
-    // clean up here.
+    // outa here
+    DoorDone;
 
     // and exit.
     ExitProcess(0);

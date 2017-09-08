@@ -838,9 +838,6 @@ end;
 
 
 procedure DoorTest;
-type
-	t437 = type AnsiString(437);
-
 var
   ReadSize : integer;
   buff : pbyte;
