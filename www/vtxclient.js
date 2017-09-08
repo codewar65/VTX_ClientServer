@@ -3588,7 +3588,8 @@ conCanvas[rownum] = cnv;
     // force highlight (for clipboard selection)
     if ((isSelect && betweenRCs({row:rownum, col:colnum}, selectStart, selectEnd)) ||
         (isDrag && betweenRCs({row:rownum, col:colnum}, dragStart, dragEnd))) {
-        attr = 0x0F04;
+        attr &= ~0xFFFF;
+        attr |=  0x0F04;
     }
     
     // extract colors and font to use
