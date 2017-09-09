@@ -2882,7 +2882,7 @@ function delRow(rownum) {
     conRowAttr.splice(rownum, 1);
     conText.splice(rownum, 1);
     conCellAttr.splice(rownum, 1);
-conCanvas.splice(rownum, 1);
+    conCanvas.splice(rownum, 1);
 
     // move all hotspots below up one. remove hotspots on this row.
     clearHotSpotsRow(rownum, 0, 999);
@@ -2901,7 +2901,7 @@ function insRow(rownum) {
     conRowAttr.splice(rownum, 0, defRowAttr);
     conText.splice(rownum, 0, '');
     conCellAttr.splice(rownum, 0, []);
-conCanvas.splice(rownum, 0, null);
+    conCanvas.splice(rownum, 0, null);
 
     // move all hotspots on this row and below down one.
     moveHotSpotsRows(rownum, conRowAttr.length, +1);
@@ -2924,7 +2924,7 @@ function trimHistory(){
         conRowAttr.splice(0, 1);
         conText.splice(0, 1);
         conCellAttr.splice(0, 1);
-conCanvas.splice(0, 1);        
+        conCanvas.splice(0, 1);        
         crsrRow--;
     }
 }
@@ -3431,7 +3431,7 @@ function adjustRow(rownum) {
         // create it.
         cnv = document.createElement('canvas');
         row.appendChild(cnv);
-conCanvas[rownum] = cnv;
+        conCanvas[rownum] = cnv;
     }
 
     if (conRowAttr[rownum] & A_ROW_MARQUEE) {
@@ -3468,18 +3468,16 @@ function redrawRow(rownum){
     w = xScale * colSize * width;   // width of char
     x = w * l;                      // left pos of char on canv
 
-cnv = conCanvas[rownum];    
-    //row = getRowElement(rownum);
-    //cnv = row.firstChild;
+    cnv = conCanvas[rownum];    
     if (!cnv) {
-row = getRowElement(rownum);
+        row = getRowElement(rownum);
         cnv = domElement(
             'canvas',
             {   width:  crtCols * w,
                 height: (fontSize + 16) },
             {   zIndex: '50' });
         row.appendChild(cnv);
-conCanvas[rownum] = cnv;
+        conCanvas[rownum] = cnv;
     }
     ctx = cnv.getContext('2d');
     ctx.clearRect(x, 0, cnv.width - x, cnv.height);
@@ -3558,17 +3556,17 @@ function renderCell(rownum, colnum, hilight, bottom) {
     h = fontSize;                   // height of char
     stroke = h * 0.1;               // underline/strikethrough size
     
-cnv = conCanvas[rownum];    
+    cnv = conCanvas[rownum];    
     if (!cnv) {
         // create new canvas if nonexistant
-row = getRowElement(rownum);    // <- speed this up.
+        row = getRowElement(rownum);  
         cnv = domElement(
             'canvas',
             {   width:  crtCols * w,
                 height: (h + 16) },
             {   zIndex: '50' });
         row.appendChild(cnv);
-conCanvas[rownum] = cnv;        
+        conCanvas[rownum] = cnv;        
     }
     ctx = cnv.getContext('2d');
 
@@ -5850,30 +5848,28 @@ function copyRow(fromrow, torow) {
         
     // copy canvas's
     // TODO : check row size changes and adjust canvas
-cnvf = conCanvas[fromrow]    ;
-//    cnvf = rowf.firstChild;
+    cnvf = conCanvas[fromrow]    ;
     if (!cnvf) {
-rowf = getRowElement(fromrow);
+        rowf = getRowElement(fromrow);
         cnvf = domElement(
             'canvas',
             {   width:  crtCols * w,
                 height: (h + 16) },
             {   zIndex: '50' });
         rowf.appendChild(cnvf);
-conCanvas[fromrow] = cnvf;        
+        conCanvas[fromrow] = cnvf;        
     }
 
-cnvt = conCanvas[torow];    
-//    cnvt = rowt.firstChild;
+    cnvt = conCanvas[torow];    
     if (!cnvt) {
-rowt = getRowElement(torow);
+        rowt = getRowElement(torow);
         cnvt = domElement(
             'canvas',
             {   width:  crtCols * w,
                 height: (h + 16) },
             {   zIndex: '50' });
         rowt.appendChild(cnvt);
-conCanvas[torow] = cnvt;        
+        conCanvas[torow] = cnvt;        
     }
     ctxt = cnvt.getContext('2d');
     ctxt.clearRect(0,0,crtCols*w,h+16);
@@ -6986,7 +6982,7 @@ function conCharOut(chr) {
                                 conRowAttr.length = crsrRow + 1;
                                 conCellAttr.length = crsrRow + 1;
                                 conText.length = crsrRow + 1;
-conCanvas.length = crsrRow + 1;
+                                conCanvas.length = crsrRow + 1;
                             }
                             break;
 
@@ -7023,17 +7019,16 @@ conCanvas.length = crsrRow + 1;
                             conCellAttr = [];
                             conText = [];
                             conHotSpots = [];
-conCanvas = [];                            
+                            conCanvas = [];                            
                             lastHotSpot = null;
                             document.body.style['cursor'] = 'default';
-//                            if (!modeVTXANSI) {
-                                crsrRow = crsrCol = 0   // BBS / ANSI.SYS
-                                crsrrender = true;
-//                            }
-                            expandToRow(crsrRow);   // ECMA-048 complient
+                            crsrRow = crsrCol = 0   
+                            crsrrender = true;
+                            expandToRow(crsrRow);
                             expandToCol(crsrRow, crsrCol);
                             if (modeVTXANSI)
                                 cellAttr = defCellAttr;
+                            isSelect = false;
                             break;
                     }
                     break;
