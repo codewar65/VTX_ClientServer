@@ -1,6 +1,6 @@
 # VTX_ClientServer
 
-updated: 15-AUG-2017
+updated: 10-SEP-2017
 
 
 ![VTX Client Screenshot](https://raw.githubusercontent.com/codewar65/VTX_ClientServer/master/work/vtx_screen1.png "Logo Title Text 1")
@@ -309,6 +309,7 @@ var vtxdata = {
   sysName:     "VTX Home System",
   wsConnect:   "ws://142.105.247.156:7003",
   term:        "ANSI",
+  hixie:       0,
   telnet:      1,
   autoConnect: 0,
   codePage:    "CP437",
@@ -327,16 +328,7 @@ var vtxdata = {
 
 ## To Do($) / To Fix(!) / Investigate(?)
 
-! Full screen vtxclient
-
-! effects as class like fadeScreen()
-
-$ HTTP requests as new thread.
-
 ? WSS / certificate support in server.
-
-$ Redo website.
 
 ? thin version of uvga16.
 
-$ Reduce the server to web server / websocket proxy only with not mangling of web files.

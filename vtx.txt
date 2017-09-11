@@ -1,5 +1,5 @@
 VTX Client / Server
-Draft : 15-AUG-2017
+Draft : 10-SEP-2017
 
 Layout
 ======
