@@ -243,7 +243,7 @@ Sequences (# : to be implemented)
         76 : Doublestrike off. #
         77 : Shadow off. #
         78 : top half off - revert to normal
-        69 : bottom half off - revert to normal
+        79 : bottom half off - revert to normal
         80 : Select Teletext Block Mosaic font. (use 10 to return to default) #
         81 : Select Teletext Separated Block Mosaic font. (use 10 to return to default) #
         82-85: resered for future intrinsic fonts. (use 10 to return to default) #

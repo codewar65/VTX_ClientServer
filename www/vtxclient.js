@@ -118,7 +118,7 @@ vtx: {
 
 // globals
 const
-    version = '0.93b beta',
+    version = '0.93c beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -2097,7 +2097,7 @@ let
 
     keysDn = [],                // keep track of auto repeat keys
     soundClicks = true,         // keyboard click sounds.
-    soundSaveVol,               // save volume on sound off
+    soundSaveVol = 0,           // save volume on sound off
     soundOn = true,             // sound on?
 
     // scroll region info.
@@ -2148,7 +2148,6 @@ let
     ymNakCount,
     ymNextBlock,
     ymSendStartTime;            // timer for when to abort
-
 
 // add event listener
 function addListener(obj, eventName, listener) {
@@ -4298,8 +4297,11 @@ function toggleSound(){
     if (soundOn) {
         soundSaveVol = audioEl.volume;
         audioEl.volume = 0;
-    } else 
+        createCookie('vtxSound', '0', 30);
+    } else {
         audioEl.volume = soundSaveVol;
+        createCookie('vtxSound', '1', 30);
+    }
     soundOn = !soundOn;
     setBulbs();
 };
@@ -4307,9 +4309,11 @@ function toggleSound(){
 // turn on / off special effects
 function toggleFX(){ 
     if (soundClicks) {
-        fxDiv.classList.remove('raster')
+        fxDiv.classList.remove('raster');
+        createCookie('vtxFX', '0', 30);
     } else {
         fxDiv.classList.add('raster');
+        createCookie('vtxFX', '1', 30);
     }
     soundClicks = !soundClicks;
     setBulbs();
@@ -4494,8 +4498,15 @@ function initDisplay() {
         style,
         css,
         head,
+        sound, fx,
         defattrs;
 
+    // get cookie info
+    sound = (readCookie('vtxSound') || '1');
+    soundOn = (sound == '1');
+    fx = (readCookie('vtxFX') || '1');
+    soundClicks = (fx == '1');
+    
     hotspotHoverAttr = 0x000800FF;
     hotspotClickAttr = 0x000000FF;
 
@@ -4508,8 +4519,9 @@ function initDisplay() {
     // special fx div
     fxDiv = domElement(
             'div',
-            {   id:         'vtxfx',
-                className:  'raster' });
+            {   id:         'vtxfx' });
+    if (soundClicks) 
+        fxDiv.classList.add('raster');
     clientDiv.appendChild(fxDiv);
     
     // build required inner divs
@@ -4622,7 +4634,6 @@ function initDisplay() {
     soundBell.load();
 
     // load keyboard sounds.
-    soundClicks = true;
     for (i = 0; i < 11; i++) {
         soundKeyUp[i] = new Audio();
         soundKeyUp[i].src = vtxPath + 'ku' + i + '.mp3';
@@ -4707,7 +4718,7 @@ function initDisplay() {
     // sound on / off
     ctrlDiv.appendChild(domElement(
         'img',
-        {   src:        vtxPath + 'vo1.png',
+        {   src:        vtxPath + (soundOn ? 'vo1.png' : 'vo0.png'),
             id:         'vobulb',
             display:    'inline-block',
             onclick:    toggleSound,
@@ -4716,10 +4727,10 @@ function initDisplay() {
             title:      'Sound' },
         {   cursor:     'pointer'}));
 
-    // key click on / off
+    // FX on / off
     ctrlDiv.appendChild(domElement(
         'img',
-        {   src:        vtxPath + 'kc1.png',
+        {   src:        vtxPath + (soundClicks ? 'kc1.png' : 'kc0.png'),
             id:         'kcbulb',
             display:    'inline-block',
             onclick:    toggleFX,
@@ -4765,12 +4776,11 @@ function initDisplay() {
     pageDiv.parentNode.appendChild(ctrlDiv);
     
     // add audio element for sound.
-    soundOn = true;
     audioEl = domElement(
         'audio',
         {   id:         'vtxaudio',
             preload:    'none',
-            volume:     '0.25',
+            volume:     (soundOn ? '0.25' : '0.0'),
             src:        '/;' },
         {   width:      '0px',
             height:     '0px' });
@@ -8356,6 +8366,35 @@ function toggleFullScreen() {
         adjustRow(i);
     }
     crsrDraw();
+}
+
+function createCookie(name, val, days) {
+    var 
+        date,
+        expires = "";
+    const
+        MSTODAYS = 24 * 60 * 60 * 1000;
+    if (days) {
+        date = new Date();
+        date.setTime(date.getTime() + (days * MSTODAYS));
+        expires = "; expires=" + date.toUTCString();
+    }
+    document.cookie = name + "=" + val + expires + "; path=/";
+}
+
+function readCookie(name) {
+    var 
+        i, c,
+        nameEQ = name + "=",
+        ca = document.cookie.split(';');
+    for (i = 0; i < ca.length; i++) {
+        c = ca[i];
+        while (c.charAt(0)==' ') 
+            c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) 
+            return c.substring(nameEQ.length, c.length);
+    }
+    return null;
 }
 
 };
