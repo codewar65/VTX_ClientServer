@@ -1,18 +1,32 @@
-VTX Client / Server
-Draft : 10-SEP-2017
 
-Layout
-======
 
-    Page contains zero or more rows of text. Top most 1.
-    Row contains zero or more columns of characters. Left most 1.
-    Characters have individual attributes selected using Set Graphics Rendition (CSI m)
-    Rows have individual attributes selected using CSI [, CSI ], and ESC #.
-    Rows with default size are 80 characters wide.
-    Rows can contain more characters than the width of the row. Characters past the right column are not displayed.
-    Rows with other sizes are smaller or larger but can not guantee true size.
-    If the cursor is at the width of a row, after the next printed character, the cursor will move to the start of tne next row.
+                                                 **********************************  
+                                                 V T X   C l i e n t / S e r v e r
+                                                 **********************************  
 
+                                                         Draft: 10-SEP-2017
+                                                       Revisions: 05-JUL-2018
+                                                     **************************
+                                                     
+                                                     
+ Layout Defaults
+=================
+
+    o Systems operate in a 7bit 80x24 ASCII display, and standard control characters are handled even going into ANSI,
+      AVATAR and GUI mode.
+    o The default background is black, foreground is light grey.
+    o Page contains zero or more rows of text. Top most 1.
+    o Row contains zero or more columns of characters. Left most 1.
+    o In graphical mode, top most is 0, left most is 0.
+    o Characters have individual attributes selected using Set Graphics Rendition (CSI m)
+    o Rows have individual attributes selected using CSI [, CSI ], and ESC #.
+    o Rows with default size are 80 characters wide, unless in graphics mode.
+    o Rows can contain more characters than the width of the row. Characters past the right column are not displayed,
+      unless word-wrap is enabled, then the 81st character for example in non-GUI mode displays as the 1st character
+      on the next row.
+    o Rows with other sizes are smaller or larger but can not guantee true size.
+    o If the cursor is at the width of a row, after the next printed character, the cursor will move to the start of
+      the next row if word-wrap is enabled, otherwise the 81st character forward is not displayed.
 
 Code Definitions
 ================
@@ -55,7 +69,6 @@ Code Definitions
     SPACE   = 0x20
     DEL     = 0x7F
     CSI     = 0x1B 0x5B - control sequence introducer
-    
 
 Sequences (# : to be implemented)
 =================================
@@ -63,11 +76,18 @@ Sequences (# : to be implemented)
     STANDARD ANSI (VTX Extensions marked with #)
     ============================================
 
+Lowercase Command Letter
+========================
+
     CSI n '@' : Insert Character (ICH). Moves text from current posion right n characters. {1}
 
     CSI n 'A' : Cursor Up (CUU). Move cursor up n rows. Stops at top of page. {1}
+                If "ESC [ ? 6 h" has been received since last "ESC [ <var> ; <var> r"
+    then the cursor will not be allowed to move beyond the top of the scrolling region.
 
     CSI n 'B' : Cursor Down (CUD). Move cursor down n rows. {1}
+                If "ESC [ ? 6 h" has been received since last "ESC [ <var> ; <var> r"
+    then the cursor will not be allowed to move beyond the bottom of the scrolling region.
 
     CSI n 'C' : Cursor Forward (CUF). Move cursor n columns right. Stops at right of page. {1}
 
@@ -130,6 +150,10 @@ Sequences (# : to be implemented)
     CSI n 'G' : Cursor Horizontal position Absolute (CHA). Move cursor to column n of current row. {1}
 
     CSI r ; c 'H' : Cursor Position (CP). Move cursor to row r, column c. {1,1}
+                If "ESC [ ? 6 h" has been received since the last "ESC [ <var> ; <var> r"
+    then the cursor will be positioned relative to the scrolling region.
+
+        This will perform exactly the same as "ESC [ <row> ; <col> f".
 
     CSI n 'I' : Cursor Horizontal Tabulation (CHT). Move cursor forward n tab stops. Stops at last tab stop. {1}
 
@@ -146,48 +170,391 @@ Sequences (# : to be implemented)
     CSI n 'L' : Insert Lines (IL). Insert n rows at current row. {1}
 
     CSI n 'M' : Delete Lines (DL). Delete n rows at current row. {1}
+                Some applications implement CSI M to denote ANSI Music. * This is incorrect *
+                
+    CSI = n 'M' : Set ANSI Music Parser
+        0 : will introduce an ANSI music string.
+        1 : and CSI N will introduce an ANSI music string.
+        2 : CSI N, and CSI M will all introduce an ANSI music string.
+	    In this mode, Delete Line will not be available.
+        
+    CSI 'N' <music notes> ^N : ANSI Music Sequence, a substitute to the
+    traditional ANSI music sequence of "ESC [ M" since that sequence has
+    conflicts.
+
+    For complete information on how to use ANSI music, look for the file
+    BBSAMT*.* (BBS ANSI Music Tutor) by Linda Bloom.
+
+    Example:  ESC [ N E 8 G 8 G 8 G 8 F 4 E 8 G 2 ^N    this will belt out
+    the first few notes of "Popeye the Sailor".  "ESC [ N" starts the music
+    sequence and the control-N character finishes.  What's in between are
+    all of the notes and how long each note lasts.  Further details of the
+    music may be provided as specified in BBSAMT.
 
     CSI n 'P' : Delete Character (DCH). Delete n characters at cursor position. {1}
 
     CSI n 'S' : Scroll Up (SU). Scroll up.
+    
+    CSI ? n1 ; n2 'S' : Query Graphics Information
+        If Ps1 is 2, and Ps2 is 1, replies with the graphics screen information in the following
+    format: CSI ? 2 ; 0 ; Px ; Py S
+	    Where Px is the width of the screen in pixels and Py is the height.
 
     CSI n 'T' : Scroll Down (SD). Scroll down.
 
+    CSI n 'U' : Clear the screen with the "normal" attribute and home the cursor.
+                New text will use the previously defined attribute.
+
+                Note that this does the exact same thing as ^L.
+
+    CSI 'V' : Go to previous page.
+    
     CSI n 'X' : Erase Character (ECH). Erase next n characters {1}
+
+    CSI n 'Y' : Delete Lines (DL). Delete n rows at current row. {1}
+                * This alernative to CSI M, to avoid tripping up terminals that have
+                implemented CSI M as ANSI MUSIC.
+
+    CSI ? n 'W' : Set Tab Size
+        5 : Every 8 Characters
 
     CSI n 'Z' : Cursor Back Tab (CBT). Move cursor backwards n tab stops. Stops at left of page {1}
 
-    CSI n 'b' : Repeat last printed character n times. {1}
+    CSI n '`' : Horizontal Position Absolute
+    
+Linux Console Driver
+====================
 
-    CSI n 'c' : Device Attributes. 
-        If n = 0, VTX client will respond CSI '?50;86;84;88c'. {0}
+    Uses SRG colors 0 = black, 1 = red, 2 = green, 3 = brown, 4 = blue, 5 = magenta, 6 = cyan, 7 = white
+
+    CSI 1 ; n ]  : set the color used for the Underline itself
+    CSI 8 ]      : set the current fg/bg color as the default
+    CSI 9 ; n ]  : set the screen timeout in n minutes
+    CSI 10 ; n ] : set the bell to n Hz
+    CSI 11 ; n ] : Set bell duration in n msec.
+    CSI 12 ; n ] : Bring specified console to the front.
+    CSI 13 ]     : Unblank the screen.
+    CSI 14 ; n ] : Set the VESA powerdown interval in minutes.
+    CSI 15 ]     : Bring the previous console to the front (since Linux 2.6.0).
+    CSI 16 ; n ] : Set the cursor blink interval in milliseconds (since Linux 4.2)
+    
+Mouse Position Reply
+====================
+
+   non-GUI mode mouse sequence is 6 characters, and is managed by bits
+
+   CSI M bxy : 
+       0b0000 = Left Mouse Button
+       0b0001 = Center Mouse Button
+       0b0010 = Right Mouse Button
+       0b0011 = Button Release, or No Button Down
+
+       0b0000 = No Keyboard Parameter
+       0b0100 = Shift Key Down
+       0b1000 = Meta Key Down
+       0b1100 = Control Key Down
+
+    x = 0x01 to 0x83 (Column 1 to 132)
+    y = 0x01 to 0x3c (Row 1 to 60)
+    
+    GUI mode mouse sequence is similar, x and y are 3 byte hex, drag is deduced by Left Mouse stays down. Host logic
+    figured out if it is a SELECT or DRAG.
+
+   CSI M bxxxyyy^M : 
+       0b0000 = Left Mouse Button
+       0b0001 = Center Mouse Button
+       0b0010 = Right Mouse Button
+       0b0011 = Button Release, or No Button Down
+
+       0b0000 = No Keyboard Parameter
+       0b0100 = Shift Key Down
+       0b1000 = Meta Key Down
+       0b1100 = Control Key Down
+
+    xxx = 0x000 to 0x720 (Left 0 to 1920)
+    yyy = 0x000 to 0x438 (Top 0 to 1080)
+
+
+Lowercase Command Letter
+========================
+
+    CSI n 'a' : Horizontal Position Relative
+
+    CSI n 'b' : Repeat last printed character n times. {1}
+                * Some terminals use CSI n 'b' as a form of query. For example Banana replies:
+                005 ^M
+                later versions, reply 006, 007 as a way of denoting version. Even later versions
+                append a letter to the version to denote graphical features:
+                j - supports JPEG
+                g - supports GIF
+                p - supports PNG
+                k - supports Kermit
+                x - supports Auto XModem
+                Therefore, you could receive back 0006gjkpx^M meaning all extensions are supported.
+                I propose that we extend it to include these letters also:
+                b - support BinkP
+                c - support CP437
+                e - support EMSI
+                m - support MaxModem (64k XModem)
+                r - support Resume Upload/Download
+                u - support UTF8
+                y - support YModem
+                z - support ZModem
+                8 - support ZedZap 8k
+                * Would be nice to let BBS know if terminal supports 16 color backgound, or
+                256 colors, 65535 colors, true colors, true color by name (orange, gold, black)
+
+    CSI 1 <Row> ; <Col> ; <Wide> ; <High> ; <Att> b
+
+      Color box.  All parameters are optional.  Relative to the scrolling region if one is defined.
+      "ESC [ 1 b" would color the entire screen (or scrolling region, if one is defined) to the
+      current attribute.
+
+      Note that the default for "High" is 24 or the height of the scrolling region if one is defined.
+      Or the default of 240px, 480px, 960px or 1080px in GUI mode.
+
+      Note that "Att" is a HEX number that represents PC text video attributes.
+
+      Examples:
+
+        ESC [ 5 ; 3 0 ; 2 0 ; 1 0 ; 1 6 b
+
+          This would put a blue box on the screen 20 columns wide and 10 lines high with the upper
+          left corner being in position row 5 and column 30.
+
+        ESC [ 5 ; 3 0 b
+
+          This puts a box on the screen colored with the current attribute. The upper left corner
+          is in row 5, column 30 and the lower right corner of the box is in the bottom of the
+          screen (or scrolling region if one is defined) and column 80.
+
+    CSI 2 <Row> ; <Col> ; <Wide> ; <High> ; <Att> b
+
+      Draw box.  Similar to "ESC [ 1 b" except that a single line box is drawn.
+
+    CSI 3 b
+
+      Preserve the screen.  The entire screen (except for the status line at the bottom) is saved.
+
+    CSI 4 b
+
+      Restore a preserved screen.  Whatever the screen looked like before the last "ESC [ 3 b",
+      is how it will look after this escape sequence.
+
+      Note that things like cursor location and current attribute are not saved. Those are managed
+      by another sequence.
+
+    CSI 2 1 b <filename> ^M
+
+      Archive a file.  If the file can be found, it will be moved into a directory called "ARCHIVE"
+      that is a subdirectory of the directory the file is in. If the "ARCHIVE" directory does not exist,
+      it will be created.
+
+    CSI 2 2 b <filename> ^M
+
+      Send filename file CRC32 - this will send the CRC32 of the file followed by a return.
+
+    CSI 2 3 b <filename> ^M
+
+      Send filename file MD5 - this will send the MD5 of the file followed by a return.
+
+    CSI 2 4 b <filename> ^M
+
+      Send filename file SHA1 - this will send the SHA1 of the file followed by a return.
+
+    CSI 3 <id> b <embed_image_like_http> ^M
+
+      Terminal receive the embedded image - does not render yet. ID is 0 through 9.
+
+    CSI 4 0 b : Force terminal to drop DTR wait 3 seconds raise DTR.
+
+    CSI 4 1 b : Force terminal to hang up from the users end.
+
+    CSI 4 2 b : Terminal do spinner at current position '\', '|', '/', '-'.
+
+    CSI 4 3 b : Terminal do spinner at current position #221, #220, #222, #223. (8bit graphical spin)
+
+    CSI 5 <id> b <top> ; <left> ^M
+    
+       Terminal render at 100% scale, inline with text. Text assumes verticle align top. 
+
+    CSI 5 <id> b <top> ; <left> ; <height>; <width> ^M
+    
+       Terminal render at specified height and width, inline with text. Text assumes verticle align top. 
+
+    CSI 6 <id> b ^M
+    
+       Terminal render as background to terminal. Cursor position does not change, just swap out the background
+       for image <id>. If image smaller than background - assume background should stretch width and height until
+       the full background is covered. One special rule, if <id> is 0 and smaller, then it is tiled not stretched.
+
+    CSI 6 <id> b <top> ; <left> ^M
+    
+       Terminal render at 100% scale as background to text. Text assumes verticle align top left and wraps
+       accordingly.
+       
+    CSI 7 b <jsonrpc 2.0 request>^M
+    
+       Request: {"jsonrpc":"2.0","request":"method_name","id":sequential_#}
+       
+       The following method names must be supported by both the host and the client applications:
+       
+       "api"       : Request for a list of APIs (methods and parameters)
+       "timestamp" : Requests for the other end to return the unix timestamp for now.
+                     This can be used for the other end to know what timezone different is.
+       
+       
+    CSI 8 b <jsonrpc 2.0 response>^M
+    
+       Response: {"jsonrpc":"2.0","response":"result(s)","id":same_sequential_#}
+       If Error: {"jsonrpc":"2.0","error":{"code":-32000,"message":"system too busy"},"id":same_sequential_#}
+       
+     code 	message 	meaning
+    ==========================================================
+    -32700 				Parse error 		Invalid JSON was received by the server.
+                            				An error occurred on the server while parsing the JSON text.
+    -32600 				Invalid Request 	The JSON sent is not a valid Request object.
+    -32601 				Method not found 	The method does not exist / is not available.
+    -32602 				Invalid params 		Invalid method parameter(s).
+    -32603 				Internal error 		Internal JSON-RPC error.
+    -32000 to -32099 	Server error 		Reserved for implementation-defined server-errors.
+    
+    Rhenium BBS utilizes these two JSON-RPC calls extensively. Rhenium BBS includes both the host and client
+    application. The client understands and renders all ANSI codes found in this document, especially the CSI b
+    command sent * Originally introduced in the mid-1990's in a terminal called BananaCom. Since the client
+    operates as an extension to the host, the requests and responses can flow both ways.
+
+    CSI 9 1 b : Start a Kermit download.
+
+    CSI 9 2 b : Start a Kermit upload.
+
+    CSI 9 3 b <filename> ^M
+
+      Start an XModem download (filename is optional).
+
+    CSI 9 4 b : Start an XModem upload.
+
+    CSI 9 5 b <M_FILE Char><space><filename><space><unix_timestamp_of_file_creation><space><file_size_bytes><space><crc32>^M
+
+        Start a BinkP download, the data stream starts instantly. Due to BinkP design, you can still navigate and
+    interact with the host (BBS). BinkP also supports concurrent uploading and downloading.
+    
+    CSI 9 6 b <M_FILE Char><space><filename><space><unix_timestamp_of_file_creation><space><file_size_bytes><space><crc32>^M 
+
+        Start a BinkP upload, the data stream starts instantly. Due to BinkP design, you can still navigate and
+    interact with the host (BBS). BinkP also supports concurrent uploading and downloading.
+
+    CSI n 'c' : Device Attributes. {0}
+        If n = 0, VTX client will respond CSI '?50;86;84;88c'.
+        If n = 0, CTerm client will respond CSI '=67;84;101;114;109;pN c'.
+        Pn is CVS revision ID with dots converted to semi-colons e.g 1;156.
+
+    CSI 'c' : is known as a VT100 query, sending back "CSI ? 1 ; 0 c", that seems to keep everything happy.
+       Answer: ESC [ ? 6 c: "I am a VT102"
+
+    CSI < ; n 'c' : CSI < 0 ; n 'c'
+	Possible values for n:
+	1 - Loadable fonts are availabe via Device Control Strings
+	2 - Palette entries may be modified via an Operating System Command
+	    string
+	3 - Pixel operations are supported (currently, sixel graphics)
+	4 - The current font may be selected via CSI Ps1 ; Ps2 sp D
+	5 - More than the standard 16 colours may by configured via
+	    Operating System Command strings
+
+    CSI n 'd' : Linux Kernel - Move cursor to the indicated row, current column.
+    
+    CSI n 'e' : Linux Kernel - Move cursor down the indicated # of rows.
 
     CSI r ; c 'f' : Horizontal and Vertical Position. Same as CUP. {1,1}
 
+    CSI 'g' : See VT100 manual for details.
+
+    CSI n 'g' : Remove Tab Positions
+       nil,0 : remove current tab position
+       1 : remove all tab positions to the left of the cursor
+       2 : remove all tab positions to the right of the cursor
+       3 : remove all tab positions
+       
+    CSI n 'h' : Mode Switch
+       3 : Display escape swquences (toggle)
+       4 : Insert mode off (toggle)
+       20 : Automatically follow echo of LF, VT or FF with CR.
+       
     CSI n 'h' : Set Mode (SM).
         n = '?50' : turns on VTX ANSI mode. #
-            '?6' : 1,1=ul of scrolling region
-            '?7' : auto wrap on
-            '?25' : cursor on
+            '?3'  : show escape sequences
+            '?3'  : also known as set to 132 column width in ASCII/ANSI mode
+            '?4'  : enable smooth scrolling
+            '?6'  : 1,1=ul of scrolling region
+            '?7'  : auto wrap on - * default on *
+            '?9'  : Enable sending mouse position
+            '?16'  : left justify
+            '?17'  : right justify
+            '?18' : center justify
+            '?19' : full justify
+            '?20' : new line feed
+            '?25' : cursor show/visible
             '?31' : bold uses font 1
-            '?32' : bold disabled
-            '?33' : blink = bright background
-            '?34' : blink uses font 2
+            '?32' : bold disabled, Bright Intensity Disable
+	     This makes the bright intensity bit not control the intensity. Mostly for use with CSI ? 31 h to
+         permit fonts in the same colors. 
+            '?33' : blink = bright background, Blink to Bright Intensity Background
+	     With this mode set, the blink (5,6) graphic renditions cause the background color to be high
+         intensity rather than causing blink.
+            '?34' : blink uses font 2, or reset right-to-left mode, Enable blink alt character set
+	     With this mode set, the blink (5, 6) graphic renditions selects characters from an alternate
+         character set.
+            '?80' : Sixel Scrolling Enabled
+	     When this is set, the sixel active position begins in the upper-left corner of the currently
+         active text position. When the sixel active position reaches the bottom of the page, the page
+         is scrolled up.  At the end of the sixel string, a sixel newline is appended, and the current
+         cursor position is the one in which the bottom sixel is in.
             '?35' : blink disabled
-            '=255' : DOORWAY mode on.
+            '?95' : do not clear on column change
+            '?96' : reset right-to-left copy
+            '?98' : enable reset 
+            '=255' : DOORWAY mode on
+            '?1000' : Enable sending GUI mouse position (pixel)
 
+    CSI n 'i' : Print stuff
+        5 : redirect everything coming in through the modem to the printer. If not printer found, spoll to disk
+            as "PRINTER.LPT".
+        4 : redirect everything coming in back to the screen.
+    
     CSI n 'l' : Reset Mode (RM).
         n = '?50' : turns off VTX ANSI mode. #
             '?51' : Teletext burst mode - ESC to return to ANSI mode.
                 render 7-bit codes once in mode to teletext display output.
-            '?6' : 1,1=ul of scrolling region
-            '?7' : auto wrap off
+            '?3'  : interpret escape sequences
+            '?3'  : also known as reset to 80 column width in ASCII/ANSI mode
+            '?4'  : switch to jump scrolling
+            '?6'  : 1,1=ul of scrolling region
+            '?7'  : auto wrap off
+            '?9'  : Disable reporting Mouse Position
+            '?16'  : back to default (right to left, or left to right)
+            '?20' : reset line feed
             '?25' : cursor hide
-            '?31' : bold uses font 0
-            '?32' : bold enabled
-            '?33' : blink = bright background off
-            '?34' : blink uses font 0
-            '?35' : blink enabled
+            '?31' : bold uses font 0, Disable bright alt character set
+	     With this mode reset, the bright (1) graphic rendition does not select an alternative font.
+            '?32' : bold enabled, Bright Intensity Enable
+         When reset, bright intensity graphics rendition behaves normally.
+            '?33' : blink = bright background off, Disable Blink to Bright Intensity Background
+	     With this mode set, the blink (5,6) graphic renditions do not affect the background color.
+            '?34' : blink uses font 0, or set right-to-left mode, Disable blink alt character set
+	     With this mode reset, the blink (5, 6) graphic renditions do not select characters from
+         an alternate character set.
+            '?35' : blink enabled, Blink Enable
+	     With this mode reset, the blink (5,6) graphic renditions behave normally (cause the
+         characters to blink)
+            '?80' : Sixel Scrolling Disabled
+	     When this is reset, the sixel active position begins in the upper-left corner of the page.
+         Any commands that attempt to advance the sixel position past the bottom of the page are
+	     ignored. At the end of the sixel string, the current cursor position is unchanged from where
+         it was when the sixel string started.
+            '?95' : clear screen on column change
+            '?96' : enable right-to-left copy
+            '?98' : disable reset
             '=255' : DOORWAY mode off.
         
     CSI n [ ; ... ] 'm' : Set Graphics Rendition (SGR). zero or more of: {0}
@@ -234,19 +601,29 @@ Sequences (# : to be implemented)
         47 : White (gray) background color.
         48;5;n : Set background color from palette (0-255). {0}
         49 : Reset background color to default.
-        50 : n/a
+        50 : DOS 80x24 Font Orientation (all row, column are fixed font based - e.g. normal ASCII)
+        51 : CGA 340x240 Pixel Orientation (all row, column are single pixel calculations - GUI)
+        52 : EGA 640x480 Pixel Orientation (all row, column are single pixel calculations - GUI)
+        53 : VGA 1280x960 Pixel Orientation (all row, column are single pixel calculations - GUI)
+        54 : HDMI 1920x1080 Pixel Orientation (all row, column are single pixel calculations - GUI)
+        55;n : 1 = Full Screen (Maximize or larger), 0 = Restore/Normal
         56 : Doublestrike on. #
         57 : Shadow on. #
         58 : top half on.
         59 : bottom half on.
         70 : n/a
+        71 : Draw Screen (Usually Lock, Build Components, Unlock) or call Draw Screen (may flicker)
+        72 : Lock Video (this is good for populating a GUI form, then Unlock to appear instantly!)
+        73 : Unlock Video (bring Double Buffer to Current Display)
+        74 : Double Buffer on (Draw off screen then Render)
+        75 : Double Buffer off (Direct Video to Current Display)
         76 : Doublestrike off. #
         77 : Shadow off. #
         78 : top half off - revert to normal
         79 : bottom half off - revert to normal
         80 : Select Teletext Block Mosaic font. (use 10 to return to default) #
         81 : Select Teletext Separated Block Mosaic font. (use 10 to return to default) #
-        82-85: resered for future intrinsic fonts. (use 10 to return to default) #
+        82-85: reserved for future intrinsic fonts. (use 10 to return to default) #
         90 : High intensity black foreground color.
         91 : High intensity red foreground color.
         92 : High intensity green foreground color.
@@ -265,9 +642,65 @@ Sequences (# : to be implemented)
         107 : High intensity white background color.
 
     CSI n 'n' : Device Status Report. {0}
-        n = 5 : Replies with CSI 0 n.
+        n = 5 : Replies with CSI 0 'n'. (Means Terminal OK)
             6 : Request cursor position. Reply is CSI r ';' c 'R'.
-          255 : Replay with CSI r ';' c 'R' with console size.
+          255 : Requert screen size. Reply is CSI r ';' c 'R'.
+
+    CSI = n 'n' : State/Mode Request/Report, Default: n = 1
+
+	When n is 1, CTerm will respond with a Font State Report of the form
+        CSI = 1 ;pF ;pR ;pS0 ;pS1 ;pS2 ;pS3 n
+	pF is the first available loadable-font slot number
+	pR is the result of the previous "Font Selection" request:
+		0 = successful font selection
+		1 = failed font selection
+		99 = no font selection request has been received
+	pS0 - pS3 contain the font slots numbers of previously successful
+	"Font Selection" requests into the 4 available alternate-font
+	style/attribute values:
+		pS0 - normal attribute font slot
+		PS1 - high intensity foreground attribute font slot
+		PS2 - blink attribute font slot
+		PS3 - high intensity blink attribute font slot
+
+	When Ps is 2, CTerm will respond with a Mode Report of the form
+	CSI = 2[;pN [;pN] [...]] n
+	Where pN represent zero or more mode values set previously
+	(e.g. via CSI ? pN h).	Mode values cleared (disabled via CSI ? pN l)
+	will not be included in the set of values returned in the Mode
+	Report.  If no modes are currently set, an empty parameter will be
+	included as the first and only pN.
+    
+    CSI 'p' : Assign Macros to Keystrokes
+    
+    CSI n 'p' : Set Language
+       0,1 : English
+       2 : French
+       3 : German
+       4 : Spanish
+       5 : Italian
+    
+    CSI n <space> 'p' : Set scrolling speed
+       nil,0,1,2,3 : Slow Scroll
+       4,5,6,7,8   : Fast Scroll
+       9           : Jump
+       
+    CSI n 'q' : Toggle Keyboard Lights
+        0 : All lights off (this includes disable CAPS, NUMLOCK, etc)
+        1 : CAPS on
+        2 : CAPS off
+        3 : NUMLOCK on
+        4 : NUMLOCK off
+        5 : SCROLL LOCK on
+        6 : SCROLL LOCK off
+        7,8 : Reserved
+        9 : All lights on (this includes enable CAPS, NUMLOCK, SCROLL LOCK)
+        
+    CSI n <space> 'q' : Set Cursor Style
+       nil,0,1 : Blinking Block
+       2 : Steady (not blinking)
+       3 : Blinking Underline
+       4 : Steady Underline (not blinking)
 
     CSI p1 ; p2 '*r' : Baud rate emulation.
         p1 : nil,0,1 = host transmit, 2=host recieve, 3=printer, 4=modem hi, 5=modem lo
@@ -277,16 +710,69 @@ Sequences (# : to be implemented)
         t = top row number
         b = bottom row number
 
-    CSI s : Save cursor position.
-    CSI u : Restore cursor position.
+    CSI t ; b 'r' : Also knows as set TOP and BOTTOM margin in "print" mode
+
+    CSI t ; b ; l ; r 'r' : Set scroll region (DECSTBM2).
+        t = top row number
+        b = bottom row number
+        l = left column number
+        r = right column number
+
+    CSI 's' : Save cursor position.
+    
+    CSI <left> ; <right> 's' : Set left and right margin
+       <left> : Default is 1 in ASCII mode, 8 in GUI mode
+       <right> : Default is 80 or 132 in ASCII mode, or width-16 in GUI mode
+       
+    CSI ? n 's' : Save Mode Setting
+	SyncTerm saves the current mode states as specified by CSI ? l and CSI ? h.  If n is omitted, saves al
+    such states.  If one or more values of n is included, saves only the specified states (arguments to CSI ? l/h).
+    
+    CSI n; n1; n2; n3 't' : Select a 24-bit colour
+	If n is 0, sets the background color.
+	If n is 1, sets the foreground color.
+	n1, n2, n3 contains the RGB (Red 0 to 255, Green 0 to 255 and Blue 0 to 255) value to set.
+	CTerm handles this with an internal temporary palette, so scrollback may not have the correct color(s). The
+    internal palette is large enough for all cells in a non-GUI 132 columns x 60 rows screen to have unique foreground
+	and background colours though, so the current screen should always be as expected.
+    
+    CSI 'u' : Restore cursor position.
+    
+    CSI ? n 'u' : Restore Mode Setting
+	SyncTerm restores the current mode states as specified by CSI ? l and CSI ? h. If n is omitted, restores all
+    such states. If one or more values of n is included, restores all the specified states (arguments to CSI ? l/h)
+
+    CSI 'y' : VT100 Support Test
+    CSI 'z' : Some software this means Reset terminal. (modes, default attributes, etc).
+
+ESCape Sequences
+================
 
     ESC '7' : Save crsr pos and attrs
     ESC '8' : Restore crsr pos and attrs
     ESC 'D' : - Scroll up 1 row
     ESC 'E' : - Move to next row
     ESC 'M' : - Scroll down 1 row
+    ESC 'H' : Set tab stop at current column.
+    ESC 'Z' : private identification. The kernel returns the string  ESC [ ? 6 c, claiming that it is a VT102.
+        XTerm replies ESC [ ? 1 ; 2 c, "I am a VT100 with advanced video option"
     ESC 'c' : - Reset terminal. (modes, default attributes to default).
     
+    ESC % '@' : Select default CP437 (ISO 8859-1)
+    ESC % 'G' : Select UTF-8
+    
+    ESC ( 'B' : Select default (ISO 8859-1 mapping)
+    ESC ( '0' : Select VT100 graphics mapping
+    ESC ( 'U' : Select null mapping - straight to character ROM
+    ESC ( 'K' : Select user mapping - the map that is loaded by the utility mapscrn(8).
+    
+    ESC > : Set NUMLOCK on
+    ESC = : Set NUMLOCK off
+    ESC < : Set CAPS on
+    ESC - : Set CAPS off
+    ESC + : Set SCROLL LOCK on
+    ESC _ : Set SCROLL LOCK off
+
     ESC '#' n : Set Row Attributes.
         n=  0 : Reset all row attributes (size and background.) #
             1 : single wide / double high - top half (as with BBC Micro) #
@@ -297,7 +783,6 @@ Sequences (# : to be implemented)
             6 : double wide / single high
             7 : Row Marquee off #
             8 : Row Marquee on #
-    
 
     VTX MEDIA COMMANDS  CSI _
     SPRITE COMMANDS CSI 0 ... _
@@ -366,7 +851,9 @@ Sequences (# : to be implemented)
             can optionally mouseover highlight this region if l is 1.
         t : type. 0=string, 1=url
         w : width in default text size columns. {1}
+            320px, 540px, 1280px, 1920px in GUI mode.
         h : height in default text size rows. {1}
+            240px, 480px, 960px, 1080px in GUI mode.
         l : highlight? 0=no, 1=yes. {0}
         a : unicode ascii value of character in string to send.
 
@@ -401,72 +888,268 @@ Sequences (# : to be implemented)
         text on a colored background appears as text on black, not the row background.)
         c1 : Color 1 (0-255) {0}
         c2 : Color 2 (0-255) {0}
-        s : Style. 0=none, 1=solid color 1, 2=horizontal gradient, 3=vertical gradient. {0}
+        s  : Style. 0=none, 1=solid color 1, 2=horizontal gradient, 3=vertical gradient. {0}
 
-        
+VT510 and HP Sequences
+======================
+
+   ESC l : Lock Video Memory aka Freeze lines above cursor
    
+   ESC m : Unlock Video Memory
+
+   ESC D : Index
+   
+   ESC E : Next Line
+   
+   ESC F : Cursor to lower left corner
+   
+   ESC H : Horizontal Tab
+   
+   ESC M : Reverse Index
+   
+   ESC N : Single Shift 2
+   
+   ESC O : Single Shift 3
+   
+   ESC P : Device Control String. Begins a string consisting of the characters 0x08 - 0x0d and
+	0x20-0x7e, terminated by a String Terminator (ST)
+	Supported OSC values:
+		"CTerm:Font:p1:<b64>"
+		Indicates the string is a loadable font. (CTerm 1.213)
+
+		p1 is a font slot number, which must be higher than the last
+		default defined font (See CSI sp D for list of predefined
+		fonts). <b64> is the base64 encoded font data.  Font size is
+		deduced from the size of the data.  This replaces the now
+		deprecated CSI = Ps1 ; Ps2 {
+
+		[ p1 [ ; p2 ] ] q
+		Defaults:  p1 = 0  p2 = 0
+		Indicates the string is a sixel sequence.
+
+		p1 selects the vertical height of a single pixel.  This
+		may be overridden by the raster attributes command, and
+		is deprecated.  Supported values
+		
+			Value      Vertical Size
+			-----      -------------
+			0,1,5,6    2 pixels
+			2          5 pixels
+			3,4        3 pixels
+			7,8,9      1 pixel
+
+		p2 indicates if unset sixels should be set to the current
+		background colour.  If p2 is 1, positions specified as 0
+		remain at their current colour.
+
+		Any additional parameters are ignored.
+
+		The rest of the string is made up of sixel data characters and
+		sixel control functions.  Sixel data characters are in the
+		rage of '?' (0x3f) to '~' (0x7e).  Each sixel data character
+		represents six vertical pixels.  The data is extracted by
+		subtracting 0x3f from the ASCII value of the character.
+		The least significant bit is the topmost pixel.
+
+                Sixel Control Functions
+                ! Pn X
+			Graphics Repeat Introducer
+			The character X is repeated Pn times.
+		" p1 ; p2 [ ; p3 [ ; p4 ] ]
+			Raster Attributes
+			p1 indicates the vertical size in pixels of each
+			sixel.  p2 indicates the horizontal size in pixels.
+			p3 and p4 define the height and width (in sixels)
+			respectively of a block to fill with the background
+			colour.  This block may not extend past the current
+			bottom of the screen.  If any pixel data characters
+			proceed this command, it is ignored.
+		# p1
+			Colour Select
+			Selects the current foreground colour from the
+			sixel palette.
+		# p1 ; p2 ; p3 ; p4 ; p5
+			Palette map
+			Defines sixel palette entry p1 and sets it as the
+			current foreground colour.  p2 specifies the colour
+			space to define the colour in, the only supported
+			value is 2.  p3, p4, and p5 specify the red, green,
+			and blue content as a percentage (0-100).
+		$
+			Graphics Carriage Return
+			Returns the active position to the left border of
+			the same sixel row.  Generally, one pass per colour
+			is used.  In passes after the first one, sixels
+			with a value of zero are not overwritten with the
+			background colour.
+		-
+			Graphics New Line
+			Moves the active position to the left border of the
+			next sixel row.
+   
+   ESC X : Start of String
+   
+   ESC Z : VT Identification
+   
+   ESC [ : Control Sequence Introducer
+   
+   ESC \ : String Terminator
+   
+   ESC ] : Operating System Command. Begins a string consisting of the characters 0x08 - 0x0d and
+	0x20-0x7e, terminated by a String Terminator (ESC \)
+	Supported OSC values:
+		4;(pX;pY)...
+		Specifies one or more palette redefinitions.
+		pX is the palette index, and pY is the colour definition
+		Color format:
+			rgb:R/G/B
+			Where R, G, and B are a sequence of one to four
+			hex digits representing the value of the
+			red, green, and blue channels respectively.
+
+		SOURCE: xterm
+
+		104 [ ; Ps ... ]
+		Resets palette entry to default.  If the entire string
+		is "104", resets all colours.  Otherwise, only each index
+		separated by a semicolon is reset.
+
+		SOURCE: xterm
+   
+   ESC ] P nrrggbb : Adjust Palette. n is 0 to 15 (16 color palette only).
+   
+   Use this to override the color for each of the 16 colors that the author of the terminal program is
+   using with what you think is more acurate, or totally override for different colors. For example, palette
+   6 is normally OLIVE, you can adjust the rrggbb (in hex) to offer ORANGE or BROWN instead of OLIVE.
+   
+   ESC ] R : Reset to author default colors.
+   
+   ESC ^ : Private Message. Begins a string consisting of the characters 0x08 - 0x0d and
+	0x20-0x7e, terminated by a String Terminator (ESC \).
+   
+   ESC _ : Application Program. Begins a string consisting of the characters 0x08 - 0x0d and
+	0x20-0x7e, terminated by a String Terminator (ESC \).
+
+   ESC ] 0 ; txt ESC \      : Set icon name and window title to txt.
+   ESC ] 1 ; txt ESC \      : Set icon name to txt.
+   ESC ] 2 ; txt ESC \      : Set window title to txt.
+   ESC ] 4 ; num; txt ESC \ : Set ANSI color num to txt.
+   ESC ] 10 ; txt ESC \     : Set dynamic text color to txt.
+   ESC ] 4 6 ; name ESC \   : Change log file to name (normally disabled by a compile-time option)
+   ESC ] 5 0 ; fn ESC \     :  Set font to fn.
 
 Keyboard Mapping
 ================
 
-    These are the codes sent to the server from a VTX client terminal. *
-    * Keys not listed are normally reserved by operating systems and web browsers for special
-    function.
+    These are the codes sent to the server from a VTX client terminal. * * Keys not listed are normally
+    reserved by operating systems and web browsers for special function.
 
     Normal keys send single ASCII value.
 
-    Special Key     Sent Code
-    --------------- --------------------
-    Backspace       '\x08'
-    Tab             '\x09'
-    Enter           '\x0D'
-    Escape          '\x1B'
-    Space           ' '
-    Shift Space     '\xA0'
-    PageUp          CSI 'V'
-    PageDn          CSI 'U'
-    End             CSI 'K'
-    Home            CSI 'H'
-    Left            CSI 'D'
-    Up              CSI 'A'
-    Right           CSI 'C'
-    Down            CSI 'B'
-    Insert          CSI '@'
-    Delete          '\x7F'
-    Control A       '\x01'
-    Control B       '\x02'
-    Control D       '\x04'
-    Control E       '\x05'
-    Control F       '\x06'
-    Control G       '\x07'
-    Control H       '\x08'
-    Control I       '\x09'
-    Control J       '\x0A'
-    Control K       '\x0B'
-    Control L       '\x0C'
-    Control M       '\x0D'
-    Control O       '\x0F'
-    Control P       '\x10'
-    Control Q       '\x11'
-    Control R       '\x12'
-    Control S       '\x13'
-    Control U       '\x15'
-    Control X       '\x18'
-    Control Y       '\x19'
-    Control Z       '\x1A'
-    F1              ESC 'OP'
-    F2              ESC 'OQ'
-    F3              ESC 'OR'
-    F4              ESC 'OS'
-    F5              ESC 'Ot'
-    F6              CSI '17~'
-    F7              CSI '18~'
-    F8              CSI '19~'
-    F9              CSI '20~'
-    F10             CSI '21~'
-    F11             CSI '23~'
-    F12             CSI '24~'
+    Special Key      Sent Code
+    ---------------  --------------------
+    Backspace        '\x08'
+    Tab              '\x09'
+    Enter            '\x0D'
+    Escape           '\x1B'
+    Space            ' '
+    Shift Space      '\xA0'
+    PageUp           CSI 'V'
+    PageDn           CSI 'U'
+    End              CSI 'K'
+    Home             CSI 'H'
+    Left             CSI 'D'
+    Up               CSI 'A'
+    Right            CSI 'C'
+    Down             CSI 'B'
+    Insert           CSI '@'
+    Delete           '\x7F'
+    Control Spacebar '\x00'
+    Control A        '\x01'
+    Control B        '\x02'
+    Control C        '\x03'
+    Control D        '\x04'
+    Control E        '\x05'
+    Control F        '\x06'
+    Control G        '\x07'
+    Control H        '\x08'
+    Control I        '\x09'
+    Control J        '\x0A'
+    Control K        '\x0B'
+    Control L        '\x0C'
+    Control M        '\x0D'
+    Control N        '\x0E'
+    Control O        '\x0F'
+    Control P        '\x10'
+    Control Q        '\x11'
+    Control R        '\x12'
+    Control S        '\x13'
+    Control T        '\x14'
+    Control U        '\x15'
+    Control V        '\x16'
+    Control W        '\x17'
+    Control X        '\x18'
+    Control Y        '\x19'
+    Control Z        '\x1A'
+    F1               ESC 'OP'
+    F2               ESC 'OQ'
+    F3               ESC 'OR'
+    F4               ESC 'OS'
+    F5               ESC 'Ot'
+    F6               CSI '17~'
+    F7               CSI '18~'
+    F8               CSI '19~'
+    F9               CSI '20~'
+    F10              CSI '21~'
+    F11              CSI '23~'
+    F12              CSI '24~'
 
+    Keystroke             Sent          Doorway mode
+    =====================================================
+    left arrow key        ESC [ D         NULL 75
+    right arrow key       ESC [ C         NULL 77
+    up arrow key          ESC [ A         NULL 72
+    down arrow key        ESC [ B         NULL 80
+    home key              ESC [ H         NULL 71
+    end key               ESC [ K         NULL 79
+    ^home key             ESC [ L         NULL 119
+    ^page up              ESC [ M         NULL 132
+    
+    F1 key                ESC O P         NULL 59
+    F2 key                ESC O Q         NULL 60
+    F3 key                ESC O w         NULL 61
+    F4 key                ESC O x         NULL 62
+    
+    Alone        Shift         Ctrl         Alt
+    =====================================================
+    F1                 NULL  84     NULL  94     NULL 104
+    F2                 NULL  85     NULL  95     NULL 105
+    F3                 NULL  86     NULL  96     NULL 106
+    F4                 NULL  87     NULL  97     NULL 107
+    F5    NULL  63     NULL  88     NULL  98     NULL 108
+    F6    NULL  64     NULL  89     NULL  99     NULL 109
+    F7    NULL  65     NULL  90     NULL 100     NULL 110
+    F8    NULL  66     NULL  91     NULL 101     NULL 111
+    F9    NULL  67     NULL  92     NULL 102     NULL 112
+    F10   NULL  68     NULL  93     NULL 103     NULL 113
+    
+    Some com programs use the Page Up and Page Down keys to initiate a file
+   transfer although this seems to be changing - these keys are of great
+   use to BBS's.
+
+        Page Up           NULL  73
+        Page Down         NULL  81
+        Insert            NULL  82
+
+   Note that when you press control-page-down with some terminal programs,
+   they send   ESC [ H ESC [ 2 J   and a lot of BBS's simply ignore that.
+
+        ctrl-page-down    NULL 118
+        ctrl-end          NULL 117
+        ctrl-left-arrow   NULL 115
+        ctrl-right-arrow  NULL 116
+        shift-tab         NULL 15
+    
     PETSCII terminal type keys:
 
     Key             CBM Equivalent
@@ -548,3 +1231,5 @@ Colors
 
     PETSCII colors are same as system referenced to by the CodePages
     VIC20, C64, or C128
+    
+List of XTerm patches (many more sequences) http://invisible-island.net/xterm/xterm.log.html
