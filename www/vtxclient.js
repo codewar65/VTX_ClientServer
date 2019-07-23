@@ -1,6 +1,6 @@
 /*
 
-  Copyright (c) 2017, Daniel Mecklenburg Jr.
+  Copyright (c) 2017, 2019 Daniel Mecklenburg Jr.
   All rights reserved.
 
   Redistribution and use in source and binary forms, with or without
@@ -38,8 +38,8 @@
 
         bbbbbbbb BBBBBBBB
 
-        b : border color
-        B : background color
+        b : border color (0-255)
+        B : background color (0-255)
 
     ROWATTR - numbers stored in conRowAttr[num]
 
@@ -73,12 +73,10 @@
     CELLATTRS - numbers stored in conCellAttr[row][col]
 
         00000000 00000000 00000000 00000000 - bits
-        ZZZZdsDD fKktuibr BBBBBBBB FFFFFFFF
+        00000000 00000000 dsfKktui brDDZZZZ
 
-        00000000 00001000 00000010 11111111
-
-        F : Foreground Color (0-255) using aixterm palette
-        B : Background Color (0-255)  -''-
+        Z : font number 0-15 (10=teletext, 11=w/block, 12=w/separated block).
+        D : display (0=normal,1=concealed,2=tophalf,3=bottomhalf)
         r : reversed (0-1)
         b : bold (0-1)
         i : italics (0-1)
@@ -87,10 +85,8 @@
         k : blink slow (0-1)
         K : blink fast (0-1)
         f : faint (0-1)
-        D : display (0=normal,1=concealed,2=tophalf,3=bottomhalf)
         s : shadow (0-1)
         d : doublestrike (0-1)
-        Z : font number 0-15 (10=teletext, 11=w/block, 12=w/separated block).
 
     CRSRATTRS
 
@@ -118,7 +114,7 @@ vtx: {
 
 // globals
 const
-    version = '0.93c beta',
+    version = '0.94 beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -200,24 +196,30 @@ const
     b64 =   'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=',
 
     // attributes
-    A_CELL_FGCOLOR_MASK     = 0x000000FF,
-    A_CELL_BGCOLOR_MASK     = 0x0000FF00,
-    A_CELL_REVERSE          = 0x00010000,
-    A_CELL_BOLD             = 0x00020000,
-    A_CELL_ITALICS          = 0x00040000,
-    A_CELL_UNDERLINE        = 0x00080000,
-    A_CELL_STRIKETHROUGH    = 0x00100000,
-    A_CELL_BLINKSLOW        = 0x00200000,
-    A_CELL_BLINKFAST        = 0x00400000,
-    A_CELL_FAINT            = 0x00800000,
-    A_CELL_DISPLAY_MASK     = 0x03000000,
-    A_CELL_DISPLAY_NORMAL   = 0x00000000,
-    A_CELL_DISPLAY_CONCEAL  = 0x01000000,
-    A_CELL_DISPLAY_TOP      = 0x02000000,
-    A_CELL_DISPLAY_BOTTOM   = 0x03000000,
-    A_CELL_SHADOW           = 0x04000000,
-    A_CELL_DOUBLESTRIKE          = 0x08000000,
-    A_CELL_FONT_MASK        = 0xF0000000,
+    // separate colors from attributes array.
+    // introduce two new arrays for colors.
+    FG_CELL_COLOR   = 0x000FFFFFF,
+    FG_CELL_24BIT   = 0x001000000,
+
+    BG_CELL_COLOR   = 0x000FFFFFF,
+    BG_CELL_24BIT   = 0x001000000,
+
+    A_CELL_FONT            = 0x0000000F,
+    A_CELL_DISPLAY_MASK    = 0x00000030,
+    A_CELL_DISPLAY_NORMAL  = 0x00000000,
+    A_CELL_DISPLAY_CONCEAL = 0x00000010,
+    A_CELL_DISPLAY_TOP     = 0x00000020,
+    A_CELL_DISPLAY_BOTTOM  = 0x00000030,
+    A_CELL_REVERSE         = 0x00000040,
+    A_CELL_BOLD            = 0x00000080,
+    A_CELL_ITALICS         = 0x00000100,
+    A_CELL_UNDERLINE       = 0x00000200,
+    A_CELL_STRIKETHROUGH   = 0x00000400,
+    A_CELL_BLINKSLOW       = 0x00000800,
+    A_CELL_BLINKFAST       = 0x00001000,
+    A_CELL_FAINT           = 0x00002000,
+    A_CELL_SHADOW          = 0x00004000,
+    A_CELL_DOUBLESTRIKE    = 0x00008000,
 
     A_ROW_COLOR1_MASK       = 0x000000FF, // 0-255
     A_ROW_COLOR2_MASK       = 0x0000FF00, // 0-255
@@ -1298,109 +1300,109 @@ const
             0x0406, 0x0456, 0x00b7, 0x00a4, 0x0490, 0x0491, 0x2219, 0x00a0]),
 
         CP862: new Uint16Array([    //) / CP 862, CP916 - hebrew
-            0x05D0, 0x05D1, 0x05D2, 0x05D3, 0x05D4, 0x05D5, 0x05D6, 0x05D7, 
-            0x05D8, 0x05D9, 0x05DA, 0x05DB, 0x05DC, 0x05DD, 0x05DE, 0x05DF, 
-            0x05E0, 0x05E1, 0x05E2, 0x05E3, 0x05E4, 0x05E5, 0x05E6, 0x05E7, 
-            0x05E8, 0x05E9, 0x05EA, 0x00A2, 0x00A3, 0x00A5, 0x20A7, 0x0192, 
-            0x00E1, 0x00ED, 0x00F3, 0x00FA, 0x00F1, 0x00D1, 0x00AA, 0x00BA, 
-            0x00BF, 0x2310, 0x00AC, 0x00BD, 0x00BC, 0x00A1, 0x00AB, 0x00BB, 
-            0x2591, 0x2592, 0x2593, 0x2502, 0x2524, 0x2561, 0x2562, 0x2556, 
-            0x2555, 0x2563, 0x2551, 0x2557, 0x255D, 0x255C, 0x255B, 0x2510, 
-            0x2514, 0x2534, 0x252C, 0x251C, 0x2500, 0x253C, 0x255E, 0x255F, 
-            0x255A, 0x2554, 0x2569, 0x2566, 0x2560, 0x2550, 0x256C, 0x2567, 
-            0x2568, 0x2564, 0x2565, 0x2559, 0x2558, 0x2552, 0x2553, 0x256B, 
-            0x256A, 0x2518, 0x250C, 0x2588, 0x2584, 0x258C, 0x2590, 0x2580, 
-            0x03B1, 0x00DF, 0x0393, 0x03C0, 0x03A3, 0x03C3, 0x00B5, 0x03C4, 
-            0x03A6, 0x0398, 0x03A9, 0x03B4, 0x221E, 0x03C6, 0x03B5, 0x2229, 
-            0x2261, 0x00B1, 0x2265, 0x2264, 0x2320, 0x2321, 0x00F7, 0x2248, 
+            0x05D0, 0x05D1, 0x05D2, 0x05D3, 0x05D4, 0x05D5, 0x05D6, 0x05D7,
+            0x05D8, 0x05D9, 0x05DA, 0x05DB, 0x05DC, 0x05DD, 0x05DE, 0x05DF,
+            0x05E0, 0x05E1, 0x05E2, 0x05E3, 0x05E4, 0x05E5, 0x05E6, 0x05E7,
+            0x05E8, 0x05E9, 0x05EA, 0x00A2, 0x00A3, 0x00A5, 0x20A7, 0x0192,
+            0x00E1, 0x00ED, 0x00F3, 0x00FA, 0x00F1, 0x00D1, 0x00AA, 0x00BA,
+            0x00BF, 0x2310, 0x00AC, 0x00BD, 0x00BC, 0x00A1, 0x00AB, 0x00BB,
+            0x2591, 0x2592, 0x2593, 0x2502, 0x2524, 0x2561, 0x2562, 0x2556,
+            0x2555, 0x2563, 0x2551, 0x2557, 0x255D, 0x255C, 0x255B, 0x2510,
+            0x2514, 0x2534, 0x252C, 0x251C, 0x2500, 0x253C, 0x255E, 0x255F,
+            0x255A, 0x2554, 0x2569, 0x2566, 0x2560, 0x2550, 0x256C, 0x2567,
+            0x2568, 0x2564, 0x2565, 0x2559, 0x2558, 0x2552, 0x2553, 0x256B,
+            0x256A, 0x2518, 0x250C, 0x2588, 0x2584, 0x258C, 0x2590, 0x2580,
+            0x03B1, 0x00DF, 0x0393, 0x03C0, 0x03A3, 0x03C3, 0x00B5, 0x03C4,
+            0x03A6, 0x0398, 0x03A9, 0x03B4, 0x221E, 0x03C6, 0x03B5, 0x2229,
+            0x2261, 0x00B1, 0x2265, 0x2264, 0x2320, 0x2321, 0x00F7, 0x2248,
             0x00B0, 0x2219, 0x00B7, 0x221A, 0x207F, 0x00B2, 0x25A0, 0x00A0]),
         ISO8859_8 : new Uint16Array([   // ISO 8859-8 : hebrew
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            0x00A0, _BLANK, 0x00A2, 0x00A3, 0x00A4, 0x00A5, 0x00A6, 0x00A7, 
-            0x00A8, 0x00A9, 0x00D7, 0x00AB, 0x00AC, _SHY,   0x00AE, 0x00AF, 
-            0x00B0, 0x00B1, 0x00B2, 0x00B3, 0x00B4, 0x00B5, 0x00B6, 0x00B7, 
-            0x00B8, 0x00B9, 0x00F7, 0x00BB, 0x00BC, 0x00BD, 0x00BE, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 0x2017, 
-            0x05D0, 0x05D1, 0x05D2, 0x05D3, 0x05D4, 0x05D5, 0x05D6, 0x05D7, 
-            0x05D8, 0x05D9, 0x05DA, 0x05DB, 0x05DC, 0x05DD, 0x05DE, 0x05DF, 
-            0x05E0, 0x05E1, 0x05E2, 0x05E3, 0x05E4, 0x05E5, 0x05E6, 0x05E7, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            0x00A0, _BLANK, 0x00A2, 0x00A3, 0x00A4, 0x00A5, 0x00A6, 0x00A7,
+            0x00A8, 0x00A9, 0x00D7, 0x00AB, 0x00AC, _SHY,   0x00AE, 0x00AF,
+            0x00B0, 0x00B1, 0x00B2, 0x00B3, 0x00B4, 0x00B5, 0x00B6, 0x00B7,
+            0x00B8, 0x00B9, 0x00F7, 0x00BB, 0x00BC, 0x00BD, 0x00BE, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 0x2017,
+            0x05D0, 0x05D1, 0x05D2, 0x05D3, 0x05D4, 0x05D5, 0x05D6, 0x05D7,
+            0x05D8, 0x05D9, 0x05DA, 0x05DB, 0x05DC, 0x05DD, 0x05DE, 0x05DF,
+            0x05E0, 0x05E1, 0x05E2, 0x05E3, 0x05E4, 0x05E5, 0x05E6, 0x05E7,
             0x05E8, 0x05E9, 0x05EA, _BLANK, _BLANK, 0x200E, 0x200F, _BLANK]),
         WIN1255 : new Uint16Array([     // win 1255 - hebrew
-            0x20AC, _BLANK, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 
-            0x02C6, 0x2030, _BLANK, 0x2039, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 
-            0x02DC, 0x2122, _BLANK, 0x203A, _BLANK, _BLANK, _BLANK, _BLANK, 
-            0x00A0, 0x00A1, 0x00A2, 0x00A3, 0x20AA, 0x00A5, 0x00A6, 0x00A7, 
-            0x00A8, 0x00A9, 0x00D7, 0x00AB, 0x00AC, _SHY,   0x00AE, 0x00AF, 
-            0x00B0, 0x00B1, 0x00B2, 0x00B3, 0x00B4, 0x00B5, 0x00B6, 0x00B7, 
-            0x00B8, 0x00B9, 0x00F7, 0x00BB, 0x00BC, 0x00BD, 0x00BE, 0x00BF, 
-            0x05B0, 0x05B1, 0x05B2, 0x05B3, 0x05B4, 0x05B5, 0x05B6, 0x05B7, 
-            0x05B8, 0x05B9, 0x05BA, 0x05BB, 0x05BC, 0x05BD, 0x05BE, 0x05BF, 
-            0x05C0, 0x05C1, 0x05C2, 0x05C3, 0x05F0, 0x05F1, 0x05F2, 0x05F3, 
-            0x05F4, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            0x05D0, 0x05D1, 0x05D2, 0x05D3, 0x05D4, 0x05D5, 0x05D6, 0x05D7, 
-            0x05D8, 0x05D9, 0x05DA, 0x05DB, 0x05DC, 0x05DD, 0x05DE, 0x05DF, 
-            0x05E0, 0x05E1, 0x05E2, 0x05E3, 0x05E4, 0x05E5, 0x05E6, 0x05E7, 
+            0x20AC, _BLANK, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+            0x02C6, 0x2030, _BLANK, 0x2039, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+            0x02DC, 0x2122, _BLANK, 0x203A, _BLANK, _BLANK, _BLANK, _BLANK,
+            0x00A0, 0x00A1, 0x00A2, 0x00A3, 0x20AA, 0x00A5, 0x00A6, 0x00A7,
+            0x00A8, 0x00A9, 0x00D7, 0x00AB, 0x00AC, _SHY,   0x00AE, 0x00AF,
+            0x00B0, 0x00B1, 0x00B2, 0x00B3, 0x00B4, 0x00B5, 0x00B6, 0x00B7,
+            0x00B8, 0x00B9, 0x00F7, 0x00BB, 0x00BC, 0x00BD, 0x00BE, 0x00BF,
+            0x05B0, 0x05B1, 0x05B2, 0x05B3, 0x05B4, 0x05B5, 0x05B6, 0x05B7,
+            0x05B8, 0x05B9, 0x05BA, 0x05BB, 0x05BC, 0x05BD, 0x05BE, 0x05BF,
+            0x05C0, 0x05C1, 0x05C2, 0x05C3, 0x05F0, 0x05F1, 0x05F2, 0x05F3,
+            0x05F4, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            0x05D0, 0x05D1, 0x05D2, 0x05D3, 0x05D4, 0x05D5, 0x05D6, 0x05D7,
+            0x05D8, 0x05D9, 0x05DA, 0x05DB, 0x05DC, 0x05DD, 0x05DE, 0x05DF,
+            0x05E0, 0x05E1, 0x05E2, 0x05E3, 0x05E4, 0x05E5, 0x05E6, 0x05E7,
             0x05E8, 0x05E9, 0x05EA, _BLANK, _BLANK, 0x200E, 0x200F, _BLANK]),
         WIN1256 : new Uint16Array([ // win 1256 - arabic
-            0x20AC, 0x067E, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 
-            0x02C6, 0x2030, 0x0679, 0x2039, 0x0152, 0x0686, 0x0698, 0x0688, 
-            0x06AF, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 
-            0x06A9, 0x2122, 0x0691, 0x203A, 0x0153, 0x200C, 0x200D, 0x06BA, 
-            0x00A0, 0x060C, 0x00A2, 0x00A3, 0x00A4, 0x00A5, 0x00A6, 0x00A7, 
-            0x00A8, 0x00A9, 0x06BE, 0x00AB, 0x00AC, _SHY,   0x00AE, 0x00AF, 
-            0x00B0, 0x00B1, 0x00B2, 0x00B3, 0x00B4, 0x00B5, 0x00B6, 0x00B7, 
-            0x00B8, 0x00B9, 0x061B, 0x00BB, 0x00BC, 0x00BD, 0x00BE, 0x061F, 
-            0x06C1, 0x0621, 0x0622, 0x0623, 0x0624, 0x0625, 0x0626, 0x0627, 
-            0x0628, 0x0629, 0x062A, 0x062B, 0x062C, 0x062D, 0x062E, 0x062F, 
-            0x0630, 0x0631, 0x0632, 0x0633, 0x0634, 0x0635, 0x0636, 0x00D7, 
-            0x0637, 0x0638, 0x0639, 0x063A, 0x0640, 0x0641, 0x0642, 0x0643, 
-            0x00E0, 0x0644, 0x00E2, 0x0645, 0x0646, 0x0647, 0x0648, 0x00E7, 
-            0x00E8, 0x00E9, 0x00EA, 0x00EB, 0x0649, 0x064A, 0x00EE, 0x00EF, 
-            0x064B, 0x064C, 0x064D, 0x064E, 0x00F4, 0x064F, 0x0650, 0x00F7, 
+            0x20AC, 0x067E, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021,
+            0x02C6, 0x2030, 0x0679, 0x2039, 0x0152, 0x0686, 0x0698, 0x0688,
+            0x06AF, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+            0x06A9, 0x2122, 0x0691, 0x203A, 0x0153, 0x200C, 0x200D, 0x06BA,
+            0x00A0, 0x060C, 0x00A2, 0x00A3, 0x00A4, 0x00A5, 0x00A6, 0x00A7,
+            0x00A8, 0x00A9, 0x06BE, 0x00AB, 0x00AC, _SHY,   0x00AE, 0x00AF,
+            0x00B0, 0x00B1, 0x00B2, 0x00B3, 0x00B4, 0x00B5, 0x00B6, 0x00B7,
+            0x00B8, 0x00B9, 0x061B, 0x00BB, 0x00BC, 0x00BD, 0x00BE, 0x061F,
+            0x06C1, 0x0621, 0x0622, 0x0623, 0x0624, 0x0625, 0x0626, 0x0627,
+            0x0628, 0x0629, 0x062A, 0x062B, 0x062C, 0x062D, 0x062E, 0x062F,
+            0x0630, 0x0631, 0x0632, 0x0633, 0x0634, 0x0635, 0x0636, 0x00D7,
+            0x0637, 0x0638, 0x0639, 0x063A, 0x0640, 0x0641, 0x0642, 0x0643,
+            0x00E0, 0x0644, 0x00E2, 0x0645, 0x0646, 0x0647, 0x0648, 0x00E7,
+            0x00E8, 0x00E9, 0x00EA, 0x00EB, 0x0649, 0x064A, 0x00EE, 0x00EF,
+            0x064B, 0x064C, 0x064D, 0x064E, 0x00F4, 0x064F, 0x0650, 0x00F7,
             0x0651, 0x00F9, 0x0652, 0x00FB, 0x00FC, 0x200E, 0x200F, 0x06D2]),
         ISO8859_6 : new Uint16Array([   // ISO 8859-6 arabic
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            0x00A0, _BLANK, _BLANK, _BLANK, 0x00A4, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, 0x060C, _SHY,   _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            _BLANK, _BLANK, _BLANK, 0x0618, _BLANK, _BLANK, _BLANK, 0x061F, 
-            _BLANK, 0x0621, 0x0622, 0x0623, 0x0624, 0x0625, 0x0626, 0x0627, 
-            0x0628, 0x0629, 0x062A, 0x062B, 0x062C, 0x062D, 0x062E, 0x062F, 
-            0x0630, 0x0631, 0x0632, 0x0633, 0x0634, 0x0635, 0x0636, 0x0637, 
-            0x0638, 0x0639, 0x063A, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
-            0x0640, 0x0641, 0x0642, 0x0643, 0x0644, 0x0645, 0x0646, 0x0647, 
-            0x0648, 0x0649, 0x064A, 0x064B, 0x064C, 0x064D, 0x064E, 0x064F, 
-            0x0650, 0x0651, 0x0652, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, 
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            0x00A0, _BLANK, _BLANK, _BLANK, 0x00A4, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, 0x060C, _SHY,   _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            _BLANK, _BLANK, _BLANK, 0x0618, _BLANK, _BLANK, _BLANK, 0x061F,
+            _BLANK, 0x0621, 0x0622, 0x0623, 0x0624, 0x0625, 0x0626, 0x0627,
+            0x0628, 0x0629, 0x062A, 0x062B, 0x062C, 0x062D, 0x062E, 0x062F,
+            0x0630, 0x0631, 0x0632, 0x0633, 0x0634, 0x0635, 0x0636, 0x0637,
+            0x0638, 0x0639, 0x063A, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
+            0x0640, 0x0641, 0x0642, 0x0643, 0x0644, 0x0645, 0x0646, 0x0647,
+            0x0648, 0x0649, 0x064A, 0x064B, 0x064C, 0x064D, 0x064E, 0x064F,
+            0x0650, 0x0651, 0x0652, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
             _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK]),
 
         CP864 : new Uint16Array([   // CP864 - arabic
-            0x00B0, 0x00B7, 0x2219, 0x221A, 0x2592, 0x2500, 0x2502, 0x253C, 
-            0x2524, 0x252C, 0x251C, 0x2534, 0x2510, 0x250C, 0x2514, 0x2518, 
-            0x03B2, 0x221E, 0x03C6, 0x00B1, 0x00BD, 0x00BC, 0x2248, 0x00AB, 
-            0x00BB, 0xFEF7, 0xFEF8, _BLANK, _BLANK, 0xFEFB, 0xFEFC, _BLANK, 
-            0x00A0, _SHY,   0xFE82, 0x00A3, 0x00A4, 0xFE84, _BLANK, 0x20AC, 
-            0xFE8E, 0xFE8F, 0xFE95, 0xFE99, 0x060C, 0xFE9D, 0xFEA1, 0xFEA5, 
-            0x0660, 0x0661, 0x0662, 0x0663, 0x0664, 0x0665, 0x0666, 0x0667, 
-            0x0668, 0x0669, 0xFED1, 0x061B, 0xFEB1, 0xFEB5, 0xFEB9, 0x061F, 
-            0x00A2, 0xFE80, 0xFE81, 0xFE83, 0xFE85, 0xFECA, 0xFE8B, 0xFE8D, 
-            0xFE91, 0xFE93, 0xFE97, 0xFE9B, 0xFE9F, 0xFEA3, 0xFEA7, 0xFEA9, 
-            0xFEAB, 0xFEAD, 0xFEAF, 0xFEB3, 0xFEB7, 0xFEBB, 0xFEBF, 0xFEC1, 
-            0xFEC5, 0xFECB, 0xFECF, 0x00A6, 0x00AC, 0x00F7, 0x00D7, 0xFEC9, 
-            0x0640, 0xFED3, 0xFED7, 0xFEDB, 0xFEDF, 0xFEE3, 0xFEE7, 0xFEEB, 
-            0xFEED, 0xFEEF, 0xFEF3, 0xFEBD, 0xFECC, 0xFECE, 0xFECD, 0xFEE1, 
-            0xFE7D, 0x0651, 0xFEE5, 0xFEE9, 0xFEEC, 0xFEF0, 0xFEF2, 0xFED0, 
+            0x00B0, 0x00B7, 0x2219, 0x221A, 0x2592, 0x2500, 0x2502, 0x253C,
+            0x2524, 0x252C, 0x251C, 0x2534, 0x2510, 0x250C, 0x2514, 0x2518,
+            0x03B2, 0x221E, 0x03C6, 0x00B1, 0x00BD, 0x00BC, 0x2248, 0x00AB,
+            0x00BB, 0xFEF7, 0xFEF8, _BLANK, _BLANK, 0xFEFB, 0xFEFC, _BLANK,
+            0x00A0, _SHY,   0xFE82, 0x00A3, 0x00A4, 0xFE84, _BLANK, 0x20AC,
+            0xFE8E, 0xFE8F, 0xFE95, 0xFE99, 0x060C, 0xFE9D, 0xFEA1, 0xFEA5,
+            0x0660, 0x0661, 0x0662, 0x0663, 0x0664, 0x0665, 0x0666, 0x0667,
+            0x0668, 0x0669, 0xFED1, 0x061B, 0xFEB1, 0xFEB5, 0xFEB9, 0x061F,
+            0x00A2, 0xFE80, 0xFE81, 0xFE83, 0xFE85, 0xFECA, 0xFE8B, 0xFE8D,
+            0xFE91, 0xFE93, 0xFE97, 0xFE9B, 0xFE9F, 0xFEA3, 0xFEA7, 0xFEA9,
+            0xFEAB, 0xFEAD, 0xFEAF, 0xFEB3, 0xFEB7, 0xFEBB, 0xFEBF, 0xFEC1,
+            0xFEC5, 0xFECB, 0xFECF, 0x00A6, 0x00AC, 0x00F7, 0x00D7, 0xFEC9,
+            0x0640, 0xFED3, 0xFED7, 0xFEDB, 0xFEDF, 0xFEE3, 0xFEE7, 0xFEEB,
+            0xFEED, 0xFEEF, 0xFEF3, 0xFEBD, 0xFECC, 0xFECE, 0xFECD, 0xFEE1,
+            0xFE7D, 0x0651, 0xFEE5, 0xFEE9, 0xFEEC, 0xFEF0, 0xFEF2, 0xFED0,
             0xFED5, 0xFEF5, 0xFEF6, 0xFEDD, 0xFED9, 0xFEF1, 0x25A0, _BLANK]),
-            
+
         TELETEXT: new Uint16Array([ // TELETEXT
             _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
             _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK, _BLANK,
@@ -2040,22 +2042,32 @@ let
     crsrSaveRow = 0,            // saved position
     crsrSaveCol = 0,            // ''
     cellSaveAttr = 0,           // save attribute (ESC 7 / ESC 8)
+    cellSaveFG = 0,
+    cellSaveBG = 0,
     pageAttr,                   // current page attributes
     crsrAttr,                   // color of cursor (only fg used)
     crsrBlink,                  // cursor blink state
     crsrSkipTime,               // skip cursor draws on heavy character output
     cellAttr,                   // current active attributes
+    cellFG,                     // current active colors.
+    cellBG,
     cellBlinkSlow,              // text blink states
     cellBlinkFast,
     defPageAttr,                // default page
     defCrsrAttr,                // default crsr
     defCellAttr,                // default cell attributes.
+    defCellFG,                  // default cell color.
+    defCellBG,
     defRowAttr = 0x002c0000,    // def row attr
     lastChar,                   // last printable character outputed.
     lastHotSpot = null,         // last mouseover hotspot
 
     hotspotHoverAttr,           // uses same attrs as cell
+    hotspotHoverFG,
+    hotspotHoverBG,
     hotspotClickAttr,           // ''
+    hotspotClickFG,
+    hotspotClickBG,
 
     conBaud = 0,                // baud emulation speed.
     audioEl,                    // audio element
@@ -2110,7 +2122,9 @@ let
     // Attrs are integer arrays, base 0 (i.e.: row 1 = index 0)
     conCanvas = [],             // row canvas array
     conRowAttr  = [],           // row attributes array of number
-    conCellAttr = [],           // character attributes array of array or number
+    conCellAttr = [],           // character attributes array of array of number
+    conCellFG = [],             // character colors array of array of number
+    conCellBG = [],
     conText = [],               // raw text - array of string
     conHotSpots = [],           // clickable hotspots
     spriteDefs = [],            // sprite definitions - contains url / or data url
@@ -2193,6 +2207,7 @@ function between(mid, low, hi) {
     return (((mid >= low) && (mid <= hi)) ||
             ((mid >= hi) && (mid <= low)));
 }
+
 
 // load fonts and boot
 function bootVTX() {
@@ -2420,6 +2435,7 @@ function loadSingleFont(fname){
     }
 }
 
+
 // global redraw a font change based on font name (i.e. VIC200, etc)
 function redrawFont(fname) {
     var
@@ -2432,7 +2448,7 @@ function redrawFont(fname) {
     if (fn >= 0) {
         for (r = conRowAttr.length-1; r >= 0; r--)
             for (c = conCellAttr[r].length - 1; c >= 0; c--) {
-                tfn = (conCellAttr[r][c] & A_CELL_FONT_MASK) >>> 28;
+                tfn = (conCellAttr[r][c] & A_CELL_FONT);
                 if (tfn == fn)
                     renderCell(r, c, 0, false);
             }
@@ -2461,7 +2477,7 @@ function getMouseCell(e) {
         ty = clientDiv.scrollTop || clientDiv.scrollTop
     else
         ty = document.documentElement.scrollTop || document.body.scrollTop
-    
+
     x = e.clientX;
     y = e.clientY + ty;
     dt = textPos.top;
@@ -2511,9 +2527,9 @@ var
 
 function loc2Linear(loc) {
     if (loc)
-        return (loc.row << 11) + loc.col; 
+        return (loc.row << 11) + loc.col;
     return null;
-}    
+}
 
 function linear2Loc(lin) {
     return {row: (lin >>> 11), col: (lin & 0x7FF) };
@@ -2522,12 +2538,12 @@ function linear2Loc(lin) {
 function betweenRCs(loc, loc1, loc2) {
     // is loc.row,loc.col between loc1 and loc2 inclusively?
     return between(loc2Linear(loc), loc2Linear(loc1), loc2Linear(loc2));
-}    
+}
 
 function refreshBetweenRCs(loc1, loc2) {
     var
         r1, r2, c1, c2;
-        
+
     if (loc2Linear(loc2) < loc2Linear(loc1)) {
         r1 = loc2.row;
         c1 = loc2.col;
@@ -2557,7 +2573,7 @@ function mouseUp(e) {
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
     altState = e.altKey;
-    
+
     if (e.button == 0) {
         // end drag
         isSelect = false;
@@ -2576,17 +2592,17 @@ function mouseUp(e) {
 }
 
 function mouseDown(e) {
-    var    
+    var
         fromr, tor,
         p, dir,
         mloc;
-        
+
     // for now, just fix meta key states
     e = e || window.event;
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
     altState = e.altKey;
-    
+
     // get mouse pos
     if (e.button == 0) {
         // start drag
@@ -2716,9 +2732,9 @@ function keyUp(e) {
         }
         copyEl.style['visibility'] = 'hidden';
     }
-    
+
     // play key up sound
-    if (soundClicks) 
+    if (soundClicks)
         soundKeyUp[kc % 11].play();
     keysDn[kc] = false;
 }
@@ -2728,7 +2744,7 @@ function keyDown(e) {
     var
         stateIdx,
         kc, ka,
-        r, c, 
+        r, c,
         p, endl, str;
 
     e = e || window.event;
@@ -2764,12 +2780,12 @@ function keyDown(e) {
         copyEl.focus();
         copyEl.select();
     }
-    
+
     // play key down sound
     if (soundClicks && !keysDn[kc])
         soundKeyDn[kc % 11].play();
     keysDn[kc] = true;
-    
+
     stateIdx = (shiftState ? 1 : 0) + (ctrlState ? 2 : 0) + (altState ? 4 : 0);
 
     // translate for capslock
@@ -2823,7 +2839,7 @@ function keyDown(e) {
                     scrState = !scrState;
                     setBulbs();
                     break;
-                    
+
                 case DO_COPY:
                     // create string of selected text.
                     if (isSelect) {
@@ -2831,7 +2847,7 @@ function keyDown(e) {
                         refreshBetweenRCs(selectStart, selectEnd);
                     }
                     break;
-                    
+
                 case DO_SELECTALL:
                     break;
 
@@ -2881,6 +2897,8 @@ function delRow(rownum) {
     conRowAttr.splice(rownum, 1);
     conText.splice(rownum, 1);
     conCellAttr.splice(rownum, 1);
+    conCellFG.splice(rownum, 1);
+    conCellBG.splice(rownum, 1);
     conCanvas.splice(rownum, 1);
 
     // move all hotspots below up one. remove hotspots on this row.
@@ -2900,6 +2918,8 @@ function insRow(rownum) {
     conRowAttr.splice(rownum, 0, defRowAttr);
     conText.splice(rownum, 0, '');
     conCellAttr.splice(rownum, 0, []);
+    conCellFG.splice(rownum, 0, []);
+    conCellBG.splice(rownum, 0, []);
     conCanvas.splice(rownum, 0, null);
 
     // move all hotspots on this row and below down one.
@@ -2923,7 +2943,9 @@ function trimHistory(){
         conRowAttr.splice(0, 1);
         conText.splice(0, 1);
         conCellAttr.splice(0, 1);
-        conCanvas.splice(0, 1);        
+        conCellFG.splice(0, 1);
+        conCellBG.splice(0, 1);
+        conCanvas.splice(0, 1);
         crsrRow--;
     }
 }
@@ -2934,6 +2956,8 @@ function delChar(rownum, colnum) {
     expandToCol(rownum, colnum);
     conText[rownum] = conText[rownum].splice(colnum, 1);
     conCellAttr[rownum].splice(colnum, 1);
+    conCellFG[rownum].splice(colnum, 1);
+    conCellBG[rownum].splice(colnum, 1);
     moveHotSpotsRow(rownum, colnum, 999, -1);
     redrawRow(rownum);
 }
@@ -2944,6 +2968,8 @@ function insChar(rownum, colnum, chr) {
     expandToCol(rownum, colnum);
     conText[rownum] = conText[rownum].splice(colnum, 0, String.fromCharCode(chr));
     conCellAttr[rownum].splice(colnum, 0, defCellAttr);
+    conCellFG[rownum].splice(colnum, 0, defCellFG);
+    conCellBG[rownum].splice(colnum, 0, defCellBG);
     moveHotSpotsRow(rownum, colnum, 999, +1);
     redrawRow(rownum);
 }
@@ -3170,12 +3196,14 @@ function doCursor() {
         crsr.firstChild.style['background-color'] =
             ((crsrBlink = !crsrBlink) || (!modeCursor)) ?
             'transparent' :
-            cbmColors[cellAttr & 0xF]
+//            cbmColors[cellAttr & 0xF]
+            cbmColors[cellFG & 0xF]
     else if(atari)
         crsr.firstChild.style['background-color'] =
             ((crsrBlink = !crsrBlink) || (!modeCursor)) ?
             'transparent' :
-            atariColors[cellAttr & 0x1]
+//            atariColors[cellAttr & 0x1]
+            atariColors[cellFG & 0x1]
     else
         crsr.firstChild.style['background-color'] =
             ((crsrBlink = !crsrBlink) || (!modeCursor)) ?
@@ -3296,44 +3324,7 @@ function getRowAttrPattern(attr) { return attr & A_ROW_PATTERN_MASK; }
 function getRowAttrWidth(attr) { return (((attr & A_ROW_WIDTH_MASK) >>> 21) + 1) * 50.0; }
 function getRowAttrMarquee(attr) { return (attr & A_ROW_MARQUEE) != 0; }
 
-// create cell attribute
-function makeCellAttr(fg, bg, bold, italics, underline, blinkslow, shadow,
-    strikethrough, doublestrike, blinkfast, faint, font) {
-    fg = fg || 7;
-    bg = bg || 0;
-    bold = bold || false;
-    italics = italics || false;
-    underline = underline || false;
-    blinkslow = blinkslow || false;
-    shadow = shadow || false;
-    strikethrough = strikethrough || false;
-    doublestrike = online || false;
-    blinkfast = blinkfast || false;
-    faint = faint || false;
-    font = font || 0;
-
-
-    return (fg & 0xFF)
-        | ((bg & 0xFF) << 8)
-        | (bold ? A_CELL_BOLD : 0)
-        | (italics ? A_CELL_ITALICS : 0)
-        | (underline ? A_CELL_UNDERLINE : 0)
-        | (blinkslow ? A_CELL_BLINKSLOW : 0)
-        | (shadow ? A_CELL_SHADOW : 0)
-        | (strikethrough ? A_CELL_STRIKETHROUGH : 0)
-        | (doublestrike ? A_CELL_DOUBLESTRIKE : 0)
-        | (blinkfast ? A_CELL_BLINKFAST : 0)
-        | (faint ? A_CELL_FAINT : 0)
-        | ((font & 0xF) << 28);
-}
-
 // set cell attribute parts
-function setCellAttrFG(attr, color) {
-    return (attr & ~A_CELL_FGCOLOR_MASK) | (color & 0xFF);
-}
-function setCellAttrBG(attr, color) {
-    return (attr & ~A_CELL_BGCOLOR_MASK) | ((color & 0xFF) << 8);
-}
 function setCellAttrBold(attr, bold) {
     return (attr & ~A_CELL_BOLD) | (bold ? A_CELL_BOLD : 0);
 }
@@ -3368,24 +3359,22 @@ function setCellAttrFaint(attr, faint) {
     return (attr & ~A_CELL_FAINT) | (faint ? A_CELL_FAINT : 0);
 }
 function setCellAttrFont(attr, font) {
-    return (attr & ~A_CELL_FONT_MASK) | ((font & 0xF) << 28);
+    return (attr & ~A_CELL_FONT) | (font & 0xF);
 }
 
 // get cell attribute parts
-function getCellAttrFG(attr) { return attr & 0xFF; }
-function getCellAttrBG(attr) { return (attr >>> 8) & 0xFF; }
-function getCellAttrBold(attr) { return (attr & A_CELL_BOLD) != 0; }
-function getCellAttrItalics(attr) { return (attr & A_CELL_ITALICS) != 0; }
-function getCellAttrUnderline(attr) { return (attr & A_CELL_UNDERLINE) != 0; }
-function getCellAttrBlinkSlow(attr) { return (attr & A_CELL_BLINKSLOW) != 0; }
-function getCellAttrBlinkFast(attr) { return (attr & A_CELL_BLINKFAST) != 0; }
-function getCellAttrShadow(attr) { return (attr & A_CELL_SHADOW) != 0; }
+function getCellAttrBold(attr) {          return (attr & A_CELL_BOLD) != 0; }
+function getCellAttrItalics(attr) {       return (attr & A_CELL_ITALICS) != 0; }
+function getCellAttrUnderline(attr) {     return (attr & A_CELL_UNDERLINE) != 0; }
+function getCellAttrBlinkSlow(attr) {     return (attr & A_CELL_BLINKSLOW) != 0; }
+function getCellAttrBlinkFast(attr) {     return (attr & A_CELL_BLINKFAST) != 0; }
+function getCellAttrShadow(attr) {        return (attr & A_CELL_SHADOW) != 0; }
 function getCellAttrStrikethrough(attr) { return (attr & A_CELL_STRIKETHROUGH) != 0; }
-function getCellAttrDoublestrike(attr) { return (attr & A_CELL_DOUBLESTRIKE) != 0;}
-function getCellAttrReverse(attr) { return (attr & A_CELL_REVERSE) != 0; }
-function getCellAttrDisplay(attr) { return (attr & A_CELL_DISPLAY_MASK); }
-function getCellAttrFaint(attr) { return (attr & A_CELL_FAINT) != 0; }
-function getCellAttrFont(attr) { return (attr & A_CELL_FONT_MASK) >>> 28; }
+function getCellAttrDoublestrike(attr) {  return (attr & A_CELL_DOUBLESTRIKE) != 0;}
+function getCellAttrReverse(attr) {       return (attr & A_CELL_REVERSE) != 0; }
+function getCellAttrDisplay(attr) {       return (attr & A_CELL_DISPLAY_MASK); }
+function getCellAttrFaint(attr) {         return (attr & A_CELL_FAINT) != 0; }
+function getCellAttrFont(attr) {          return (attr & A_CELL_FONT); }
 
 // create cursor attributes
 function makeCrsrAttr(color, size, orientation){
@@ -3467,7 +3456,7 @@ function redrawRow(rownum){
     w = xScale * colSize * width;   // width of char
     x = w * l;                      // left pos of char on canv
 
-    cnv = conCanvas[rownum];    
+    cnv = conCanvas[rownum];
     if (!cnv) {
         row = getRowElement(rownum);
         cnv = domElement(
@@ -3551,21 +3540,21 @@ function renderCell(rownum, colnum, hilight, bottom) {
         return;
 
     // compute height
-//    row = getRowElement(rownum);    // <- speed this up.
+    //    row = getRowElement(rownum);    // <- speed this up.
     h = fontSize;                   // height of char
     stroke = h * 0.1;               // underline/strikethrough size
-    
-    cnv = conCanvas[rownum];    
+
+    cnv = conCanvas[rownum];
     if (!cnv) {
         // create new canvas if nonexistant
-        row = getRowElement(rownum);  
+        row = getRowElement(rownum);
         cnv = domElement(
             'canvas',
             {   width:  crtCols * w,
                 height: (h + 16) },
             {   zIndex: '50' });
         row.appendChild(cnv);
-        conCanvas[rownum] = cnv;        
+        conCanvas[rownum] = cnv;
     }
     ctx = cnv.getContext('2d');
 
@@ -3573,23 +3562,29 @@ function renderCell(rownum, colnum, hilight, bottom) {
     ch = conText[rownum + rowadj].charAt(colnum);
     attr = conCellAttr[rownum + rowadj][colnum];
 
+    // extract colors and font to use
+    tfg = conCellFG[rownum + rowadj][colnum];
+    tbg = conCellBG[rownum + rowadj][colnum];
+
     // force highlight (for mouse selections)
-    if (hilight == 1)
-        attr = hotspotHoverAttr
-    else if (hilight == 2)
+    if (hilight == 1) {
+        attr = hotspotHoverAttr;
+        tfg = hotspotHoverFG;
+        tbg = hotspotHoverBG;
+    } else if (hilight == 2) {
         attr = hotspotClickAttr;
+        tfg = hotspotClickFG;
+        tbg = hotspotClickBG;
+    }
 
     // force highlight (for clipboard selection)
     if ((isSelect && betweenRCs({row:rownum, col:colnum}, selectStart, selectEnd)) ||
         (isDrag && betweenRCs({row:rownum, col:colnum}, dragStart, dragEnd))) {
-        attr &= ~0xFFFF;
-        attr |=  0x0F04;
+      tfg = 0x04;
+      tbg = 0x0F;
     }
-    
-    // extract colors and font to use
-    tfg = (attr & 0xFF);
-    tbg = (attr >>> 8) & 0xff;
-    tfnt = ((attr & A_CELL_FONT_MASK) >>> 28) & 0xF;
+
+    tfnt = (attr & A_CELL_FONT);
 
     // get bold and adust if not used
     tbold  = attr & A_CELL_BOLD;
@@ -3645,7 +3640,7 @@ function renderCell(rownum, colnum, hilight, bottom) {
         ch = ' ';
         tbg = tfg;
     }
-    
+
     // set clipping region for this cell.
     ctx.save();
     ctx.beginPath();
@@ -3663,7 +3658,10 @@ function renderCell(rownum, colnum, hilight, bottom) {
     } else {
         // ANSI colors
         if (tbg > 0) {
-            ctx.fillStyle = ansiColors[tbg];
+            if (tbg & BG_CELL_24BIT)
+              ctx.fillStyle = '#' + itoh(tbg & BG_CELL_COLOR, 6)
+            else
+              ctx.fillStyle = ansiColors[tbg];
             ctx.fillRect(x, 0, w, h);
         } else
             ctx.clearRect(x, 0, w, h);
@@ -3672,11 +3670,12 @@ function renderCell(rownum, colnum, hilight, bottom) {
     drawtxt = true;
 
     // don't draw if in blink state
-    if (((attr & A_CELL_BLINKSLOW) && cellBlinkSlow)
-        || ((attr & A_CELL_BLINKFAST) && cellBlinkFast)) {
-        if (!modeNoBlink)
-            drawtxt = false;
-    }
+    if (!(tfg & FG_CELL_24BIT))
+        if (((attr & A_CELL_BLINKSLOW) && cellBlinkSlow)
+            || ((attr & A_CELL_BLINKFAST) && cellBlinkFast)) {
+            if (!modeNoBlink)
+                drawtxt = false;
+        }
 
     // row display takes precidence over cell
     // adjust scaling for row display type (normal,conceal,top,bottom)
@@ -3726,18 +3725,23 @@ function renderCell(rownum, colnum, hilight, bottom) {
 
     if (drawtxt) {
         // select text color
-        if (attr & A_CELL_FAINT)
-            // darken faint color
-            ctx.fillStyle = brightenRGB(ansiColors[tfg], -0.33);
-        else if (cbm)
+        if (cbm)
             // PETSCII color
             ctx.fillStyle = cbmColors[tfg]
         else if (atari)
             // ATASCII monochrome color
             ctx.fillStyle = atariColors[tfg]
-        else
+        else {
             // ANSI color
-            ctx.fillStyle = ansiColors[tfg];
+            if (attr & A_CELL_FAINT)
+              // darken faint color
+              tfb = brightenRGB(ansiColors[tfg], -0.33) | FG_CELL_24BIT;
+
+            if (tfg & FG_CELL_24BIT)
+              ctx.fillStyle = '#' + itoh(tfg & FG_CELL_COLOR, 6)
+            else
+              ctx.fillStyle = ansiColors[tfg];
+        }
 
         // swap for special fonts.
         teletext = -1;
@@ -3793,7 +3797,7 @@ function renderCell(rownum, colnum, hilight, bottom) {
             yScale,                     // y scale
             x + (xScale * xadj),        // x adj
             yadj);                      // y adj
-        
+
         if (teletext >= 0)
             drawMosaicBlock(ctx, ch.charCodeAt(0), w / width, h, teletext)
         else
@@ -3821,19 +3825,19 @@ function drawMosaicBlock(ctx, ch, w, h, separated) {
         b,
         x, y,
         bit = 0x01,
-        bw, bh, 
+        bw, bh,
         bx, by = 0,
         sep,
         xadj, yadj;
 
     w /= xScale;
-        
+
     bw = Math.floor(w / 2);
     bh = Math.floor(h / 3);
     sep = (separated ? -(Math.floor(w/9)+1) : 0);
     xadj = w - (bw * 2);
     yadj = h - (bh * 3);
-        
+
     b = ch - 0x20;
     if (b > 0x1f)
         b -= 0x20;
@@ -3880,15 +3884,18 @@ function brightenRGB(colorstr, factor) {
     r = Math.floor(r) & 0xFF;
     g = Math.floor(g) & 0xFF;
     b = Math.floor(b) & 0xFF;
-    return  '#' + itoh((r << 16) + (g << 8) + b, 6);
+    return  (r << 16) + (g << 8) + b;
 }
 
 // grow this row to col
 function expandToCol(rownum, colnum) {
     while (conText[rownum].length < colnum)
         conText[rownum] += ' ';
-    while (conCellAttr[rownum].length < colnum)
-        conCellAttr[rownum][conCellAttr[rownum].length] = defCellAttr;
+    while (conCellAttr[rownum].length < colnum) {
+      conCellAttr[rownum][conCellAttr[rownum].length] = defCellAttr;
+      conCellFG[rownum][conCellFG[rownum].length] = defCellFG;
+      conCellBG[rownum][conCellBG[rownum].length] = defCellBG;
+    }
 }
 
 // grow total rows to rownum. needs to add html dom elements as well.
@@ -3899,6 +3906,8 @@ function expandToRow(rownum) {
 
             conRowAttr[conRowAttr.length] = 0x002C0000;
             conCellAttr[conCellAttr.length] = [];
+            conCellFG[conCellFG.length] = [];
+            conCellBG[conCellBG.length] = [];
             conText[conText.length] = '';
         }
         trimHistory();
@@ -4011,11 +4020,11 @@ function paste(e) {
     e.preventDefault();
 
     clipboardData = e.clipboardData || window.clipboardData;
-    
-    // need to update to send if connected 
+
+    // need to update to send if connected
     // for now, local echo it.
     str = clipboardData.getData('Text');
-    str = str.replace(/(?:\r\n|\r|\n)/g, '\x0D\x0A');    
+    str = str.replace(/(?:\r\n|\r|\n)/g, '\x0D\x0A');
     sendData(str);
 }
 
@@ -4070,7 +4079,7 @@ function newCrsr() {
 }
 
 // onmessage buffer - holds left over bytes from incomplete UTF8/16 chars
-let inBuff = new Uint8Array(0); 
+let inBuff = new Uint8Array(0);
 
 function str2ab(str) {
     var buf = new ArrayBuffer(str.length*2); // 2 bytes for each char
@@ -4083,16 +4092,18 @@ function str2ab(str) {
 
 // connect / disconnect. called from connect UI element.
 function termConnect() {
-    
+
     if (termState == TS_OFFLINE) {
-        
+
         tnState = 0;    // reset telnet options state
 
-        if (vtxdata.hixie) {
-            ws = new WebSocket(wsConnect, [ 'plain' ]);
-        } else {
+        if (vtxdata.wsProtocol)
+            ws = new WebSocket(wsConnect, [ vtxdata.wsProtocol ])
+        else
             ws = new WebSocket(wsConnect, [ 'telnet' ]);
-            ws.binaryType = "arraybuffer";
+        if (vtxdata.wsDataType) {
+          if (vtxdata.wsDataType != 'string')
+            ws.binaryType = vtxdata.wsDataType;
         }
 
         ws.onmessage = function(e) {
@@ -4107,7 +4118,7 @@ function termConnect() {
                 edata = new Uint8Array(l);
                 for  (i = 0; i < l; i++)
                     edata[i] = e.data.charCodeAt(i);
-                
+
             } else if (typeof e.data == 'blob') {
 
                 // umm . no
@@ -4118,10 +4129,10 @@ function termConnect() {
                 return;
 
             } else {
-                
+
                 edata = new Uint8Array(e.data);
             }
-            
+
             // append left over data from last message (incomplete UTF8/16)
             data = new Uint8Array(inBuff.length + edata.length);
             data.set(inBuff);
@@ -4132,7 +4143,7 @@ function termConnect() {
                 data = tnNegotiate(data);
 
 //dump(data, 0, data.length);
-            
+
             switch (termState) {
                 case TS_NORMAL:
                     // convert from codepage into string data
@@ -4184,7 +4195,7 @@ function termConnect() {
                     break;
             }
         }
-        
+
         ws.onopen = function() {
             if (vtxdata.telnet)
                 tnInit();
@@ -4198,7 +4209,7 @@ function termConnect() {
                 case 1000:
                     reason = "Normal closure, meaning that the purpose for which the connection was established has been fulfilled.";
                     break;
-                    
+
                 case 1001:
                     reason = "An endpoint is \"going away\", such as a server going down or a browser having navigated away from a page.";
                     break;
@@ -4206,49 +4217,49 @@ function termConnect() {
                 case 1002:
                     reason = "An endpoint is terminating the connection due to a protocol error";
                     break;
-                    
+
                 case 1003:
                     reason = "An endpoint is terminating the connection because it has received a type of data it cannot accept (e.g., an endpoint that understands only text data MAY send this if it receives a binary message).";
                     break;
-                    
+
                 case 1004:
                     reason = "Reserved. The specific meaning might be defined in the future.";
                     break;
-                    
+
                 case 1005:
                     reason = "No status code was actually present.";
                     break;
-                    
+
                 case 1006:
                     reason = "The connection was closed abnormally, e.g., without sending or receiving a Close control frame";
                     break;
-                    
+
                 case 1007:
                     reason = "An endpoint is terminating the connection because it has received data within a message that was not consistent with the type of the message (e.g., non-UTF-8 [http://tools.ietf.org/html/rfc3629] data within a text message).";
                     break;
-                    
+
                 case 1008:
                     reason = "An endpoint is terminating the connection because it has received a message that \"violates its policy\". This reason is given either if there is no other sutible reason, or if there is a need to hide specific details about the policy.";
                     break;
-                    
+
                 case 1009:
                     reason = "An endpoint is terminating the connection because it has received a message that is too big for it to process.";
                     break;
-                    
+
                 case 1010:
                     reason = "An endpoint (client) is terminating the connection because it has expected the server to negotiate one or more extension, but the server didn't return them in the response message of the WebSocket handshake. <br /> Specifically, the extensions that are needed are: " + e.reason;
                     break;
-                    
+
                 case 1011:
                     reason = "A server is terminating the connection because it encountered an unexpected condition that prevented it from fulfilling the request.";
                     break;
-                    
+
                 case 1015:
                     reason = "The connection was closed due to a failure to perform a TLS handshake (e.g., the server certificate can't be verified).";
                     break;
-                    
+
                 default:
-                    reason = "Unknown reason";                
+                    reason = "Unknown reason";
                     break;
             }
             conBufferOut('\r\r'+reason+'\r')
@@ -4307,7 +4318,7 @@ function toggleSound(){
 };
 
 // turn on / off special effects
-function toggleFX(){ 
+function toggleFX(){
     if (soundClicks) {
         fxDiv.classList.remove('raster');
         createCookie('vtxFX', '0', 30);
@@ -4321,15 +4332,15 @@ function toggleFX(){
 
 function setAllCSS() {
     var
-        style, 
-        css, 
+        style,
+        css,
         head = document.head || document.getElementsByTagName('head')[0];
-        
+
     // kill old one
     style = document.getElementById('vtxstyle');
     if (style)
         head.removeChild(style);
-    
+
     // build new one
     style = document.createElement('style');
     style.id = 'vtxstyle';
@@ -4450,7 +4461,7 @@ function setAllCSS() {
         + ' 0% { transform: translate( ' + (xScale * crtCols * colSize) + 'px, 0); } '
         + ' 100% { transform: translate(-100%, 0); }'
         + '}\n';
-        
+
     if (style.styleSheet)
         style.styleSheet.cssText = css
     else
@@ -4459,10 +4470,10 @@ function setAllCSS() {
 }
 
 function copyTextToClipboard(text) {
-    var 
+    var
         textArea, range, successful;
-        
-    textArea = domElement(  
+
+    textArea = domElement(
         'textarea',
         {   value:      text,
             id:         'vtxcopy' },
@@ -4506,24 +4517,28 @@ function initDisplay() {
     soundOn = (sound == '1');
     fx = (readCookie('vtxFX') || '1');
     soundClicks = (fx == '1');
-    
-    hotspotHoverAttr = 0x000800FF;
-    hotspotClickAttr = 0x000000FF;
+
+    hotspotHoverAttr = A_CELL_UNDERLINE;
+    hotspotHoverFG = 0xFF;
+    hotspotHoverBG = 0x00;
+    hotspotClickAttr = A_CELL_BOLD;
+    hotspotClickFG = 0xFF;
+    hotspotClickBG = 0x00;
 
     // find where client is to go id='vtxclient'
     clientDiv = document.getElementById('vtxclient');
     if (!clientDiv) return;
     clientDiv.style['position'] = 'relative';
     clientDiv.style['padding'] = '32px';
-    
+
     // special fx div
     fxDiv = domElement(
             'div',
             {   id:         'vtxfx' });
-    if (soundClicks) 
+    if (soundClicks)
         fxDiv.classList.add('raster');
     clientDiv.appendChild(fxDiv);
-    
+
     // build required inner divs
     pageDiv = domElement(
             'div',
@@ -4553,7 +4568,7 @@ function initDisplay() {
             margin:     0
         });
     clientDiv.appendChild(copyEl);
-    
+
     textPos = getElementPosition(textDiv);
 
     // determine standard sized font width in pixels
@@ -4614,10 +4629,49 @@ function initDisplay() {
     // build CSS for VTX client
     setAllCSS();
 
-    defCellAttr = vtxdata.defCellAttr;
-    defCrsrAttr = vtxdata.defCrsrAttr;
-    defPageAttr = vtxdata.defPageAttr;
+    // get default settings and attributes.
+    defCellAttr = 0x00;
+    if (vtxdata.defCellAttr) {
+      vtxdata.defCellAttr.forEach (function(el) {
+        switch (el) {
+          case 'bold':          defCellAttr = setCellAttrBold(defCellAttr, true); break;
+          case 'italics':       defCellAttr = setCellAttrItalics(defCellAttr, true); break;
+          case 'underline':     defCellAttr = setCellAttrUnderline(defCellAttr, true); break;
+          case 'reverse':       defCellAttr = setCellAttrReverse(defCellAttr, true); break;
+          case 'shadow':        defCellAttr = setCellAttrShadow(defCellAttr, true); break;
+          case 'doublestrike':  defCellAttr = setCellAttrDoublestrike(defCellAttr, true); break;
+          case 'strikethrough': defCellAttr = setCellAttrStrikethrough(defCellAttr, true); break;
+          case 'faint':         defCellAttr = setCellAttrFaint(defCellAttr, true); break;
+          case 'blinkslow':     defCellAttr = setCellAttrBlinkSlow(defCellAttr, true); break;
+          case 'blinkfast':     defCellAttr = setCellAttrBlinkFast(defCellAttr, true); break;
+        }
+      });
+    }
+    defCellFG = vtxdata.defCellFG;
+    defCellBG = vtxdata.defCellBG;
+
+    defCrsrAttr = (vtxdata.defCrsrFG & 0xFF);
+    if (vtxdata.defCrsrAttr) {
+      vtxdata.defCrsrAttr.forEach (function(el) {
+        switch (el) {
+          case 'none':          defCrsrAttr = setCrsrAttrSize(defCrsrAttr, 0); break;
+          case 'thin':          defCrsrAttr = setCrsrAttrSize(defCrsrAttr, 1); break;
+          case 'thick':         defCrsrAttr = setCrsrAttrSize(defCrsrAttr, 2); break;
+          case 'full':          defCrsrAttr = setCrsrAttrSize(defCrsrAttr, 3); break;
+          case 'horizontal':    defCrsrAttr = setCrsrAttrOrientation(defCrsrAttr, 0x000); break;
+          case 'vertical':      defCrsrAttr = setCrsrAttrOrientation(defCrsrAttr, 0x400); break;
+        }
+      });
+    }
+
+    defPageAttr = 0x00;
+    defPageAttr = setPageAttrBorder(defPageAttr, vtxdata.defPageBorder & 0xff);
+    defPageAttr = setPageAttrBackground(defPageAttr, vtxdata.defPageBG & 0xff);
+
+    // set current settings and attributes with defaults.
     cellAttr =  defCellAttr;
+    cellFG =  defCellFG;
+    cellBG =  defCellBG;
     crsrAttr = defCrsrAttr;
     pageAttr = defPageAttr;
 
@@ -4690,7 +4744,7 @@ function initDisplay() {
             left:           '50%',
             textAlign:      'right',
             zIndex:         '10'});
-            
+
     // connect / disconnect indicator / button.
     ctrlDiv.appendChild(domElement(
         'img',
@@ -4714,7 +4768,7 @@ function initDisplay() {
             height:     24,
             title:      'Fullscreen' },
             { cursor:'pointer'}));
-        
+
     // sound on / off
     ctrlDiv.appendChild(domElement(
         'img',
@@ -4771,10 +4825,10 @@ function initDisplay() {
             height:     24,
             title:      'YModem Download' },
         {   cursor:     'pointer'}));
-            
+
 
     pageDiv.parentNode.appendChild(ctrlDiv);
-    
+
     // add audio element for sound.
     audioEl = domElement(
         'audio',
@@ -4797,7 +4851,7 @@ function initDisplay() {
             case 'PETSCII':
                 conBufferOut('\x0Evtx tERMINAL cLIENT\r');
                 conBufferOut('vERSION ' + version + '\r');
-                conBufferOut('2017 dAN mECKLENBURG jR.\r');
+                conBufferOut('2019 dAN mECKLENBURG jR.\r');
                 conBufferOut('GITHUB.COM/CODEWAR65/vtx\xA4cLIENTsERVER\r');
                 conBufferOut('\rcLICK cONNECT...\r');
                 break;
@@ -4805,15 +4859,18 @@ function initDisplay() {
             case 'ATASCII':
                 conBufferOut('VTX Terminal Client\x9B');
                 conBufferOut('Version ' + version + '\x9B');
-                conBufferOut('2017 Dan Mecklenburg Jr.\x9B');
+                conBufferOut('2019 Dan Mecklenburg Jr.\x9B');
                 conBufferOut('github.com/codewar65/VTX_ClientServer\x9B');
                 conBufferOut('\x9BClick Connect...\x9B');
                 break;
 
             default:
-                conBufferOut('\n\r\x1b#6\x1b[38;5;46;58mVTX\x1b[32;78m Terminal Client\n\r');
-                conBufferOut('\x1b#6\x1b[38;5;46;59mVTX\x1b[32;79m Version ' + version + '\n\r');
-                conBufferOut('\n\r\x1b[m2017 Dan Mecklenburg Jr.\n\r');
+                  conBufferOut('\n\r \x1b[1;32;82mou\`?#k\x7f##ot.! \x1b[0;32;10mTerminal Client\n\r');
+                  conBufferOut(' \x1b[1;32;82m"o>! \x1b[32;40mj\x1b[40m\x7f \x1b[40m`<+}0 \x1b[0;32;10mVersion ' + version + '\n\r');
+//                conBufferOut('\n\r\x1b#6\x1b[38;5;46;58mVTX\x1b[32;78m Terminal Client\n\r');
+//                conBufferOut('\x1b#6\x1b[38;5;46;59mVTX\x1b[32;79m Version ' + version + '\n\r');
+
+                conBufferOut('\n\r\x1b[m2019 Dan Mecklenburg Jr.\n\r');
                 conBufferOut('Visit \x1b[1;45;1;1;'
                     + encodeAscii('https://github.com/codewar65/VTX_ClientServer')
                     + '\\https://github.com/codewar65/VTX_ClientServer for more info.\n\r');
@@ -5769,7 +5826,7 @@ function sendData(data) {
 }
 
 // poke a character
-function conPutChar(rownum, colnum, chr, attr) {
+function conPutChar(rownum, colnum, chr, attr, fg, bg) {
     // expand if needed
     expandToRow(rownum);
     expandToCol(rownum, colnum);
@@ -5777,6 +5834,8 @@ function conPutChar(rownum, colnum, chr, attr) {
         nop();
     conText[rownum] = conText[rownum].splice(colnum, 1, String.fromCharCode(chr));
     conCellAttr[rownum][colnum] = attr;
+conCellFG[rownum][colnum] = fg;
+conCellBG[rownum][colnum] = bg;
     renderCell(rownum, colnum);
 }
 
@@ -5784,7 +5843,7 @@ function conPutChar(rownum, colnum, chr, attr) {
 function conPrintChar(chr) {
 
     crsrSkipTime = new Date().getTime();
-    conPutChar(crsrRow, crsrCol, chr, cellAttr);
+    conPutChar(crsrRow, crsrCol, chr, cellAttr, cellFG, cellBG);
     crsrCol++;
     if (!modeAutoWrap) {
         if (crsrCol >= crtCols)
@@ -5848,14 +5907,14 @@ function copyRow(fromrow, torow) {
         size, width, w, h,  // dimensions
         cnvf, cnvt,         // canvases to move from / to
         ctxt;               // canvas context
-    
+
 //    rowf = getRowElement(fromrow);
 //    rowt = getRowElement(torow);
 
     width = getRowAttrWidth(conRowAttr[fromrow]) / 100;
     w = xScale * colSize * width;
     h = fontSize;
-        
+
     // copy canvas's
     // TODO : check row size changes and adjust canvas
     cnvf = conCanvas[fromrow]    ;
@@ -5867,10 +5926,10 @@ function copyRow(fromrow, torow) {
                 height: (h + 16) },
             {   zIndex: '50' });
         rowf.appendChild(cnvf);
-        conCanvas[fromrow] = cnvf;        
+        conCanvas[fromrow] = cnvf;
     }
 
-    cnvt = conCanvas[torow];    
+    cnvt = conCanvas[torow];
     if (!cnvt) {
         rowt = getRowElement(torow);
         cnvt = domElement(
@@ -5879,7 +5938,7 @@ function copyRow(fromrow, torow) {
                 height: (h + 16) },
             {   zIndex: '50' });
         rowt.appendChild(cnvt);
-        conCanvas[torow] = cnvt;        
+        conCanvas[torow] = cnvt;
     }
     ctxt = cnvt.getContext('2d');
     ctxt.clearRect(0,0,crtCols*w,h+16);
@@ -5907,13 +5966,17 @@ function scrollUp() {
     for (j = fromRow; j < toRow; j++) {
         conText[j] = conText[j + 1];
         conCellAttr[j] = conCellAttr[j + 1];
+        conCellFG[j] = conCellFG[j + 1];
+        conCellBG[j] = conCellBG[j + 1];
         conRowAttr[j] = conRowAttr[j + 1];
-        
+
         copyRow(j+1, j);
     }
     // clear bottow row
     conText[toRow] = '';
     conCellAttr[toRow] = [];
+    conCellFG[toRow] = [];
+    conCellBG[toRow] = [];
     conRowAttr[toRow] = defRowAttr;
     redrawRow(toRow);
 
@@ -5940,13 +6003,17 @@ function scrollDown() {
     for (j = toRow; j > fromRow; j--) {
         conText[j] = conText[j - 1];
         conCellAttr[j] = conCellAttr[j - 1];
+        conCellFG[j] = conCellFG[j - 1];
+        conCellBG[j] = conCellBG[j - 1];
         conRowAttr[j] = conRowAttr[j - 1];
-        
+
         copyRow(j-1,j);
     }
     // clear top row
     conText[fromRow] = '';
     conCellAttr[fromRow] = [];
+    conCellFG[fromRow] = [];
+    conCellBG[fromRow] = [];
     conRowAttr[fromRow] = defRowAttr;
     redrawRow(fromRow);
 
@@ -5969,6 +6036,8 @@ function resetTerminal() {
     conBaud = 0;
     modeDOORWAY = false;
     cellAttr = defCellAttr;
+    cellFG = defCellFG;
+    cellBG = defCellBG;
     pageAttr = defPageAttr;
     crsrAttr = defCrsrAttr;
 
@@ -6050,6 +6119,8 @@ function conCharOut(chr) {
                 } else {
                     chr = conText[crsrRow - 1].charCodeAt(crsrCol);
                     cellAttr = conCellAttr[crsrRow - 1][crsrCol];
+                    cellFG = conCellFG[crsrRow - 1][crsrCol];
+                    cellBG = conCellBG[crsrRow - 1][crsrCol];
                     var disp = getCellAttrDisplay(cellAttr);
                     if (disp == A_CELL_DISPLAY_TOP)
                         // this is a bottom.
@@ -6071,7 +6142,7 @@ function conCharOut(chr) {
                     case 0x06:  // cyan alpha
                     case 0x07:  // white alpha **
                         ttxGraphics = false;
-                        cellAttr = setCellAttrFG(cellAttr, ttxToAnsiColor[chr]);
+                        cellFG = ttxToAnsiColor[chr];
                         conPrintChar(0x20);
                         break;
 
@@ -6114,7 +6185,7 @@ function conCharOut(chr) {
                     case 0x16:  // cyan gfx
                     case 0x17:  // white gfx
                         ttxGraphics = true;
-                        cellAttr = setCellAttrFG(cellAttr, ttxToAnsiColor[chr-0x10]);
+                        cellFG = ttxToAnsiColor[chr-0x10];
                         conPrintChar(0x20);
                         break;
 
@@ -6128,13 +6199,12 @@ function conCharOut(chr) {
                         break;
 
                     case 0x1C:  // black background
-                        cellAttr = setCellAttrBG(cellAttr, ttxToAnsiColors[0]);
+                        cellFG = ttxToAnsiColors[0];
                         conPrintChar(0x20);
                         break;
 
                     case 0x1D:  // new background
-                        cellAttr = setCellAttrBG(cellAttr,
-                            getCellAttrFG(cellAttr));
+                        cellBG = cellFG;
                         conPrintChar(0x20);
                         break;
 
@@ -6164,7 +6234,8 @@ function conCharOut(chr) {
                 break;
 
             case 5:  // white
-                cellAttr = setCellAttrFG(cellAttr, 1);
+                cellFG = 1;
+                crsrAttr = setCrsrAttrColor(1);
                 break;
 
             case 7:     // bell
@@ -6217,7 +6288,7 @@ function conCharOut(chr) {
                 break;
 
             case 28: // red
-                cellAttr = setCellAttrFG(cellAttr, 2);
+                cellFG = 2;
                 crsrAttr = setCrsrAttrColor(2);
                 break;
 
@@ -6231,17 +6302,17 @@ function conCharOut(chr) {
                 break;
 
             case 30: // green
-                cellAttr = setCellAttrFG(cellAttr, 5);
+                cellFG = 5;
                 crsrAttr = setCrsrAttrColor(5);
                 break;
 
             case 31: // blue
-                cellAttr = setCellAttrFG(cellAttr, 6);
+                cellFG = 6;
                 crsrAttr = setCrsrAttrColor(6);
                 break;
 
             case 129: // orange
-                cellAttr = setCellAttrFG(cellAttr, 8);
+                cellFG = 8;
                 crsrAttr = setCrsrAttrColor(8);
                 break;
 
@@ -6257,7 +6328,7 @@ function conCharOut(chr) {
                 break;
 
             case 144: // black
-                cellAttr = setCellAttrFG(cellAttr, 0);
+                cellFG = 0;
                 crsrAttr = setCrsrAttrColor(0);
                 break;
 
@@ -6279,6 +6350,8 @@ function conCharOut(chr) {
                     els[r].parentNode.removeChild(els[r]);
                 conRowAttr = [];
                 conCellAttr = [];
+                conCellFG = [];
+                conCellBG = [];
                 conText = [];
                 document.body.style['cursor'] = 'default';
                 crsrRow = crsrCol = 0;
@@ -6291,42 +6364,42 @@ function conCharOut(chr) {
                 break;
 
             case 149: // brown
-                cellAttr = setCellAttrFG(cellAttr, 9);
+                cellFG = 9;
                 crsrAttr = setCrsrAttrColor(9);
                 break;
 
             case 150: // lt red
-                cellAttr = setCellAttrFG(cellAttr, 10);
+                cellFG = 10;
                 crsrAttr = setCrsrAttrColor(10);
                 break;
 
             case 151: // dk gray
-                cellAttr = setCellAttrFG(cellAttr, 11);
+                cellFG = 11;
                 crsrAttr = setCrsrAttrColor(11);
                 break;
 
             case 152: // gray
-                cellAttr = setCellAttrFG(cellAttr, 12);
+                cellFG = 12;
                 crsrAttr = setCrsrAttrColor(12);
                 break;
 
             case 153: // lt green
-                cellAttr = setCellAttrFG(cellAttr, 13);
+                cellFG = 13;
                 crsrAttr = setCrsrAttrColor(13);
                 break;
 
             case 154: // lt blue
-                cellAttr = setCellAttrFG(cellAttr, 14);
+                cellFG = 14;
                 crsrAttr = setCrsrAttrColor(14);
                 break;
 
             case 155: // lt gray
-                cellAttr = setCellAttrFG(cellAttr, 15);
+                cellFG = 15;
                 crsrAttr = setCrsrAttrColor(15);
                 break;
 
             case 156: // purple
-                cellAttr = setCellAttrFG(cellAttr, 4);
+                cellFG = 4;
                 crsrAttr = setCrsrAttrColor(4);
                 break;
 
@@ -6337,12 +6410,12 @@ function conCharOut(chr) {
                 break;
 
             case 158: // yellow
-                cellAttr = setCellAttrFG(cellAttr, 7);
+                cellFG = 7;
                 crsrAttr = setCrsrAttrColor(7);
                 break;
 
             case 159: // cyan
-                cellAttr = setCellAttrFG(cellAttr, 3);
+                cellFG = 3;
                 crsrAttr = setCrsrAttrColor(3);
                 break;
 
@@ -6391,6 +6464,8 @@ function conCharOut(chr) {
                     els[r].parentNode.removeChild(els[r]);
                 conRowAttr = [];
                 conCellAttr = [];
+                conCellFG = [];
+                conCellBG = [];
                 conText = [];
                 document.body.style['cursor'] = 'default';
                 crsrRow = crsrCol = 0;
@@ -6470,7 +6545,9 @@ function conCharOut(chr) {
             switch (chr) {
                 case _NUL:     // null
                     if (modeDOORWAY)
-                        modeNextGlyph = true;
+                        modeNextGlyph = true
+                    else
+                      conPrintChar(chr);
                     break;
 
                 case _BEL:     // bell
@@ -6549,12 +6626,16 @@ function conCharOut(chr) {
                                 crsrSaveRow = crsrRow;
                                 crsrSaveCol = crsrCol;
                                 cellSaveAttr = cellAttr;
+                                cellSaveFG = cellFG;
+                                cellSaveBG = cellBG;
                                 ansiState = 0;
                             } else if (chr == 0x38) {
                                 // ESC 8 - restore crsr pos and attrs
                                 crsrRow = crsrSaveRow;
                                 crsrCol = crsrSaveCol;
                                 cellAttr = cellSaveAttr;
+                                cellFG = cellSaveFG;
+                                cellBG = cellSaveBG;
                                 ansiState = 0;
                             } else if (chr == 0x44) {
                                 // ESC D - Scroll up 1
@@ -6852,7 +6933,7 @@ function conCharOut(chr) {
                                 conFont[parm[0]] = fontName;
                                 conFontCP[parm[0]] = 'ISO8859_8';
                                 break;
-                                
+
                             // CONVERTED FONTS - USE E000-E0FF for map
                             case 32: // Commodore 64 (UPPER)
                                 conFont[parm[0]] =  'C640';
@@ -6983,6 +7064,8 @@ function conCharOut(chr) {
                             // clear EOL first
                             clearHotSpotsRow(crsrRow, crsrCol, 999);
                             conCellAttr[crsrRow].length = crsrCol;
+                            conCellFG[crsrRow].length = crsrCol;
+                            conCellBG[crsrRow].length = crsrCol;
                             conText[crsrRow] = conText[crsrRow].substring(0, crsrCol);
                             // clear EOS
                             clearHotSpotsRows(crsrRow + 1, conRowAttr.length);
@@ -6991,6 +7074,8 @@ function conCharOut(chr) {
                                 row.parentNode.removeChild(row);
                                 conRowAttr.length = crsrRow + 1;
                                 conCellAttr.length = crsrRow + 1;
+                                conCellFG.length = crsrRow + 1;
+                                conCellBG.length = crsrRow + 1;
                                 conText.length = crsrRow + 1;
                                 conCanvas.length = crsrRow + 1;
                             }
@@ -7000,7 +7085,7 @@ function conCharOut(chr) {
                             // clear SOL first
                             clearHotSpotsRow(crsrRow, 0, crsrCol-1);
                             for (c = 0; c <= crsrCol; c++)
-                                conPutChar(crsrRow, c, 32, defCellAttr);
+                                conPutChar(crsrRow, c, 32, defCellAttr, delCellFG, defCellBG);
                             redrawRow(crsrRow);
 
                             // clear SOS
@@ -7008,6 +7093,8 @@ function conCharOut(chr) {
                             for (r = 0; r < crsrRow; r++) {
                                 conRowAttr[r] = defRowAttr;
                                 conCellAttr[r] = [];
+                                conCellFG[r] = [];
+                                conCellBG[r] = [];
                                 conText[r] = '';
                                 adjustRow(crsrRow);
                                 redrawRow(crsrRow);
@@ -7027,12 +7114,14 @@ function conCharOut(chr) {
                             // reset console
                             conRowAttr = [];
                             conCellAttr = [];
+                            conCellFG = [];
+                            conCellBG = [];
                             conText = [];
                             conHotSpots = [];
-                            conCanvas = [];                            
+                            conCanvas = [];
                             lastHotSpot = null;
                             document.body.style['cursor'] = 'default';
-                            crsrRow = crsrCol = 0   
+                            crsrRow = crsrCol = 0
                             crsrrender = true;
                             expandToRow(crsrRow);
                             expandToCol(crsrRow, crsrCol);
@@ -7053,6 +7142,8 @@ function conCharOut(chr) {
                             // clear EOL
                             clearHotSpotsRow(crsrRow, crsrCol, 999);
                             conCellAttr[crsrRow].length = crsrCol;
+                            conCellFG[crsrRow].length = crsrCol;
+                            conCellBG[crsrRow].length = crsrCol;
                             conText[crsrRow] = conText[crsrRow].substring(0, crsrCol);
                             redrawRow(crsrRow);
                             break;
@@ -7061,7 +7152,7 @@ function conCharOut(chr) {
                             // clear SOL
                             clearHotSpotsRow(crsrRow, 0, crsrCol);
                             for (c = 0; c <= crsrCol; c++)
-                                conPutChar(crsrRow, c, 32, defCellAttr);
+                                conPutChar(crsrRow, c, 32, defCellAttr, defCellFG, defCellBG);
                             redrawRow(crsrRow);
                             break;
 
@@ -7070,6 +7161,8 @@ function conCharOut(chr) {
                             clearHotSpotsRow(crsrRow, 0, 999);
                             conText[crsrRow] = '';
                             conCellAttr[crsrRow] = [];
+                            conCellFG[crsrRow] = [];
+                            conCellBG[crsrRow] = [];
                             redrawRow(crsrRow);
                             break;
                     }
@@ -7115,7 +7208,7 @@ function conCharOut(chr) {
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
                     for (i = 0; i < parm[0]; i++) {
-                        conPutChar(crsrRow, crsrCol + i, 0x20, defCellAttr);
+                        conPutChar(crsrRow, crsrCol + i, 0x20, defCellAttr, defCellFG, defCellBG);
                     }
                     break;
 
@@ -7291,7 +7384,7 @@ function conCharOut(chr) {
                         // syncronet got here how?
                         //console.log('CSI '+ parms + interm + String.fromCharCode(chr));
                         break;
-                    } 
+                    }
                     else if (parm[0] == 0) {
                         // sprite commands
                         switch (parm[1]) {
@@ -7615,6 +7708,8 @@ function conCharOut(chr) {
                             // Teletext burst mode. (ESC to exit mode)
                             crsrCol = 0;
                             cellSaveAttr = cellAttr; // save attributes
+                            cellSaveFG = cellFG;
+                            cellSaveBG = cellBG;
                             modeSaveAutoWrap = modeAutoWrap;
                             modeAutoWrap = false;
                             ttxBottom = false;
@@ -7636,6 +7731,8 @@ function conCharOut(chr) {
                         switch (parm[i]) {
                             case 0:     // reset
                                 cellAttr = defCellAttr;
+                                cellFG = defCellFG;
+                                cellBG = defCellBG;
                                 break;
 
                             case 1:     // bold on / off
@@ -7646,20 +7743,17 @@ function conCharOut(chr) {
 
                             case 2:     // faint on / off
                             case 22:
-                                cellAttr =
-                                    setCellAttrFaint(cellAttr, (parm[i] < 20));
+                                cellAttr = setCellAttrFaint(cellAttr, (parm[i] < 20));
                                 break;
 
                             case 3:     // italics on/off
                             case 23:
-                                cellAttr =
-                                    setCellAttrItalics(cellAttr, (parm[i] < 20));
+                                cellAttr = setCellAttrItalics(cellAttr, (parm[i] < 20));
                                 break;
 
                             case 4:     // underline
                             case 24:
-                                cellAttr =
-                                    setCellAttrUnderline(cellAttr, (parm[i] < 20));
+                                cellAttr = setCellAttrUnderline(cellAttr, (parm[i] < 20));
                                 break;
 
                             case 5:     // blink slow
@@ -7735,65 +7829,81 @@ function conCharOut(chr) {
                             case 84: // reserved
                             case 85: // reserved
                                 conFontNum = (parm[i] - 70);
-                                cellAttr = setCellAttrFont(cellAttr, (parm[i] - 70));
+                                cellAttr = setCellAttrFont(cellAttr, conFontNum);
                                 break;
 
                             // text foreground colors
                             case 30: case 31: case 32: case 33:
                             case 34: case 35: case 36: case 37:
                                 // foreground color (0-7)
-                                cellAttr = setCellAttrFG(cellAttr, parm[i] - 30)
+                                cellFG = parm[i] - 30;
                                 break;
 
                             case 38:
-                                // check for 5 ; color
-                                if (++i < l)
+                                if (++i < l) {
+                                    // check for 5 ; color
                                     if (parm[i] == 5)
                                         if (++i < l) {
                                             parm[i] = minMax(parm[i], 0, 255, 7);
-                                            cellAttr = setCellAttrFG(cellAttr, parm[i]);
+                                            cellFG = parm[i];
                                         }
+                                    // check for 2 ; r ; g ; b
+                                    else if (parm[i] == 2) {
+                                      parm = fixParams(parm, [ 0, 0, 0 ]);
+                                      cellFG = ((parm[1] & 0xFF) << 16)
+                                             | ((parm[2] & 0xFF) << 8)
+                                             |  (parm[3] & 0xFF)
+                                             | FG_CELL_24BIT;
+                                    }
+                                }
                                 break;
 
                             case 39:
                                 // default
-                                cellAttr =
-                                    setCellAttrFG(cellAttr, getCellAttrFG(defCellAttr));
+                                cellFG = defCellFG;
                                 break;
 
                             case 90: case 91: case 92: case 93:
                             case 94: case 95: case 96: case 97:
                                 // foreground color (8-15)
-                                cellAttr = setCellAttrFG(cellAttr, parm[i] - 90 + 8);
+                                cellFG = parm[i] - 90 + 8;
                                 break;
 
                             // text background colors
                             case 40: case 41: case 42: case 43:
                             case 44: case 45: case 46: case 47:
                                 // background color (0-7)
-                                cellAttr = setCellAttrBG(cellAttr, parm[i] - 40)
+                                cellBG = parm[i] - 40;
                                 break;
 
                             case 48:
-                                // check for 5 ; color
-                                if (++i < l)
+                                if (++i < l) {
+                                    // check for 5 ; color
                                     if (parm[i] == 5)
                                         if (++i < l) {
                                             parm[i] = minMax(parm[i], 0, 255, 7);
-                                            cellAttr = setCellAttrBG(cellAttr, parm[i]);
+                                            cellBG = parm[i];
                                         }
+                                    // check for 2 ; r ; g ; b
+                                    else if (parm[i] == 2) {
+                                      parm = fixParams(parm, [ 0, 0, 0 ]);
+                                      cellBG = ((parm[1] & 0xFF) << 16)
+                                             | ((parm[2] & 0xFF) << 8)
+                                             |  (parm[3] & 0xFF)
+                                             | BG_CELL_24BIT;
+                                    }
+                                }
                                 break;
 
                             case 49:
                                 // default
-                                cellAttr =
-                                    setCellAttrBG(cellAttr, getCellAttrBG(defCellAttr));
+                                cellBG = defCellBG;
                                 break;
 
                             case 100: case 101: case 102: case 103:
                             case 104: case 105: case 106: case 107:
                                 // background color (8-15)
-                                cellAttr = setCellAttrBG(cellAttr, parm[i] - 100 + 8);
+                                cellBG = parm[i] - 100 + 8;
                                 break;
                         }
                     }
@@ -7806,22 +7916,22 @@ function conCharOut(chr) {
                         case 5:
                             sendData(CSI + '0n');
                             break;
-                            
+
                         case 6:
                             sendData(CSI + (crsrRow+1) + ';' + (crsrCol+1) + 'R');
                             break;
-                            
+
                         case 255:
                             sendData(CSI + (crtRows) + ';' + (crtCols) + 'R');
                             break;
                     }
                     break;
-                    
+
                 case 0x72:  // r
                     if (interm == '*') {
                         // *r - emulate baud
                         // assuming if p1 < 2 then use p2, else reset to full speed.
-                        // ps1 : nil,0,1 = host transmit, 2=host recieve, 3=printer
+                        // ps1 : nil,0,1 = host transmit, 2=host receive, 3=printer
                         //      4=modem hi, 5=modem lo
                         // ps2 : nil,0=full speed, 1=300, 2=600,3=1200,4=2400,5=4800,
                         //      6=9600,7=19200,8=38400,9=57600,10=76800,11=115200
@@ -7852,8 +7962,31 @@ function conCharOut(chr) {
                     break;
 
                 case 0x73:  // s - Save Position
-                    crsrSaveRow = crsrRow;
-                    crsrSaveCol = crsrCol;
+                        if (parm.length == 0) {
+                          crsrSaveRow = crsrRow;
+                          crsrSaveCol = crsrCol;
+                        } else {
+                          // CSI l ; r 's' : Set scroll window (DECSTRM).
+                        }
+                    break;
+
+                case 0x74: // t - tundra true color.
+                    // CSI 1; r ; g ; b 't' same as CSI 38 ; 2 ; r ; g ; b 'm'
+                    // CSI 0; r ; g ; b 't' same as CSI 48 ; 2 ; r ; g ; b 'm'
+                    if (parm.length == 4) {
+                      parm = fixParams(parm, [ 0, 0, 0, 0 ]);
+                      if (parm[0] == 0) {
+                        cellBG = ((parm[1] & 0xFF) << 16)
+                               | ((parm[2] & 0xFF) << 8)
+                               |  (parm[3] & 0xFF)
+                               | BG_CELL_24BIT;
+                      } else if (parm[0] == 1) {
+                        cellFG = ((parm[1] & 0xFF) << 16)
+                               | ((parm[2] & 0xFF) << 8)
+                               |  (parm[3] & 0xFF)
+                               | FG_CELL_24BIT;
+                      }
+                    }
                     break;
 
                 case 0x75:  // u - Restore Position
@@ -7914,8 +8047,6 @@ function getAnsiLength(str) {
     var str2 =  str.replace(/\e\[.*[@-_]/g, '');
     return str.length;
 }
-
-
 
 // remove all NL from string. (https://www.chromestatus.com/features/5735596811091968)
 function stripNL(strin) {
@@ -8075,7 +8206,7 @@ function tnNegotiate(data) {
                                 case TN_NAWS:   // negotiate about window size
                                 case TN_TTYPE:  // terminal type
                                 case TN_TSPEED: // terminal speed
-case TN_NEWE:                                
+                                case TN_NEWE:   // new environ
                                     tnSendCmd(TN_DO, b);
                                     tnQHim[b] = TNQ_YES;
                                     break;
@@ -8122,7 +8253,7 @@ case TN_NEWE:
                                 case TN_NAWS:
                                 case TN_TTYPE:
                                 case TN_TSPEED:
-case TN_NEWE:
+                                case TN_NEWE:
                                     tnSendCmd(TN_WILL, b);
                                     tnQUs[b] = TNQ_YES;
                                     break;
@@ -8253,8 +8384,8 @@ function tnInit() {
 
 addListener(window, 'load', bootVTX);
 
-var 
-    fsClientParent, 
+var
+    fsClientParent,
     fsClientStyle,
     fsClientPlaceHolder,
     fsFontSize,
@@ -8263,29 +8394,29 @@ var
 // find required font size given a destop width / height
 // crtRows and crtCols must fill best area.
 function toggleFullScreen() {
-    var 
+    var
         i, l,
-        ch, 
-        cw, 
-        st, 
+        ch,
+        cw,
+        st,
         fs,
         el = document.body;
-    
+
     if (modeFullScreen) {
         // turn if off. restore to original state.
         // restore style
         clientDiv.style.cssText = fsClientStyle;
         fxDiv.style['position'] = 'absolute';
 
-        if (document.cancelFullscreen) 
+        if (document.cancelFullscreen)
             document.cancelFullscreen()
-        if (document.exitFullscreen) 
+        if (document.exitFullscreen)
             document.exitFullscreen()
-        else if (document.mozCancelFullScreen) 
+        else if (document.mozCancelFullScreen)
             document.mozCancelFullScreen()
-        else if (document.webkitExitFullscreen) 
+        else if (document.webkitExitFullscreen)
             document.webkitExitFullscreen()
-        else if (document.msExitFullscreen) 
+        else if (document.msExitFullscreen)
             document.msExitFullscreen();
 
         // move it back
@@ -8293,30 +8424,30 @@ function toggleFullScreen() {
         fsClientParent.removeChild(fsClientPlaceHolder);
 
         modeFullScreen = false;
-        
+
         vtxdata.fontSize = fsFontSize;
         fontSize = fsFontSize;
     } else {
-        
+
         // turn it on.
-        if (el.requestFullscreen) 
+        if (el.requestFullscreen)
             el.requestFullscreen()
-        else if(el.mozRequestFullScreen) 
+        else if(el.mozRequestFullScreen)
             el.mozRequestFullScreen()
-        else if(el.webkitRequestFullscreen) 
+        else if(el.webkitRequestFullscreen)
             el.webkitRequestFullscreen()
-        else if(el.msRequestFullscreen) 
+        else if(el.msRequestFullscreen)
             el.msRequestFullscreen();
-       
+
         // mark our place.
         fsClientParent = clientDiv.parentNode;
         fsClientPlaceHolder = domElement('div', {}, { width: '0', height: '0' });
         fsClientParent.insertBefore(fsClientPlaceHolder, clientDiv);
-        
+
         // save styles
         fsClientStyle = clientDiv.style.cssText;
         fsFontSize = vtxdata.fontSize;
-        
+
         // set full screen styles
         clientDiv.style['position'] = 'absolute';
         clientDiv.style['top'] = '0';
@@ -8329,7 +8460,7 @@ function toggleFullScreen() {
 
         // move client
         document.body.appendChild(clientDiv);
-        
+
         modeFullScreen = true;
 
         // compute new font size to fit screen
@@ -8340,21 +8471,21 @@ function toggleFullScreen() {
         // shrink to width if needed
         while (((fs / (fontSize / colSize)) * crtCols * xScale) > cw)
             fs -= 2;
-        
+
         // some figuring ..
         vtxdata.fontSize = fs;
         fontSize = fs;
     }
     setBulbs();
-    
+
     // determine standard sized font width in pixels
     getDefaultFontSize(); // get fontName, colSize, rowSize
     crtWidth = colSize * crtCols;
-    
+
     // redraw everything!
     pageDiv.style['width'] = (crtWidth * xScale) + 'px';
     ctrlDiv.style['width'] = (crtWidth * xScale / 2) + 'px',
-    
+
     pagePos = getElementPosition(pageDiv);
     pageLeft = pagePos.left;
     pageTop = pagePos.top;
@@ -8369,7 +8500,7 @@ function toggleFullScreen() {
 }
 
 function createCookie(name, val, days) {
-    var 
+    var
         date,
         expires = "";
     const
@@ -8383,15 +8514,15 @@ function createCookie(name, val, days) {
 }
 
 function readCookie(name) {
-    var 
+    var
         i, c,
         nameEQ = name + "=",
         ca = document.cookie.split(';');
     for (i = 0; i < ca.length; i++) {
         c = ca[i];
-        while (c.charAt(0)==' ') 
+        while (c.charAt(0)==' ')
             c = c.substring(1, c.length);
-        if (c.indexOf(nameEQ) == 0) 
+        if (c.indexOf(nameEQ) == 0)
             return c.substring(nameEQ.length, c.length);
     }
     return null;

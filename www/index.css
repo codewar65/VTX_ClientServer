@@ -1,0 +1,12 @@
+@font-face {
+  font-family: DECTERM;
+  src: url(_decterm.woff);
+}
+
+body {
+  font-family:    DECTERM;
+  font-size:      24px;
+  background:     #040404;
+  color:          #FFBF00;
+}
+
