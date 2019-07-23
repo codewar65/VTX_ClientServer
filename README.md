@@ -308,9 +308,9 @@ is set to 0, no telnet handshaking negotiations will take place once a connectio
 
 **autoConnect** 0 = don't autoconnect on launch, 1 = autoconnect.
 
-** fontName** is the default font to use. UVGA16 should be specified in most cases. 
+**fontName** is the default font to use. UVGA16 should be specified in most cases. 
 
-** fontSize** the default font size to use. 16px unscaled default size. Larger sizes will increase the required size of the client.
+**fontSize** the default font size to use. 16px unscaled default size. Larger sizes will increase the required size of the client.
 
 ```javascript
 var vtxdata = {
