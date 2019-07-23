@@ -1,6 +1,6 @@
 # VTX_ClientServer
 
-updated: 10-SEP-2017
+updated: 23-JUL-2019
 
 
 ![VTX Client Screenshot](https://raw.githubusercontent.com/codewar65/VTX_ClientServer/master/work/vtx_screen1.png "Logo Title Text 1")
@@ -49,6 +49,8 @@ template file (in the www path).
 
 ANSI: 256 colors (base 8 + high intensity + 6x6x6 color cube + grays) - see 
 https://en.wikipedia.org/wiki/ANSI_escape_code PETSCII: Commodore color palettes.
+
+ANSI: 24-bit color support. (see vtx.txt)
 
 Transparent black in VTX mode.
 
@@ -269,6 +271,10 @@ The contents of the vtxdata is information the client needs to connect to your s
 
 **wsConnect** is the [ws/wss]://url:port to the websocket service that will direct you to your system.
 
+**wsProtocol** is the protocol specified when the websocket connection is made. Normally this is either telnet or plain.
+
+**wsDataType** either 'string' or 'arraybuffer'. if not specified, string is used. 'blob' is as of now, unsupported.
+
 **term** is the terminal type that gets reported to the telnet server. Use PETSCII if you
 are connecting to a Commodore style board.
 
@@ -283,17 +289,19 @@ get truncated.
 **initStr** contains optional ANSI codes that can be sent to the term prior to connection
 to set it into whatever modes the system operator desires.
 
-**defPageAttr** is a value that defines the colors of the page, bits 7-0 are the colors of the page,
-bits 15-8 is the border color (the parent container outside of the main vtxpage div). Colors
-are 0x00 - 0xFF (ANSI colors whereas color 0 = transparent).
+**defPageBorder** is the border color of the terminal (the parent container outside of the main vtxpage div). 0-255.
 
-**defCrsrAttr** is the default cursor attributes or how the cursor will be displayed. Bits 7-0 are
-the color (0x00 - 0xFF), bit 9-8 define the style (0=none, 1=thin, 2=thick, 3=full block),
-bit 10 defines the orientation (0=horizontal, 1=vertical)
+**defPageBG** is the page color of the terminal. 0-255.
 
-**defCellAttr** defines the default character attributes (what CSI 0 m reverts to). Bits 7-0 are
-the foreground color, bits 15-8 are the background color. Other bits can be set as well. See
-the documention at the head of vtxclient.js on GitHub.
+**defCrsrFG** is the color of the cursor. (0-255).
+
+**defCrsrAttr** is a list of attributes for the cursor. Values are 'none', 'thin', 'thick', or 'full' for the size, along with either 'horizontal' or 'vertical' for cursor orientation.
+
+**defCellFG** is the default character foreground color. Values are 0-255 for indexed color or '#RRGGBB' for 24 bit color.
+
+**defCellBG** is the default character background color. Values are 0-255 for indexed color or '#RRGGBB' for 24 bit color.
+
+**defCellAttr** is a list of character attributes for the default character state (i.e. after a reset). Values include: 'bold', 'italics', 'underline', 'reverse', 'shadow', 'doublestrike', 'strikethrough', 'faint', 'blinkslow', or 'blinkfast'
 
 **telnet** lets the client know if the server is connecting to a telnet service if set to 1. If the value
 is set to 0, no telnet handshaking negotiations will take place once a connection is made.
@@ -306,29 +314,30 @@ is set to 0, no telnet handshaking negotiations will take place once a connectio
 
 ```javascript
 var vtxdata = {
-  sysName:     "VTX Home System",
-  wsConnect:   "ws://142.105.247.156:7003",
-  term:        "ANSI",
-  hixie:       0,
-  telnet:      1,
-  autoConnect: 0,
-  codePage:    "CP437",
-  fontName:    'UVGA16',
-  fontSize:    '16px',
-  crtCols:     80,
-  crtRows:     25,
-  crtHistory:  500,
-  xScale:      1,
-  initStr:     "",
-  defPageAttr: 0xF410,
-  defCrsrAttr: 0x0207,
-  defCellAttr: 0x0007
+  sysName:        "Goblin Studio BBS",
+  wsConnect:      "wss://goblin.strangled.net:8811",
+  term:           "ansi-bbs",
+  codePage:       "CP437",
+  autoConnect:    0,
+  telnet:         1,
+  wsProtocol:     'telnet',
+  wsDataType:     'arraybuffer',
+  fontSize:       '24px',
+  fontName:       'UVGA16',
+  crtCols:        80,
+  crtRows:        25,
+  crtHistory:     500,
+  xScale:         1,
+  //initStr:     "\x1B[?50h\x1B[0;10m\x1B[255l\x1B[?25h\x1B[?31h\x1B[?32l\x1B[?33l\x1B[?34l\x1B[?35l",
+  initStr:        "",
+  defPageBorder:  232,
+  defPageBG:      0x10,
+  defCrsrFG:      0x07,
+  defCrsrAttr:    [ 'thick', 'horizontal' ],
+  defCellFG:      0x07,
+  defCellBG:      0x00,
+  defCellAttr:    []
 };
 ```
 
 ## To Do($) / To Fix(!) / Investigate(?)
-
-? WSS / certificate support in server.
-
-? thin version of uvga16.
-

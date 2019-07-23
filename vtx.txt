@@ -222,6 +222,7 @@ Sequences (# : to be implemented)
         35 : Magenta foreground color.
         36 : Cyan foreground color.
         37 : White (gray) foreground color.
+        38;2;r;g;b : Set foreground color 24 bit (0-255).
         38;5;n : Set foreground color from palette (0-255). {0}
         39 : Reset foreground color to default.
         40 : Black background color.
@@ -232,6 +233,7 @@ Sequences (# : to be implemented)
         45 : Magenta background color.
         46 : Cyan background color.
         47 : White (gray) background color.
+        48;2;r;g;b : Set background color 24 bit (0-255).
         48;5;n : Set background color from palette (0-255). {0}
         49 : Reset background color to default.
         50 : n/a
@@ -278,6 +280,9 @@ Sequences (# : to be implemented)
         b = bottom row number
 
     CSI s : Save cursor position.
+    
+    CSI n ; r ; g ; b 't' : Set 24bit color. n: 0=background, 1=foreground. r/g/b: 0-255.
+    
     CSI u : Restore cursor position.
 
     ESC '7' : Save crsr pos and attrs
