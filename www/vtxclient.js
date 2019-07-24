@@ -114,7 +114,7 @@ vtx: {
 
 // globals
 const
-    version = '0.94 beta',
+    version = '0.94a beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -7067,6 +7067,8 @@ function conCharOut(chr) {
                             conCellFG[crsrRow].length = crsrCol;
                             conCellBG[crsrRow].length = crsrCol;
                             conText[crsrRow] = conText[crsrRow].substring(0, crsrCol);
+                            redrawRow(crsrRow);
+
                             // clear EOS
                             clearHotSpotsRows(crsrRow + 1, conRowAttr.length);
                             for (r = getMaxRow(); r > crsrRow; r--) {
@@ -7085,7 +7087,7 @@ function conCharOut(chr) {
                             // clear SOL first
                             clearHotSpotsRow(crsrRow, 0, crsrCol-1);
                             for (c = 0; c <= crsrCol; c++)
-                                conPutChar(crsrRow, c, 32, defCellAttr, delCellFG, defCellBG);
+                                conPutChar(crsrRow, c, 32, defCellAttr, defCellFG, defCellBG);
                             redrawRow(crsrRow);
 
                             // clear SOS
@@ -7096,8 +7098,8 @@ function conCharOut(chr) {
                                 conCellFG[r] = [];
                                 conCellBG[r] = [];
                                 conText[r] = '';
-                                adjustRow(crsrRow);
-                                redrawRow(crsrRow);
+                                adjustRow(r);
+                                redrawRow(r);
                             }
                             break;
 
