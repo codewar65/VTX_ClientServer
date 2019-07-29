@@ -114,7 +114,7 @@ vtx: {
 
 // globals
 const
-    version = '0.94a beta',
+    version = '0.94a1 beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -253,6 +253,7 @@ const
     DO_NUMLK =          -2,
     DO_SCRLK =          -3,
     DO_SELECTALL =      -5,     // select all text on screen.
+DO_SENDKEY =        -6,     // send keyboardEvent.key
 
     // terminal states
     TS_OFFLINE =        -1, // not connected
@@ -1520,7 +1521,8 @@ const
         27: function () {       // esc
                 if (cbm)                return 0x03 // run/stop
                 else                    return _ESC; },
-        32: ' ',                // spacebar
+32:DO_SENDKEY,                
+//        32: ' ',                // spacebar
         33: function(){         // pgup
                 if (modeDOORWAY)        return '\x00\x49'
                 else                    return CSI+'V'; },
@@ -2743,12 +2745,13 @@ function keyUp(e) {
 function keyDown(e) {
     var
         stateIdx,
-        kc, ka,
+        kc, ka, kk,
         r, c,
         p, endl, str;
 
     e = e || window.event;
     kc = e.keyCode || e.which;
+    kk = e.key;
 
     shiftState = e.shiftKey;
     ctrlState = e.ctrlKey;
@@ -2811,7 +2814,10 @@ function keyDown(e) {
 
     if (typeof ka == 'string') {
         // send string to console.
-        sendData(ka);
+        if ((ka.length == 1) && (kk.length == 1))
+            sendData(kk)
+        else
+            sendData(ka);
         e.preventDefault();
         return (e.returnValue = false); // true
 
@@ -2840,17 +2846,13 @@ function keyDown(e) {
                     setBulbs();
                     break;
 
-                case DO_COPY:
-                    // create string of selected text.
-                    if (isSelect) {
-                        isSelect = false;
-                        refreshBetweenRCs(selectStart, selectEnd);
-                    }
-                    break;
-
                 case DO_SELECTALL:
                     break;
 
+                case DO_SENDKEY:
+                  sendData(kk);
+                  break;
+  
                 default:
                     // unknown action - pass to keyPress
                     return;
