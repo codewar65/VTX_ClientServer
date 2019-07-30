@@ -5757,8 +5757,9 @@ function getBytecode(cp, ch) {
         v = ch
     else
         v = ch.charCodeAt(0);
-      
-    for (i = 0; i < codePageData['ASCII'].length; i++) {
+
+    // skip nulls on lookup
+    for (i = 1; i < codePageData['ASCII'].length; i++) {
         if (v == codePageData['ASCII'][i]) 
             return i;
     }
