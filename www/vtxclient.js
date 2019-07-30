@@ -2814,9 +2814,13 @@ function keyDown(e) {
 
     if (typeof ka == 'string') {
         // send string to console.
-        if ((ka.length == 1) && (kk.length == 1))
-            sendData(kk)
-        else
+        if ((ka.length == 1) && (kk.length == 1)) {
+            // convert to current codepage
+            kk = getBytecode(codePage, kk); 
+            // don't send null (bad key)
+            if ((typeof kk != 'number') || (kk != 0))
+              sendData(kk);
+        } else
             sendData(ka);
         e.preventDefault();
         return (e.returnValue = false); // true
@@ -5720,6 +5724,29 @@ function dump(buff, start, len){
     console.log(str);
 }
 function nop(){};
+
+// convert unicode to character ch (0-255) XXXXX
+function getBytecode(cp, ch) {
+    var 
+        i, v,
+        cplut = codePageData[cp] || codePageData[codePageAKAs[cp]];
+
+    if ((cp == 'UTF8') || (cp == 'UTF16'))
+      return ch;
+
+    v = ch.charCodeAt(0);
+    for (i = 0; i < cplut.length; i++) {
+        if (v == codePageData['ASCII'][i]) {
+            switch (cplut.length) {
+              case 256:   return i;
+              case 128:   return i;
+              case 96:    return i + 32;
+            }
+            return i;
+        }
+    }
+    return 0;
+}
 
 // convert character ch (0-255) to unicode
 function getUnicode(cp, ch) {
