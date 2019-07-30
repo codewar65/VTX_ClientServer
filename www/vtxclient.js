@@ -4017,7 +4017,10 @@ function beforePaste(e) {
 // event functions for ctrl+v text to console
 function paste(e) {
     var
-        str, clipboardData;
+        i, v,
+        str, 
+        tmp,
+        clipboardData;
 
     e = e || window.event;
 
@@ -4031,7 +4034,22 @@ function paste(e) {
     // for now, local echo it.
     str = clipboardData.getData('Text');
     str = str.replace(/(?:\r\n|\r|\n)/g, '\x0D\x0A');
-    sendData(str);
+    
+    // be sure all characters are within codepage.
+    if ((codePage != 'UTF8') && codePage != 'UTF16') {
+      tmp = '';
+      for (i = 0; i < str.length; i++) {
+        v = getBytecode(codePage, str.charCodeAt(i));
+        if (typeof v == 'number') {
+          if (v > 0)
+            tmp += String.fromCharCode(v);
+        } else
+          tmp += v;
+      }
+    } else
+      tmp = str;
+    
+    sendData(tmp);
 }
 
 // update cursor from crsrAttr values
@@ -5725,22 +5743,31 @@ function dump(buff, start, len){
 }
 function nop(){};
 
-// convert unicode to character ch (0-255) XXXXX
+// convert unicode to character ch (0-255) 
+// TODO : Test with PETSCII and ATASCII!! (non ASCII codepages)
 function getBytecode(cp, ch) {
     var 
         i, v,
         cplut = codePageData[cp] || codePageData[codePageAKAs[cp]];
 
     if ((cp == 'UTF8') || (cp == 'UTF16'))
-      return ch;
+        return ch;
 
-    v = ch.charCodeAt(0);
+    if (typeof ch == 'number')
+        v = ch
+    else
+        v = ch.charCodeAt(0);
+      
+    for (i = 0; i < codePageData['ASCII'].length; i++) {
+        if (v == codePageData['ASCII'][i]) 
+            return i;
+    }
     for (i = 0; i < cplut.length; i++) {
-        if (v == codePageData['ASCII'][i]) {
+        if (v == cplut[i]) {
             switch (cplut.length) {
               case 256:   return i;
-              case 128:   return i;
-              case 96:    return i + 32;
+              case 128:   return 128 + i;
+              case 96:    return 128 + 32 + i;
             }
             return i;
         }
