@@ -46,7 +46,7 @@
         00000000 00101100 00000000 00000000 - default
 
         00000000 00000000 00000000 00000000  - bits
-        ------DD mww---bb ssssssss ffffffff
+        -------- -DDmwwbb ssssssss ffffffff
         00000000 00101100 00000000 00000000
            00       2C       00       00
 
@@ -228,17 +228,18 @@ const
     A_ROW_PATTERN_SOLID     = 0x00010000, // solid color1
     A_ROW_PATTERN_HORZ      = 0x00020000, // horizontal gradient color1 to color2
     A_ROW_PATTERN_VERT      = 0x00030000, // vertical gradient color1 to color2
-    A_ROW_WIDTH_MASK        = 0x00600000, // 50,100,150,200
+    A_ROW_WIDTH_MASK        = 0x000C0000, // 50,100,150,200
+    A_ROW_WIDTH_SHIFT       = 18,
     A_ROW_WIDTH_50          = 0x00000000,
-    A_ROW_WIDTH_100         = 0x00200000,
-    A_ROW_WIDTH_150         = 0x00400000,
-    A_ROW_WIDTH_200         = 0x00600000,
-    A_ROW_MARQUEE           = 0x00800000,
-    A_ROW_DISPLAY_MASK      = 0x03000000, // normal/conceal/top/bottom
+    A_ROW_WIDTH_100         = 0x00040000,
+    A_ROW_WIDTH_150         = 0x00080000,
+    A_ROW_WIDTH_200         = 0x000C0000,
+    A_ROW_MARQUEE           = 0x00100000,
+    A_ROW_DISPLAY_MASK      = 0x00600000, // normal/conceal/top/bottom
     A_ROW_DISPLAY_NORMAL    = 0x00000000,
-    A_ROW_DISPLAY_CONCEAL   = 0x01000000,
-    A_ROW_DISPLAY_TOP       = 0x02000000,
-    A_ROW_DISPLAY_BOTTOM    = 0x03000000,
+    A_ROW_DISPLAY_CONCEAL   = 0x00200000,
+    A_ROW_DISPLAY_TOP       = 0x00400000,
+    A_ROW_DISPLAY_BOTTOM    = 0x00600000,
 
     A_CRSR_COLOR_MASK       = 0x000000FF, // 0-255
     A_CRSR_STYLE_MASK       = 0x00000300, // none,thin,thick,full
@@ -253,7 +254,6 @@ const
     DO_NUMLK =          -2,
     DO_SCRLK =          -3,
     DO_SELECTALL =      -5,     // select all text on screen.
-DO_SENDKEY =        -6,     // send keyboardEvent.key
 
     // terminal states
     TS_OFFLINE =        -1, // not connected
@@ -1521,8 +1521,7 @@ DO_SENDKEY =        -6,     // send keyboardEvent.key
         27: function () {       // esc
                 if (cbm)                return 0x03 // run/stop
                 else                    return _ESC; },
-32:DO_SENDKEY,                
-//        32: ' ',                // spacebar
+        32: ' ',                // spacebar
         33: function(){         // pgup
                 if (modeDOORWAY)        return '\x00\x49'
                 else                    return CSI+'V'; },
@@ -2060,7 +2059,8 @@ let
     defCellAttr,                // default cell attributes.
     defCellFG,                  // default cell color.
     defCellBG,
-    defRowAttr = 0x002c0000,    // def row attr
+    defRowAttr = A_ROW_WIDTH_100,
+    
     lastChar,                   // last printable character outputed.
     lastHotSpot = null,         // last mouseover hotspot
 
@@ -3284,11 +3284,11 @@ function makeRowAttr(c1, c2, bp, width, marquee) {
     width = width || 100;
     marquee = marquee || false;
 
-    width = minMax(Math.round(width / 50) - 1, 0, 3) << 21;
+    width = minMax(Math.round(width / 50) - 1, 0, 3) << A_ROW_WIDTH_SHIFT;
+  
     return (c1 & 0xFF)
         | ((c2 & 0xFF) << 8)
         | bp
-        | size
         | width
         | (marquee ? A_ROW_MARQUEE : 0);
 }
@@ -3315,7 +3315,7 @@ function setRowAttrWidth(attr, width) {
     width = Math.round(width / 50) - 1;
     if (width < 0) width = 0;
     if (width > 3) width = 3;
-    width <<= 21;
+    width <<= A_ROW_WIDTH_SHIFT;
 
     return (attr & ~A_ROW_WIDTH_MASK) | width;
 }
@@ -3327,7 +3327,7 @@ function setRowAttrMarquee(attr, marquee) {
 function getRowAttrColor1(attr) { return attr & 0xFF; }
 function getRowAttrColor2(attr) { return (attr >>> 8) & 0xFF; }
 function getRowAttrPattern(attr) { return attr & A_ROW_PATTERN_MASK; }
-function getRowAttrWidth(attr) { return (((attr & A_ROW_WIDTH_MASK) >>> 21) + 1) * 50.0; }
+function getRowAttrWidth(attr) { return (((attr & A_ROW_WIDTH_MASK) >>> A_ROW_WIDTH_SHIFT) + 1) * 50.0; }
 function getRowAttrMarquee(attr) { return (attr & A_ROW_MARQUEE) != 0; }
 
 // set cell attribute parts
@@ -3910,8 +3910,7 @@ function expandToRow(rownum) {
     if (rownum >= conRowAttr.length) {
         while (rownum > getMaxRow()) {
             textDiv.appendChild(createNewRow());
-
-            conRowAttr[conRowAttr.length] = 0x002C0000;
+            conRowAttr[conRowAttr.length] = A_ROW_WIDTH_100;
             conCellAttr[conCellAttr.length] = [];
             conCellFG[conCellFG.length] = [];
             conCellBG[conCellBG.length] = [];
@@ -6741,11 +6740,15 @@ function conCharOut(chr) {
                             switch (chr) {
                                 case 0x30:
                                     // ESC # 0 - reset row
+                                    expandToRow(crsrRow);
+                                    redrawRow(crsrRow);
                                     conRowAttr[crsrRow] = defRowAttr;
                                     break;
 
                                 case 0x31:
                                     // ESC # 1 - single wide, double high, top
+                                    expandToRow(crsrRow);
+                                    redrawRow(crsrRow);
                                     conRowAttr[crsrRow] &=
                                         ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
                                     conRowAttr[crsrRow] |= (A_ROW_DISPLAY_TOP | A_ROW_WIDTH_100);
@@ -6753,6 +6756,8 @@ function conCharOut(chr) {
 
                                 case 0x32:
                                     // ESC # 2 - single wide, double high, bottom
+                                    expandToRow(crsrRow);
+                                    redrawRow(crsrRow);
                                     conRowAttr[crsrRow] &=
                                         ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
                                     conRowAttr[crsrRow] |= (A_ROW_DISPLAY_BOTTOM | A_ROW_WIDTH_100);
@@ -6760,6 +6765,8 @@ function conCharOut(chr) {
 
                                 case 0x33:
                                     // ESC # 3 - double wide/high, top
+                                    expandToRow(crsrRow);
+                                    redrawRow(crsrRow);
                                     conRowAttr[crsrRow] &=
                                         ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
                                     conRowAttr[crsrRow] |= (A_ROW_DISPLAY_TOP | A_ROW_WIDTH_200);
@@ -6767,6 +6774,8 @@ function conCharOut(chr) {
 
                                 case 0x34:
                                     // ESC # 4 - double wide/high, bottom
+                                    expandToRow(crsrRow);
+                                    redrawRow(crsrRow);
                                     conRowAttr[crsrRow] &=
                                         ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
                                     conRowAttr[crsrRow] |= (A_ROW_DISPLAY_BOTTOM | A_ROW_WIDTH_200);
@@ -6774,6 +6783,8 @@ function conCharOut(chr) {
 
                                 case 0x35:
                                     // ESC # 5 - single wide/high
+                                    expandToRow(crsrRow);
+                                    redrawRow(crsrRow);
                                     conRowAttr[crsrRow] &=
                                         ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
                                     conRowAttr[crsrRow] |= (A_ROW_WIDTH_100);
@@ -6781,6 +6792,8 @@ function conCharOut(chr) {
 
                                 case 0x36:
                                     // ESC # 6 - single high / double wide
+                                    expandToRow(crsrRow);
+                                    redrawRow(crsrRow);
                                     conRowAttr[crsrRow] &=
                                         ~(A_ROW_DISPLAY_MASK | A_ROW_WIDTH_MASK);
                                     conRowAttr[crsrRow] |= (A_ROW_WIDTH_200);
@@ -6789,6 +6802,8 @@ function conCharOut(chr) {
                                 case 0x37:
                                     // marquee off
                                     // ESC # 7
+                                    expandToRow(crsrRow);
+                                    redrawRow(crsrRow);
                                     conRowAttr[crsrRow] &= ~A_ROW_MARQUEE;
                                     getRowElement(crsrRow).firstChild.classList.remove('marquee')
                                     break;
@@ -6796,6 +6811,8 @@ function conCharOut(chr) {
                                 case 0x38:
                                     // marquee on
                                     // ESC # 8
+                                    expandToRow(crsrRow);
+                                    redrawRow(crsrRow);
                                     conRowAttr[crsrRow] |= A_ROW_MARQUEE;
                                     getRowElement(crsrRow).firstChild.classList.add('marquee');
                                     break;
@@ -6890,7 +6907,7 @@ function conCharOut(chr) {
                                 conFont[parm[0]] = fontName;
                                 conFontCP[parm[0]] = 'CP437';
                                 break;
-7
+
                             case  5: // Codepage 866 (c) Russian
                                 conFont[parm[0]] = fontName;
                                 conFontCP[parm[0]] = 'CP866';
