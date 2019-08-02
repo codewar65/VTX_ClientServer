@@ -114,7 +114,7 @@ vtx: {
 
 // globals
 const
-    version = '0.94a1 beta',
+    version = '0.94a2 beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
