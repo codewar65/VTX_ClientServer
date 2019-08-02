@@ -3741,7 +3741,7 @@ function renderCell(rownum, colnum, hilight, bottom) {
             // ANSI color
             if (attr & A_CELL_FAINT)
               // darken faint color
-              tfb = brightenRGB(ansiColors[tfg], -0.33) | FG_CELL_24BIT;
+              tfg = brightenRGB(ansiColors[tfg], -0.33) | FG_CELL_24BIT;
 
             if (tfg & FG_CELL_24BIT)
               ctx.fillStyle = '#' + itoh(tfg & FG_CELL_COLOR, 6)
@@ -3817,6 +3817,7 @@ function renderCell(rownum, colnum, hilight, bottom) {
             ctx.fillRect(0, (h >> 1) - stroke, w, stroke);
         }
         if (attr & A_CELL_DOUBLESTRIKE) {
+          // todo: move strikes closer together
             ctx.fillRect(0, (h >> 2) - stroke, w, stroke);
             ctx.fillRect(0, ((h >> 1)+(h >> 2)) - stroke, w, stroke);
         }
@@ -6710,6 +6711,7 @@ function conCharOut(chr) {
                             } else if (chr == 0x63) {
                                 // ESC c - reset terminal
                                 resetTerminal();
+                                ansiState = 0;
                             } else
                                 // unrecognized - abort sequence
                                 ansiState = 0;
@@ -6888,7 +6890,7 @@ function conCharOut(chr) {
                                 conFont[parm[0]] = fontName;
                                 conFontCP[parm[0]] = 'CP437';
                                 break;
-
+7
                             case  5: // Codepage 866 (c) Russian
                                 conFont[parm[0]] = fontName;
                                 conFontCP[parm[0]] = 'CP866';
@@ -7900,20 +7902,24 @@ function conCharOut(chr) {
 
                             case 38:
                                 if (++i < l) {
-                                    // check for 5 ; color
-                                    if (parm[i] == 5)
-                                        if (++i < l) {
-                                            parm[i] = minMax(parm[i], 0, 255, 7);
-                                            cellFG = parm[i];
-                                        }
-                                    // check for 2 ; r ; g ; b
-                                    else if (parm[i] == 2) {
-                                      parm = fixParams(parm, [ 0, 0, 0 ]);
-                                      cellFG = ((parm[1] & 0xFF) << 16)
-                                             | ((parm[2] & 0xFF) << 8)
-                                             |  (parm[3] & 0xFF)
+                                  switch (parm[i]) {
+                                    case 5:
+                                      // check for 5 ; color
+                                      if (++i < l) {
+                                        parm[i] = minMax(parm[i], 0, 255, 7);
+                                        cellFG = parm[i];
+                                      }
+                                      break;
+                                        
+                                    case 2:
+                                      // check for 2 ; r ; g ; b
+                                      cellFG = ((parm[i + 1] & 0xFF) << 16)
+                                             | ((parm[i + 2] & 0xFF) << 8)
+                                             |  (parm[i + 3] & 0xFF)
                                              | FG_CELL_24BIT;
-                                    }
+                                      i += 4;
+                                      break;
+                                  }
                                 }
                                 break;
 
@@ -7937,20 +7943,24 @@ function conCharOut(chr) {
 
                             case 48:
                                 if (++i < l) {
-                                    // check for 5 ; color
-                                    if (parm[i] == 5)
-                                        if (++i < l) {
-                                            parm[i] = minMax(parm[i], 0, 255, 7);
-                                            cellBG = parm[i];
-                                        }
-                                    // check for 2 ; r ; g ; b
-                                    else if (parm[i] == 2) {
-                                      parm = fixParams(parm, [ 0, 0, 0 ]);
-                                      cellBG = ((parm[1] & 0xFF) << 16)
-                                             | ((parm[2] & 0xFF) << 8)
-                                             |  (parm[3] & 0xFF)
+                                  switch (parm[i]) {
+                                    case 5:
+                                      // check for 5 ; color
+                                      if (++i < l) {
+                                        parm[i] = minMax(parm[i], 0, 255, 7);
+                                        cellBG = parm[i];
+                                      }
+                                      break;
+                                      
+                                    case 2:
+                                      // check for 2 ; r ; g ; b
+                                      cellBG = ((parm[i + 1] & 0xFF) << 16)
+                                             | ((parm[i + 2] & 0xFF) << 8)
+                                             |  (parm[i + 3] & 0xFF)
                                              | BG_CELL_24BIT;
-                                    }
+                                      i += 4;
+                                      break;
+                                  }
                                 }
                                 break;
 
