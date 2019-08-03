@@ -300,9 +300,9 @@ Sequences (# : to be implemented)
             4 : double wide / double high - bottom half
             5 : single wide / single high
             6 : double wide / single high
-            7 : Row Marquee off #
-            8 : Row Marquee on #
-    
+            = : Row Marquee off #
+            < : Row Marquee on #
+
 
     VTX MEDIA COMMANDS  CSI _
     SPRITE COMMANDS CSI 0 ... _

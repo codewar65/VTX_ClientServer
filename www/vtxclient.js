@@ -114,7 +114,7 @@ vtx: {
 
 // globals
 const
-    version = '0.94a2 beta',
+    version = '0.94a3 beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -6810,18 +6810,18 @@ function conCharOut(chr) {
                                     conRowAttr[crsrRow] |= (A_ROW_WIDTH_200);
                                     break;
 
-                                case 0x37:
+                                case 0x3D: // was ESC # 7
                                     // marquee off
-                                    // ESC # 7
+                                    // ESC # =
                                     expandToRow(crsrRow);
                                     redrawRow(crsrRow);
                                     conRowAttr[crsrRow] &= ~A_ROW_MARQUEE;
                                     getRowElement(crsrRow).firstChild.classList.remove('marquee')
                                     break;
 
-                                case 0x38:
+                                case 0x3C: // was ESC # 8
                                     // marquee on
-                                    // ESC # 8
+                                    // ESC # <
                                     expandToRow(crsrRow);
                                     redrawRow(crsrRow);
                                     conRowAttr[crsrRow] |= A_ROW_MARQUEE;
