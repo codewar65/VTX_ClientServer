@@ -402,11 +402,11 @@ Sequences (# : to be implemented)
     ROW ATTRIBUTE SETTINGS CSI ]
     ============================
         
-    CSI c1 ; c2 ; s ']' : Set Row Background. (in BBS/ANSI.SYS mode, color 0 is true black, so
+    CSI s ; c1 ; c2 ']' : Set Row Background. (in BBS/ANSI.SYS mode, color 0 is true black, so
         text on a colored background appears as text on black, not the row background.)
+        s : Style. 0=none, 1=solid color 1, 2=horizontal gradient, 3=vertical gradient. {0}
         c1 : Color 1 (0-255) {0}
         c2 : Color 2 (0-255) {0}
-        s : Style. 0=none, 1=solid color 1, 2=horizontal gradient, 3=vertical gradient. {0}
 
         
    

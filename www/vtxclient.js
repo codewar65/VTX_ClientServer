@@ -224,6 +224,7 @@ const
     A_ROW_COLOR1_MASK       = 0x000000FF, // 0-255
     A_ROW_COLOR2_MASK       = 0x0000FF00, // 0-255
     A_ROW_PATTERN_MASK      = 0x00030000, // normal,solid,horz,vert
+    A_ROW_PATTERN_SHIFT     = 16,
     A_ROW_PATTERN_NONE      = 0x00000000, // no background
     A_ROW_PATTERN_SOLID     = 0x00010000, // solid color1
     A_ROW_PATTERN_HORZ      = 0x00020000, // horizontal gradient color1 to color2
@@ -236,6 +237,7 @@ const
     A_ROW_WIDTH_200         = 0x000C0000,
     A_ROW_MARQUEE           = 0x00100000,
     A_ROW_DISPLAY_MASK      = 0x00600000, // normal/conceal/top/bottom
+    A_ROW_DISPLAY_SHIFT     = 21,
     A_ROW_DISPLAY_NORMAL    = 0x00000000,
     A_ROW_DISPLAY_CONCEAL   = 0x00200000,
     A_ROW_DISPLAY_TOP       = 0x00400000,
@@ -243,11 +245,13 @@ const
 
     A_CRSR_COLOR_MASK       = 0x000000FF, // 0-255
     A_CRSR_STYLE_MASK       = 0x00000300, // none,thin,thick,full
+    A_CRSR_STYLE_SHIFT      = 8,
     A_CRSR_STYLE_NONE       = 0x00000000,
     A_CRSR_STYLE_THIN       = 0x00000100,
     A_CRSR_STYLE_THICK      = 0x00000200,
     A_CRSR_STYLE_FULL       = 0x00000300,
     A_CRSR_ORIENTATION      = 0x00000400,   // 0 = horz, 1 = vert
+    A_CRSR_ORIENTATION_SHIFT = 10,
 
     // special key commands
     DO_CAPLK =          -1,
@@ -3202,13 +3206,11 @@ function doCursor() {
         crsr.firstChild.style['background-color'] =
             ((crsrBlink = !crsrBlink) || (!modeCursor)) ?
             'transparent' :
-//            cbmColors[cellAttr & 0xF]
             cbmColors[cellFG & 0xF]
     else if(atari)
         crsr.firstChild.style['background-color'] =
             ((crsrBlink = !crsrBlink) || (!modeCursor)) ?
             'transparent' :
-//            atariColors[cellAttr & 0x1]
             atariColors[cellFG & 0x1]
     else
         crsr.firstChild.style['background-color'] =
@@ -3259,7 +3261,7 @@ function itoh(i, d) {
         str = '';
 
     d = d || 0;
-    for (; i; str = hex.charAt(i & 0x0F) + str, i >>= 4){};
+    for (; i; str = hex.charAt(i & 0x0F) + str, i >>>= 4){};
     if (d > 0)
         while (str.length < d) str = '0' + str;
     return str;
@@ -3391,7 +3393,7 @@ function makeCrsrAttr(color, size, orientation){
     color &= 0xFF;
     size &= 0x03;
     orientation = (orientation ? 1 : 0)
-    return (color & 0xFF) | (size << 8) | (orientation << 10);
+    return (color & 0xFF) | (size << 8) | (orientation << A_CRSR_ORIENTATION_SHIFT);
 }
 
 // set cursor attributes
@@ -3399,7 +3401,7 @@ function setCrsrAttrColor(attr, color) {
     return (attr & ~A_CRSR_COLOR_MASK) | (color & 0xFF);
 }
 function setCrsrAttrSize(attr, size) {
-    return (attr & ~A_CRSR_STYLE_MASK) | ((size << 8) & 0x0300);
+    return (attr & ~A_CRSR_STYLE_MASK) | ((size << A_CRSR_STYLE_SHIFT) & 0x0300);
 }
 function setCrsrAttrOrientation(attr, orient) {
     return (attr & ~A_CRSR_ORIENTATION) | (orient ? A_CRSR_ORIENTATION : 0x0000);
@@ -3814,12 +3816,12 @@ function renderCell(rownum, colnum, hilight, bottom) {
             ctx.fillRect(0, h - stroke, w, stroke);
         }
         if (attr & A_CELL_STRIKETHROUGH) {
-            ctx.fillRect(0, (h >> 1) - stroke, w, stroke);
+            ctx.fillRect(0, (h >>> 1) - stroke, w, stroke);
         }
         if (attr & A_CELL_DOUBLESTRIKE) {
           // todo: move strikes closer together
-            ctx.fillRect(0, (h >> 2) - stroke, w, stroke);
-            ctx.fillRect(0, ((h >> 1)+(h >> 2)) - stroke, w, stroke);
+            ctx.fillRect(0, (h >>> 2) - stroke, w, stroke);
+            ctx.fillRect(0, ((h >>> 1)+(h >>> 2)) - stroke, w, stroke);
         }
     }
     ctx.restore();
@@ -6098,8 +6100,17 @@ function resetTerminal() {
     pageAttr = defPageAttr;
     crsrAttr = defCrsrAttr;
 
-    pageDiv.parentNode.style['background-color'] = ansiColors[(pageAttr >>> 8) & 0xFF];
-    pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
+    if (cbm) {
+        pageDiv.parentNode.style['background-color'] = cbmColors[(pageAttr >>> 8) & 0xF];
+        pageDiv.style['background-color'] = cbmColors[pageAttr & 0xF];
+    } else if (atari) {
+        pageDiv.parentNode.style['background-color'] = atariColors[(pageAttr >>> 8) & 0x1];
+        pageDiv.style['background-color'] = atariColors[pageAttr & 0x1];
+    } else {
+        pageDiv.parentNode.style['background-color'] = ansiColors[(pageAttr >>> 8) & 0xFF];
+        pageDiv.style['background-color'] = ansiColors[pageAttr & 0xFF];
+    }
+
     conFontNum = 0;                 // current font being used.
     for (i = 0; i < 10; i++) {      // set default font selects.
         conFont[i] = fontName;
@@ -7341,19 +7352,20 @@ function conCharOut(chr) {
                     break;
 
                 case 0x5D:  // ] - Row Modes / background
+                  // changed order of parameters - 8/3/2019
                     parm = fixParams(parm, [0,0,0]);
-                    parm[0] = minMax(parm[0], 0, 255, 0);
+                    parm[0] = minMax(parm[0], 0, 3, 0);
                     parm[1] = minMax(parm[1], 0, 255, 0);
-                    parm[2] = minMax(parm[2], 0, 3, 0);
-                    conRowAttr[crsrRow] = setRowAttrColor1(conRowAttr[crsrRow], parm[0]);
-                    conRowAttr[crsrRow] = setRowAttrColor2(conRowAttr[crsrRow], parm[1]);
-                    conRowAttr[crsrRow] = setRowAttrPattern(conRowAttr[crsrRow], parm[2] << 16);
+                    parm[2] = minMax(parm[2], 0, 255, 0);
+                    conRowAttr[crsrRow] = setRowAttrPattern(conRowAttr[crsrRow], parm[0] << A_ROW_PATTERN_SHIFT); 
+                    conRowAttr[crsrRow] = setRowAttrColor1(conRowAttr[crsrRow], parm[1]);
+                    conRowAttr[crsrRow] = setRowAttrColor2(conRowAttr[crsrRow], parm[2]);
 
                     // set row attrs here
                     row = getRowElement(crsrRow);
-                    c1 = ansiColors[parm[0]];
-                    c2 = ansiColors[parm[1]];
-                    switch (parm[2] << 16) {
+                    c1 = ansiColors[parm[1]];
+                    c2 = ansiColors[parm[2]];
+                    switch (parm[0] << A_ROW_PATTERN_SHIFT) {
                         case A_ROW_PATTERN_SOLID:
                             row.style['background'] = c1;
                             break;
