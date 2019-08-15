@@ -114,7 +114,7 @@ vtx: {
 
 // globals
 const
-    version = '0.94a3 beta',
+    version = '0.94a5 beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -316,6 +316,7 @@ const
 
     // special char codes and sequences
     NUL =       '\x00',
+    BEL =       '\x07',
     ESC =       '\x1B',
     CSI =       '\x1B[',
     CR =        '\x0D',
@@ -6641,10 +6642,13 @@ function conCharOut(chr) {
                     break;
 
                 case _LF:    // linefeed
-//                    if (!modeVTXANSI)  // LF dont CR!  lol
-//                        crsrCol = 0;    // for BBS/ANSI.SYS mode
+// not beyond scroll region
+if ((modeRegion) && (crsrRow == regionBottomRow)) {
+  scrollUp();
+} else {
                     crsrRow++;
                     crsrrender = true;
+}                    
                     break;
 
                 case _CR:    // carriage return
@@ -7105,7 +7109,18 @@ function conCharOut(chr) {
                     parm = fixParams(parm, [1]);
                     parm[0] = minMax(parm[0], 1, 999);
                     crsrCol = 0;
+// not beyond scroll region
+if (modeRegion) {
+  for (i = 0; i < parm[0]; i++) {
+    if (crsrRow == regionBottomRow) {
+      scrollUp();
+    } else {
+      crsrRow++;
+    }
+  }
+} else {
                     crsrRow += parm[0];
+}                    
                     crsrrender = true;
                     break;
 
@@ -7752,6 +7767,10 @@ function conCharOut(chr) {
                             // origin in region?
                             modeRegionOrigin = (chr == 0x68);
                             modeRegion = true;
+// also move cursor to new home
+crsrCol = 0;                            
+crsrRow = (chr == 0x68) ? regionTopRow : 0;
+crsrrender = true;
                             break;
 
                         case '?7':
@@ -8008,9 +8027,12 @@ function conCharOut(chr) {
                     break;
 
                 case 0x6E:  // n DSR - device status report
-                    parm = fixParams(parm, [1]);
-                    parm[0] = minMax(parm[0], 1, 999);
-                    switch (parm[0]) {
+                    if (parm[0] == '=255') {
+                      sendData(CSI + (crtRows) + ';' + (crtCols) + 'R');
+                    } else {
+                      parm = fixParams(parm, [1]);
+                      parm[0] = minMax(parm[0], 1, 999);
+                      switch (parm[0]) {
                         case 5:
                             sendData(CSI + '0n');
                             break;
@@ -8018,10 +8040,7 @@ function conCharOut(chr) {
                         case 6:
                             sendData(CSI + (crsrRow+1) + ';' + (crsrCol+1) + 'R');
                             break;
-
-                        case 255:
-                            sendData(CSI + (crtRows) + ';' + (crtCols) + 'R');
-                            break;
+                      }
                     }
                     break;
 
