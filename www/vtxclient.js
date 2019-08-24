@@ -114,7 +114,7 @@ vtx: {
 
 // globals
 const
-    version = '0.94a5 beta',
+    version = '0.94a6 beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -3296,6 +3296,12 @@ function makeRowAttr(c1, c2, bp, width, marquee) {
         | (marquee ? A_ROW_MARQUEE : 0);
 }
 
+function getPageAttrBorder(attr) {
+  return (attr >>> 8) && 0xFF;
+}
+function getPageAttrBackground(attr) {
+  return (attr & 0xFF);
+}
 function setPageAttrBorder(attr, color) {
     return (attr & 0x00FF) | ((color & 0xFF) << 8);
 }
@@ -7458,7 +7464,7 @@ if (modeRegion) {
                                 if (l == 1)
                                     pageAttr = setPageAttrBackground(
                                         pageAttr,
-                                        getOageAttrBackground(defPageAttr))
+                                        getPageAttrBackground(defPageAttr))
                                 else
                                     pageAttr = setPageAttrBackground(
                                         pageAttr,
