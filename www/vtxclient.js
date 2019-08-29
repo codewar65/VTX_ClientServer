@@ -3303,7 +3303,7 @@ function makeRowAttr(c1, c2, bp, width, marquee) {
 }
 
 function getPageAttrBorder(attr) {
-  return (attr >>> 8) && 0xFF;
+  return (attr >>> 8) & 0xFF;
 }
 function getPageAttrBackground(attr) {
   return (attr & 0xFF);
