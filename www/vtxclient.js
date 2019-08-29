@@ -2101,6 +2101,7 @@ let
     modeVTXANSI = false,        // CSI ?50 h/l to switch out of old ANSI.SYS mode.
     modeBlinkBright = false,    // CSI ?33 h/l to switch blink for bright background.
     modeCursor = true,          // CSI ?25 h/l to turn cursor on / off.
+    modeCursorBlink = true,     // CSI ?12 h/l to turn cursor blink on / off.
     modeBoldFont = false,       // CSI ?31 h/l to use font 1 for bold.
     modeNoBold = false,         // CSI ?32 h/l to disallow bold.
     modeBlinkFont = false,      // CSI ?34 h/l to use font 2 for blink.
@@ -3213,11 +3214,16 @@ function doCursor() {
             ((crsrBlink = !crsrBlink) || (!modeCursor)) ?
             'transparent' :
             atariColors[cellFG & 0x1]
-    else
-        crsr.firstChild.style['background-color'] =
+    else {
+        if (modeCursorBlink) 
+          crsr.firstChild.style['background-color'] =
             ((crsrBlink = !crsrBlink) || (!modeCursor)) ?
             'transparent' :
+            ansiColors[getCrsrAttrColor(crsrAttr)]
+        else
+          crsr.firstChild.style['background-color'] =
             ansiColors[getCrsrAttrColor(crsrAttr)];
+    }
 }
 
 // animate blink (533ms)
@@ -6095,6 +6101,7 @@ function resetTerminal() {
     modeVTXANSI = false;
     modeBlinkBright = false;
     modeCursor = true;
+    modeCursorBlink = true;
     modeBoldFont = false;
     modeNoBold = false;
     modeBlinkFont = false;
@@ -7774,15 +7781,20 @@ if (modeRegion) {
                             // origin in region?
                             modeRegionOrigin = (chr == 0x68);
                             modeRegion = true;
-// also move cursor to new home
-crsrCol = 0;                            
-crsrRow = (chr == 0x68) ? regionTopRow : 0;
-crsrrender = true;
+                            // also move cursor to new home
+                            crsrCol = 0;                            
+                            crsrRow = (chr == 0x68) ? regionTopRow : 0;
+                            crsrrender = true;
                             break;
 
                         case '?7':
                             // autowrap mode
                             modeAutoWrap = (chr == 0x68);
+                            break;
+
+                        case '?12':
+                            // cursor blink
+                            modeCursorBlink = (chr == 0x68);
                             break;
 
                         case '?25':
