@@ -114,7 +114,7 @@ vtx: {
 
 // globals
 const
-    version = '0.94a6 beta',
+    version = '0.94a7 beta',
 
     // ansi color lookup table (alteration. color 0=transparent, use 16 for true black`)
     ansiColors = [
@@ -3400,7 +3400,7 @@ function makeCrsrAttr(color, size, orientation){
     color &= 0xFF;
     size &= 0x03;
     orientation = (orientation ? 1 : 0)
-    return (color & 0xFF) | (size << 8) | (orientation << A_CRSR_ORIENTATION_SHIFT);
+    return (color & 0xFF) | (size << A_CRSR_STYLE_SHIFT) | (orientation << A_CRSR_ORIENTATION_SHIFT);
 }
 
 // set cursor attributes
@@ -3416,8 +3416,8 @@ function setCrsrAttrOrientation(attr, orient) {
 
 // get cursor attributes
 function getCrsrAttrColor(attr) { return attr & 0xFF; }
-function getCrsrAttrSize(attr) { return (attr & A_CRSR_STYLE_MASK) >>> 8; }
-function getCrsrAttrOrientation(attr) { return (attr & A_CRSR_ORIENTATION) >>> 10; }
+function getCrsrAttrSize(attr) { return (attr & A_CRSR_STYLE_MASK) >>> A_CRSR_STYLE_SHIFT; }
+function getCrsrAttrOrientation(attr) { return (attr & A_CRSR_ORIENTATION) >>> A_CRSR_ORIENTATION_SHIFT; }
 
 // if row size has changed, resize canvas, redraw row.
 function adjustRow(rownum) {
@@ -7434,11 +7434,12 @@ if (modeRegion) {
                                 if (l == 1)
                                     crsrAttr = setCrsrAttrOrientation(
                                         crsrAttr,
-                                        (parm[1] ? A_CRSR_ORIENTATION : 0))
+                                        getCrsrAttrOrientation(defCrsrAttr));
                                 else
                                     crsrAttr = setCrsrAttrOrientation(
                                         crsrAttr,
-                                        getCrsrAttrOrientation(defCrsrAttr));
+                                        (parm[1] ? A_CRSR_ORIENTATION : 0))
+
                                 newCrsr();
                                 break;
 

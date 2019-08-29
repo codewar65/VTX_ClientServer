@@ -345,9 +345,9 @@ Sequences (# : to be implemented)
         n = audio number; 1-64
         t = type:   0 = url : unicode encoded characters 
                     1 = UTF8 url : hex3 encoded
-                    2 = raw UTF8 svg : hex3 encoded
-                    3 = raw UTF8 svg deflated : hex3 encoded
-                    4 = raw UTF8 svg Base64: hex3 encoded (https://github.com/nodeca/pako/tree/master/dist)
+                    2 = raw UTF8 mp3 : hex3 encoded
+                    3 = raw UTF8 mp3 deflated : hex3 encoded
+                    4 = raw UTF8 mp3 Base64: hex3 encoded (https://github.com/nodeca/pako/tree/master/dist)
         data;       (0) ascii;ascii... or hexstring where 0-9=0-9,A-F=:-? (0x30-0x3F)
     CSI 1 ; 0 ; n '_' : clear audio object n
     CSI 1 ; 0 '_' : clear all audio objects.
