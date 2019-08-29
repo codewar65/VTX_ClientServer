@@ -168,6 +168,7 @@ Sequences (# : to be implemented)
         n = '?50' : turns on VTX ANSI mode. #
             '?6' : 1,1=ul of scrolling region
             '?7' : auto wrap on
+            '?12' : cursor blink on
             '?25' : cursor on
             '?31' : bold uses font 1
             '?32' : bold disabled
@@ -182,6 +183,7 @@ Sequences (# : to be implemented)
                 render 7-bit codes once in mode to teletext display output.
             '?6' : 1,1=ul of scrolling region
             '?7' : auto wrap off
+            '?12' : cursor blink off
             '?25' : cursor hide
             '?31' : bold uses font 0
             '?32' : bold enabled
