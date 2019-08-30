@@ -3041,6 +3041,7 @@ function crsrDraw() {
     if (row == null) return;
 
     // position of row in relation to parent.
+    // TODO: bottleneck here
     rpos = getElementPosition(row);
 
     // position of doc
@@ -3819,11 +3820,26 @@ function renderCell(rownum, colnum, hilight, bottom) {
             x + (xScale * xadj),        // x adj
             yadj);                      // y adj
 
+        var cca = ch.charCodeAt(0);
         if (teletext >= 0)
-            drawMosaicBlock(ctx, ch.charCodeAt(0), w / width, h, teletext)
-        else
-            ctx.fillText(ch, 0, 0);
-
+            drawMosaicBlock(ctx, cca, w / width, h, teletext)
+        else {
+          // add code to handle block characters like teletext?
+            switch (cca) {
+              case 0x2588: // full block
+              case 0x2580: // top half
+              case 0x2584: // bottom half
+              case 0x258C: // left half
+              case 0x2590: // right half
+                drawBlock(ctx, cca, w / width, h);
+                break;
+                
+              default:
+                ctx.fillText(ch, 0, 0);
+                break;
+            }
+        }
+        
         // draw underline / strikethough manually
         if (attr & A_CELL_UNDERLINE) {
             ctx.fillRect(0, h - stroke, w, stroke);
@@ -3839,6 +3855,31 @@ function renderCell(rownum, colnum, hilight, bottom) {
     }
     ctx.restore();
 }
+
+// manually draw block graphic
+function drawBlock(ctx, cca, w, h) {
+  switch (cca) {
+    case 0x2588: // full block
+      ctx.fillRect(0,0,w,h);
+      break;
+      
+    case 0x2580: // top half
+      ctx.fillRect(0,0,w,h>>1);
+      break;
+      
+    case 0x2584: // bottom half
+      ctx.fillRect(0,h>>1,w,h>>1);
+      break;
+    
+    case 0x258C: // left half
+      ctx.fillRect(0,0,w>>1,h);
+      break;
+    
+    case 0x2590: // right half
+      ctx.fillRect(w>>1,0,w>>1,h);
+      break;
+  }
+ }
 
 // draw teletext style block graphic
 // 0x20-0x3f/0x60-0x7f
